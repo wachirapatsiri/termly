@@ -1,26 +1,18 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* สีหลักของแอป — ใช้ผ่านคลาส Tailwind เช่น bg-background, text-foreground, text-accent, border-line */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-background: #fafaf8;
+  --color-foreground: #1f2328;
+  --color-muted: #656d76;
+  --color-accent: #3b5bdb;
+  --color-line: #e4e4e0;
+  --font-sans: var(--font-anuphan), system-ui, sans-serif;
+  --radius-card: 0.5rem;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
 }
