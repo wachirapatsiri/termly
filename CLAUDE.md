@@ -55,7 +55,7 @@ minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan,
 ## แผนเซสชัน / สถานะ
 แผนเต็มของผู้ใช้ (12 เซสชัน, เฟส 2, เช็กลิสต์ก่อนเปิดให้คนลอง, ตัววัดผล) อยู่ที่ `docs/plan.md` — ยึดลำดับตามนั้น
 
-1. [x] ตั้งโปรเจกต์ Next.js + Tailwind + Anuphan + CLAUDE.md — [ ] deploy Vercel (ผู้ใช้กำลัง push ขึ้น GitHub `wachirapatsiri/termly` ด้วย token แล้วจะเชื่อม Vercel)
+1. [x] ตั้งโปรเจกต์ Next.js + Tailwind + Anuphan + CLAUDE.md + deploy Vercel — https://termly-zeta.vercel.app (GitHub `wachirapatsiri/termly`, push ขึ้น `main` แล้ว Vercel deploy อัตโนมัติ)
 2. [ ] Supabase + ล็อกอินด้วย Google
 3. [ ] ตาราง courses, tasks, events (+ ai_usage) + RLS → เพิ่ม/ดู/แก้/ลบ task ด้วยมือได้
 4. [ ] หน้าเพิ่มวิชา + หน้ารายการงาน (เรียงตามวัน)
