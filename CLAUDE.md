@@ -41,6 +41,7 @@
   - `courses`: id, user_id, name, code, created_at
   - `tasks`: id, user_id, course_id (nullable), title, due_at, due_has_time, notes, source (`manual`/`ai`), done, created_at
   - `ai_usage`: id, user_id, created_at, input_type (`text`/`pdf`/`image`), success
+  - `events` (สร้างในเซสชัน 3 ตามแผนผู้ใช้): id, user_id, course_id (nullable), title, kind (`exam`/`class`/`activity`/`other`), starts_at, ends_at (nullable), location, notes, created_at — ต่างจาก `tasks` ตรงที่เป็นสิ่งที่ "เกิดขึ้นตามเวลา" (สอบ, กิจกรรม) ไม่ใช่งานที่ต้องส่ง ใน MVP ใช้กับวันสอบ Midterm/Final ก่อน หน้า UI ของกิจกรรมเต็มรูปแบบอยู่เฟส 2
 - วันที่เก็บเป็น ค.ศ. (timestamptz, โซนเวลา Asia/Bangkok) แสดงผลเป็น พ.ศ.
 - ไม่เก็บไฟล์ที่อัปโหลด: ส่งให้ AI แล้วทิ้ง
 - AI ส่ง `confidence` + `raw_date_text` ต่อรายการ; รายการไม่มั่นใจไฮไลต์เตือน และต้องยืนยันก่อนบันทึก
@@ -56,7 +57,7 @@ minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan,
 
 1. [x] ตั้งโปรเจกต์ Next.js + Tailwind + Anuphan + CLAUDE.md — [ ] deploy Vercel (ผู้ใช้กำลัง push ขึ้น GitHub `wachirapatsiri/termly` ด้วย token แล้วจะเชื่อม Vercel)
 2. [ ] Supabase + ล็อกอินด้วย Google
-3. [ ] ตาราง courses, tasks (+ ai_usage) + RLS → เพิ่ม/ดู/แก้/ลบ task ด้วยมือได้
+3. [ ] ตาราง courses, tasks, events (+ ai_usage) + RLS → เพิ่ม/ดู/แก้/ลบ task ด้วยมือได้
 4. [ ] หน้าเพิ่มวิชา + หน้ารายการงาน (เรียงตามวัน)
 5. [ ] หน้าวางข้อความ → AI ฝั่งเซิร์ฟเวอร์ → JSON (title, course, due_date, due_date_confidence, note) + ชุดทดสอบภาษาไทย 3 แบบ
 6. [ ] หน้าตรวจก่อนบันทึก (การ์ด, แก้/ติ๊ก/ลบ, confidence ต่ำ = สีเหลือง, บันทึกทั้งหมด)
@@ -67,7 +68,6 @@ minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan,
 11. [ ] ปรับ UI + หน้าแรกอธิบายสั้น ๆ + ทดสอบใช้เอง
 12. [ ] เปิดให้เพื่อน 5–10 คนลอง + ฟอร์มความเห็น + ราคาทดลอง
 
-ตาราง `events` ที่อยู่ในแผนเซสชัน 3 ยังไม่สร้าง เพราะเป็นส่วนกิจกรรมซึ่งเลื่อนไปเฟส 2 (รอผู้ใช้ยืนยัน)
 
 ## เฟส 2 (ยังไม่ทำ)
 สัดส่วนคะแนน (ล็อก Midterm/Final + ก้อน "งานเก็บคะแนน") + เครื่องคำนวณเกรดไฟนอล, ส่วนกิจกรรม, ระบบชำระเงิน
