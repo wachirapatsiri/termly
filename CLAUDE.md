@@ -57,7 +57,7 @@ minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan,
 แผนเต็มของผู้ใช้ (12 เซสชัน, เฟส 2, เช็กลิสต์ก่อนเปิดให้คนลอง, ตัววัดผล) อยู่ที่ `docs/plan.md` — ยึดลำดับตามนั้น
 
 1. [x] ตั้งโปรเจกต์ Next.js + Tailwind + Anuphan + CLAUDE.md + deploy Vercel — https://termly-zeta.vercel.app (GitHub `wachirapatsiri/termly`, push ขึ้น `main` แล้ว Vercel deploy อัตโนมัติ)
-2. [~] Supabase + ล็อกอินด้วย Google — โค้ดเสร็จ (`proxy.ts`, `lib/supabase/*`, `lib/auth.ts`, `/login`, `/auth/callback`, `/auth/signout`) รอผู้ใช้ตั้งค่า Supabase/Google/Vercel ตาม `docs/setup-supabase.md` แล้วทดสอบจริง
+2. [x] Supabase + ล็อกอินด้วย Google — ทดสอบบนเว็บจริงผ่าน (Supabase project `adbgiuinkqeaohdcfnmm`, Singapore; Google OAuth อยู่โหมด Testing → เพื่อนที่จะลองต้องอยู่ใน Test users หรือ Publish แอปก่อนเซสชัน 12; ขั้นตอนตั้งค่าอยู่ `docs/setup-supabase.md`)
 3. [ ] ตาราง courses, tasks, events (+ ai_usage) + RLS → เพิ่ม/ดู/แก้/ลบ task ด้วยมือได้
 4. [ ] หน้าเพิ่มวิชา + หน้ารายการงาน (เรียงตามวัน)
 5. [ ] หน้าวางข้อความ → AI ฝั่งเซิร์ฟเวอร์ → JSON (title, course, due_date, due_date_confidence, note) + ชุดทดสอบภาษาไทย 3 แบบ
