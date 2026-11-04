@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useOptimistic, useState } from "react";
 import { deleteTask, setTaskDone } from "@/app/tasks/actions";
 import { formatDue } from "@/lib/dates";
 import type { Course, Task } from "@/lib/types";
@@ -20,6 +20,13 @@ export function TaskItem({
   const [editing, setEditing] = useState(false);
   const close = useCallback(() => setEditing(false), []);
 
+  // Optimistic UI: เปลี่ยนหน้าจอทันทีที่กด ไม่ต้องรอเซิร์ฟเวอร์
+  // ถ้าเซิร์ฟเวอร์บันทึกไม่สำเร็จ หน้าจอจะกลับเป็นค่าจริงเองหลังโหลดข้อมูลใหม่
+  const [done, setOptimisticDone] = useOptimistic(task.done);
+  const [removed, setOptimisticRemoved] = useOptimistic(false);
+
+  if (removed) return null;
+
   if (editing) {
     return (
       <li className="rounded-card border border-accent/40 bg-white p-4">
@@ -31,30 +38,35 @@ export function TaskItem({
   return (
     <li className="flex gap-3 rounded-card border border-line bg-white p-4">
       {/* ติ๊กเสร็จ / ยกเลิกเสร็จ */}
-      <form action={setTaskDone}>
+      <form
+        action={async (formData) => {
+          setOptimisticDone(!done);
+          await setTaskDone(formData);
+        }}
+      >
         <input type="hidden" name="id" value={task.id} />
-        <input type="hidden" name="done" value={String(!task.done)} />
+        <input type="hidden" name="done" value={String(!done)} />
         <button
           type="submit"
-          aria-label={task.done ? "ทำเครื่องหมายว่ายังไม่เสร็จ" : "ทำเครื่องหมายว่าเสร็จแล้ว"}
+          aria-label={done ? "ทำเครื่องหมายว่ายังไม่เสร็จ" : "ทำเครื่องหมายว่าเสร็จแล้ว"}
           className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border text-xs ${
-            task.done ? "border-accent bg-accent text-white" : "border-muted/60"
+            done ? "border-accent bg-accent text-white" : "border-muted/60"
           }`}
         >
-          {task.done ? "✓" : ""}
+          {done ? "✓" : ""}
         </button>
       </form>
 
       <div className="min-w-0 flex-1 space-y-1">
-        <p className={`font-medium break-words ${task.done ? "text-muted line-through" : ""}`}>
+        <p className={`font-medium break-words ${done ? "text-muted line-through" : ""}`}>
           {task.title}
         </p>
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
           {task.due_at ? (
-            <span className={overdue ? "text-red-600" : "text-muted"}>
+            <span className={overdue && !done ? "text-red-600" : "text-muted"}>
               {formatDue(task.due_at, task.due_has_time)}
-              {overdue && " · เลยกำหนด"}
+              {overdue && !done && " · เลยกำหนด"}
             </span>
           ) : (
             <span className="rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">
@@ -75,7 +87,10 @@ export function TaskItem({
             แก้ไข
           </button>
           <form
-            action={deleteTask}
+            action={async (formData) => {
+              setOptimisticRemoved(true);
+              await deleteTask(formData);
+            }}
             onSubmit={(e) => {
               if (!confirm(`ลบงาน "${task.title}" ?`)) e.preventDefault();
             }}
