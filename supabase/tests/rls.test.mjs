@@ -1,0 +1,55 @@
+// ทดสอบตาราง + RLS ด้วย Postgres จำลองในเครื่อง (PGlite) ไม่ต้องต่อ Supabase จริง
+// รัน: npm run test:db
+import { PGlite } from "@electric-sql/pglite";
+import fs from "node:fs";
+import path from "node:path";
+
+const MIGRATIONS = path.join(import.meta.dirname, "..", "migrations");
+const A='11111111-1111-1111-1111-111111111111', B='22222222-2222-2222-2222-222222222222';
+(async()=>{
+const db=new PGlite();
+// จำลองของที่ Supabase มีให้
+await db.exec(`
+create role anon nologin; create role authenticated nologin;
+create schema auth; create table auth.users(id uuid primary key);
+create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true),'')::uuid $$;
+grant usage on schema auth, public to anon, authenticated;
+grant execute on function auth.uid() to anon, authenticated;
+insert into auth.users values ('${A}'),('${B}');
+`);
+for (const f of fs.readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql')).sort()) {
+  await db.exec(fs.readFileSync(path.join(MIGRATIONS, f), 'utf8'));
+}
+let pass=0, fail=0;
+async function as(uid, sql){ await db.exec(`reset role; set request.jwt.claim.sub='${uid??''}'; set role ${uid?'authenticated':'anon'};`); try { return (await db.query(sql)).rows; } finally { await db.exec('reset role'); } }
+async function ok(name, fn){ try{ await fn(); console.log('✓',name); pass++;}catch(e){console.log('✗',name,e.message); fail++;} }
+async function rejects(name, fn){ try{ await fn(); console.log('✗',name,'(ไม่ error)'); fail++;}catch(e){console.log('✓',name,'→',e.message.slice(0,80)); pass++;} }
+const eq=(a,b,m)=>{ if(JSON.stringify(a)!==JSON.stringify(b)) throw new Error(`${m}: ${JSON.stringify(a)} != ${JSON.stringify(b)}`); };
+
+let cA, cB, tA;
+await ok('A เพิ่มวิชา (user_id เติมเอง)', async()=>{ const r=await as(A,`insert into courses(name,code) values('สถิติ','DS101') returning id,user_id`); cA=r[0].id; eq(r[0].user_id,A,'user_id'); });
+await ok('B เพิ่มวิชา', async()=>{ cB=(await as(B,`insert into courses(name) values('B วิชา') returning id`))[0].id; });
+await ok('A เพิ่มงานผูกวิชาตัวเอง', async()=>{ tA=(await as(A,`insert into tasks(title,course_id,due_at,due_has_time) values('รายงาน','${cA}','2026-11-11T16:59:00Z',false) returning id`))[0].id; });
+await ok('A เพิ่มงานไม่มีวันส่ง', async()=>{ await as(A,`insert into tasks(title) values('งานยังไม่รู้วัน')`); });
+await rejects('ไม่มีวันส่งแต่ due_has_time=true', ()=>as(A,`insert into tasks(title,due_has_time) values('x',true)`));
+await rejects('A ผูกงานกับวิชาของ B', ()=>as(A,`insert into tasks(title,course_id) values('แอบ','${cB}')`));
+await rejects('A ปลอม user_id เป็น B', ()=>as(A,`insert into tasks(title,user_id) values('ปลอม','${B}')`));
+await rejects('ชื่องานว่าง', ()=>as(A,`insert into tasks(title) values('   ')`));
+await rejects('source แปลก', ()=>as(A,`insert into tasks(title,source) values('x','hack')`));
+await ok('B มองไม่เห็นงาน/วิชาของ A', async()=>{ eq((await as(B,`select id from tasks`)).length,0,'tasks'); eq((await as(B,`select id from courses`)).length,1,'courses'); });
+await ok('B แก้/ลบงานของ A ไม่ได้ (0 แถว)', async()=>{ eq((await as(B,`update tasks set title='hack' where id='${tA}' returning id`)).length,0,'upd'); eq((await as(B,`delete from tasks where id='${tA}' returning id`)).length,0,'del'); });
+await rejects('A ย้ายงานไปเป็นของ B', ()=>as(A,`update tasks set user_id='${B}' where id='${tA}'`));
+await ok('A ติ๊กเสร็จได้', async()=>{ eq((await as(A,`update tasks set done=true where id='${tA}' returning done`))[0].done,true,'done'); });
+await ok('ลบวิชา → งานยังอยู่ course_id = null', async()=>{ await as(A,`delete from courses where id='${cA}'`); const r=await as(A,`select course_id,user_id from tasks where id='${tA}'`); eq(r[0].course_id,null,'course'); eq(r[0].user_id,A,'user'); });
+await ok('A ลบงานได้', async()=>{ eq((await as(A,`delete from tasks where id='${tA}' returning id`)).length,1,'del'); });
+await rejects('anon อ่าน tasks ไม่ได้', ()=>as(null,`select * from tasks`));
+await ok('ai_usage: เพิ่ม/ดูได้', async()=>{ await as(A,`insert into ai_usage(input_type,success) values('text',true)`); eq((await as(A,`select id from ai_usage`)).length,1,'n'); eq((await as(B,`select id from ai_usage`)).length,0,'B'); });
+await rejects('ai_usage: ลบไม่ได้', ()=>as(A,`delete from ai_usage`));
+await rejects('ai_usage: แก้ไม่ได้', ()=>as(A,`update ai_usage set success=false`));
+await ok('events: เพิ่มสอบ', async()=>{ await as(A,`insert into events(title,kind,starts_at) values('Midterm','exam','2026-12-01T02:00:00Z')`); });
+await rejects('events: kind แปลก', ()=>as(A,`insert into events(title,kind,starts_at) values('x','party',now())`));
+await rejects('events: ends ก่อน starts', ()=>as(A,`insert into events(title,starts_at,ends_at) values('x','2026-12-01','2026-11-01')`));
+await ok('ลบผู้ใช้ → ข้อมูลหายตาม', async()=>{ await db.exec(`delete from auth.users where id='${A}'`); eq((await db.query(`select count(*)::int n from tasks`)).rows[0].n,0,'tasks'); });
+console.log(`\n${pass} ผ่าน, ${fail} ไม่ผ่าน`);
+if (fail) process.exit(1);
+})();
