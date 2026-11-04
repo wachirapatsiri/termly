@@ -1,0 +1,84 @@
+// จัดการวันที่: เก็บเป็น ค.ศ. (timestamptz) แสดงผลเป็น พ.ศ. โซนเวลา Asia/Bangkok
+// ประเทศไทยไม่มี daylight saving → เวลาไทย = UTC+7 ตลอดปี
+
+export const TIME_ZONE = "Asia/Bangkok";
+const BANGKOK_OFFSET = "+07:00";
+
+// เวลาที่ใช้แทน เมื่อรู้แค่วันส่งแต่ไม่รู้เวลา (ถือว่าส่งได้ถึงท้ายวัน)
+export const END_OF_DAY = "23:59";
+
+const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+// ปี พ.ศ. ↔ ค.ศ. (ต่างกัน 543 ปี)
+export function beToCe(year: number) {
+  return year - 543;
+}
+export function ceToBe(year: number) {
+  return year + 543;
+}
+
+// "2026-11-11" (+ "14:30") เวลาไทย → ISO string สำหรับบันทึก
+// คืน null ถ้ารูปแบบผิดหรือเป็นวันที่ที่ไม่มีจริง (เช่น 31 ก.พ.)
+export function toDueAt(date: string, time?: string | null): string | null {
+  const m = DATE_RE.exec(date);
+  if (!m) return null;
+  const t = time || END_OF_DAY;
+  if (!TIME_RE.test(t)) return null;
+
+  const [, y, mo, d] = m.map(Number);
+  const check = new Date(Date.UTC(y, mo - 1, d));
+  if (
+    check.getUTCFullYear() !== y ||
+    check.getUTCMonth() !== mo - 1 ||
+    check.getUTCDate() !== d
+  ) {
+    return null;
+  }
+
+  return new Date(`${date}T${t}:00${BANGKOK_OFFSET}`).toISOString();
+}
+
+// ISO string → { date: "2026-11-11", time: "23:59" } ในเวลาไทย (ใช้เติมค่าในฟอร์ม)
+export function toBangkokParts(iso: string): { date: string; time: string } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return {
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    time: `${get("hour")}:${get("minute")}`,
+  };
+}
+
+const thaiDate = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
+  timeZone: TIME_ZONE,
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+const thaiTime = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
+  timeZone: TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+// แสดงวันส่งแบบไทย เช่น "พุธ 11 พ.ย. 2569" หรือ "พุธ 11 พ.ย. 2569 · 14:30 น."
+export function formatDue(iso: string, hasTime: boolean): string {
+  const d = new Date(iso);
+  const date = thaiDate.format(d);
+  return hasTime ? `${date} · ${thaiTime.format(d)} น.` : date;
+}
+
+// วันส่งผ่านไปแล้วหรือยัง (เทียบกับเวลาตอนนี้)
+export function isPast(iso: string): boolean {
+  return new Date(iso).getTime() < Date.now();
+}

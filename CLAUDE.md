@@ -18,6 +18,7 @@
 - Supabase: Google login + Postgres + Row Level Security
 - Deploy บน Vercel
 - Supabase auth: `@supabase/ssr` + `getClaims()` (ตรวจ JWT) ผ่าน `getCurrentUser()` ใน `lib/auth.ts`; `cacheComponents` เปิดอยู่ → ส่วนที่อ่าน user ต้องอยู่ใน `<Suspense>`; env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (ดู `.env.example`)
+- ฐานข้อมูล: แก้ตารางด้วยไฟล์ใหม่ใน `supabase/migrations/` (เลขถัดไป) ห้ามแก้ไฟล์ที่รันไปแล้ว; user_id เติม `auth.uid()` เอง ไม่ต้องส่งจากแอป; `ai_usage` ผู้ใช้แก้/ลบไม่ได้
 - Node.js อยู่ที่ `/usr/local/bin` (ถ้า shell หาไม่เจอให้ `export PATH="/usr/local/bin:$PATH"`)
 
 ## ขอบเขต MVP (เฉพาะงาน/deadline)
@@ -41,7 +42,7 @@
 - โครงสร้าง: `app/` (หน้า: login, courses, tasks, import, api/extract, api/export-ics), `lib/supabase`, `lib/ai` (prompt + ตรวจด้วย Zod), `lib/dates` (พ.ศ.↔ค.ศ.), `components/`, `supabase/migrations/` (SQL เก็บใน git)
 - ตาราง:
   - `courses`: id, user_id, name, code, created_at
-  - `tasks`: id, user_id, course_id (nullable), title, due_at, due_has_time, notes, source (`manual`/`ai`), done, created_at
+  - `tasks`: id, user_id, course_id (nullable), title, due_at (nullable = ยังไม่กำหนดวันส่ง → แสดงป้ายเตือนสีเหลือง), due_has_time (false = รู้แค่วัน เก็บเป็น 23:59 เวลาไทย), notes, source (`manual`/`ai`), done, created_at
   - `ai_usage`: id, user_id, created_at, input_type (`text`/`pdf`/`image`), success
   - `events` (สร้างในเซสชัน 3 ตามแผนผู้ใช้): id, user_id, course_id (nullable), title, kind (`exam`/`class`/`activity`/`other`), starts_at, ends_at (nullable), location, notes, created_at — ต่างจาก `tasks` ตรงที่เป็นสิ่งที่ "เกิดขึ้นตามเวลา" (สอบ, กิจกรรม) ไม่ใช่งานที่ต้องส่ง ใน MVP ใช้กับวันสอบ Midterm/Final ก่อน หน้า UI ของกิจกรรมเต็มรูปแบบอยู่เฟส 2
 - วันที่เก็บเป็น ค.ศ. (timestamptz, โซนเวลา Asia/Bangkok) แสดงผลเป็น พ.ศ.
@@ -59,7 +60,7 @@ minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan,
 
 1. [x] ตั้งโปรเจกต์ Next.js + Tailwind + Anuphan + CLAUDE.md + deploy Vercel — https://termly-zeta.vercel.app (GitHub `wachirapatsiri/termly`, push ขึ้น `main` แล้ว Vercel deploy อัตโนมัติ)
 2. [x] Supabase + ล็อกอินด้วย Google — ทดสอบบนเว็บจริงผ่าน (Supabase project `adbgiuinkqeaohdcfnmm`, Singapore; Google OAuth อยู่โหมด Testing → เพื่อนที่จะลองต้องอยู่ใน Test users หรือ Publish แอปก่อนเซสชัน 12; ขั้นตอนตั้งค่าอยู่ `docs/setup-supabase.md`)
-3. [ ] ตาราง courses, tasks, events (+ ai_usage) + RLS → เพิ่ม/ดู/แก้/ลบ task ด้วยมือได้
+3. [x] ตาราง courses, tasks, events (+ ai_usage) + RLS → เพิ่ม/ดู/แก้/ลบ task ด้วยมือได้ — SQL `supabase/migrations/0001_init.sql` (รันใน SQL Editor ตาม `docs/setup-supabase.md` ข้อ 6), หน้า `/tasks` + Server Actions `app/tasks/actions.ts`, ทดสอบ RLS ด้วย `npm run test:db` (PGlite)
 4. [ ] หน้าเพิ่มวิชา + หน้ารายการงาน (เรียงตามวัน)
 5. [ ] หน้าวางข้อความ → AI ฝั่งเซิร์ฟเวอร์ → JSON (title, course, due_date, due_date_confidence, note) + ชุดทดสอบภาษาไทย 3 แบบ
 6. [ ] หน้าตรวจก่อนบันทึก (การ์ด, แก้/ติ๊ก/ลบ, confidence ต่ำ = สีเหลือง, บันทึกทั้งหมด)

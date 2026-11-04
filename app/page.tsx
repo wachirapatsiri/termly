@@ -43,6 +43,12 @@ async function UserSection() {
         <p className="mt-1 font-medium">{user.name}</p>
         <p className="text-sm text-muted">{user.email}</p>
       </div>
+      <Link
+        href="/tasks"
+        className="block rounded-card bg-accent px-4 py-3 text-center font-medium text-white"
+      >
+        งานของฉัน
+      </Link>
       <SignOutButton />
     </div>
   );
