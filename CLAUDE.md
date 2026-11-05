@@ -74,3 +74,5 @@ minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan,
 
 ## เฟส 2 (ยังไม่ทำ)
 สัดส่วนคะแนน (ล็อก Midterm/Final + ก้อน "งานเก็บคะแนน") + เครื่องคำนวณเกรดไฟนอล, ส่วนกิจกรรม, ระบบชำระเงิน
+
+**Optional (ทำเมื่อจะเปิดจริง ไม่จำเป็นช่วงทดลอง):** หน้าเลือกบัญชี Google ตอนล็อกอินขึ้น "ไปยัง adbgiuinkqeaohdcfnmm.supabase.co" แทนชื่อแอป — แก้ได้ 2 ทาง: (1) Supabase custom domain เช่น `auth.<โดเมน>` (ต้องซื้อโดเมน + Supabase Pro + add-on, เช็กราคาใน Billing) หรือ (2) Google brand verification (ต้องมีหน้า privacy policy + ยืนยันโดเมน + รอ Google ตรวจ) — ระหว่างนี้บอกผู้ทดลองว่าเป็นเรื่องปกติ
