@@ -2,10 +2,11 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import type { Course } from "@/lib/types";
+import { dueGroup } from "@/lib/dates";
+import type { Course, Task } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { CourseForm } from "@/components/course-form";
-import { CourseItem } from "@/components/course-item";
+import { CourseItem, type CourseTask } from "@/components/course-item";
 
 export default function CoursesPage() {
   return (
@@ -32,7 +33,12 @@ async function CoursesSection() {
       .select("id, name, code")
       .order("code", { ascending: true, nullsFirst: false })
       .order("name"),
-    supabase.from("tasks").select("course_id, done"),
+    supabase
+      .from("tasks")
+      .select("id, course_id, title, due_at, due_has_time, done")
+      .not("course_id", "is", null)
+      .order("due_at", { ascending: true, nullsFirst: true })
+      .order("created_at", { ascending: true }),
   ]);
 
   if (coursesRes.error || tasksRes.error) {
@@ -45,14 +51,28 @@ async function CoursesSection() {
   }
 
   const courses = (coursesRes.data ?? []) as Course[];
-  // นับงานของแต่ละวิชา: ทั้งหมด / ที่ยังค้าง
-  const counts = new Map<string, { total: number; pending: number }>();
-  for (const t of tasksRes.data ?? []) {
+  // แยกงานตามวิชา: งานค้าง (ไว้แสดงในการ์ด) + จำนวนงานทั้งหมด (ไว้ถามตอนลบวิชา)
+  // เรียงแล้ว: งานที่ยังไม่มีวันส่งขึ้นก่อน แล้วตามด้วยวันส่งใกล้สุด
+  const now = new Date();
+  const byCourse = new Map<string, { total: number; pending: CourseTask[] }>();
+  for (const t of (tasksRes.data ?? []) as Pick<
+    Task,
+    "id" | "course_id" | "title" | "due_at" | "due_has_time" | "done"
+  >[]) {
     if (!t.course_id) continue;
-    const c = counts.get(t.course_id) ?? { total: 0, pending: 0 };
+    const c = byCourse.get(t.course_id) ?? { total: 0, pending: [] };
     c.total++;
-    if (!t.done) c.pending++;
-    counts.set(t.course_id, c);
+    if (!t.done) {
+      c.pending.push({
+        id: t.id,
+        title: t.title,
+        due_at: t.due_at,
+        due_has_time: t.due_has_time,
+        // คำนวณฝั่งเซิร์ฟเวอร์ เพื่อให้ผลตรงกันทั้งสองฝั่ง
+        overdue: !!t.due_at && dueGroup(t.due_at, now) === "overdue",
+      });
+    }
+    byCourse.set(t.course_id, c);
   }
 
   return (
@@ -76,8 +96,8 @@ async function CoursesSection() {
               <CourseItem
                 key={c.id}
                 course={c}
-                pendingCount={counts.get(c.id)?.pending ?? 0}
-                totalCount={counts.get(c.id)?.total ?? 0}
+                pendingTasks={byCourse.get(c.id)?.pending ?? []}
+                totalCount={byCourse.get(c.id)?.total ?? 0}
               />
             ))}
           </ul>

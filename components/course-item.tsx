@@ -3,22 +3,39 @@
 import Link from "next/link";
 import { useCallback, useOptimistic, useState } from "react";
 import { deleteCourse } from "@/app/courses/actions";
+import { deleteTask, setTaskDone } from "@/app/tasks/actions";
+import { formatDue } from "@/lib/dates";
 import type { Course } from "@/lib/types";
 import { CourseForm } from "@/components/course-form";
 
+// งานค้างของวิชา (ข้อมูลเท่าที่การ์ดวิชาต้องใช้)
+export type CourseTask = {
+  id: string;
+  title: string;
+  due_at: string | null;
+  due_has_time: boolean;
+  overdue: boolean; // คำนวณฝั่งเซิร์ฟเวอร์
+};
+
 export function CourseItem({
   course,
-  pendingCount,
+  pendingTasks,
   totalCount,
 }: {
   course: Course;
-  pendingCount: number; // งานที่ยังไม่เสร็จในวิชานี้
+  pendingTasks: CourseTask[]; // งานที่ยังไม่เสร็จในวิชานี้ (เรียงตามวันส่งแล้ว)
   totalCount: number; // งานทั้งหมดในวิชานี้ (รวมที่เสร็จแล้ว)
 }) {
   const [mode, setMode] = useState<"view" | "edit" | "confirmDelete">("view");
+  const [open, setOpen] = useState(false);
   const close = useCallback(() => setMode("view"), []);
   // ลบแล้วหายจากหน้าจอทันที ไม่ต้องรอเซิร์ฟเวอร์
   const [removed, setOptimisticRemoved] = useOptimistic(false);
+  // งานที่เพิ่งติ๊กเสร็จ/ลบ → ซ่อนจากรายการทันที
+  const [hiddenTasks, hideTask] = useOptimistic<Set<string>, string>(
+    new Set(),
+    (cur, id) => new Set([...cur, id]),
+  );
 
   if (removed) return null;
 
@@ -30,7 +47,9 @@ export function CourseItem({
     );
   }
 
-  // ปุ่มลบ 1 แบบ (ส่ง delete_tasks ไปด้วย)
+  const visibleTasks = pendingTasks.filter((t) => !hiddenTasks.has(t.id));
+
+  // ปุ่มลบวิชา 1 แบบ (ส่ง delete_tasks ไปด้วย)
   const deleteButton = (deleteTasks: boolean, label: string, className: string) => (
     <form
       action={async (formData) => {
@@ -47,19 +66,88 @@ export function CourseItem({
   );
 
   return (
-    <li className="space-y-2 rounded-card border border-line bg-white p-4">
+    <li className="space-y-3 rounded-card border border-line bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {course.code && <p className="text-sm text-muted">{course.code}</p>}
           <p className="font-medium break-words">{course.name}</p>
         </div>
-        <Link
-          href={`/tasks?course=${course.id}`}
-          className="shrink-0 rounded border border-line px-2 py-0.5 text-sm text-muted"
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className={`shrink-0 rounded border px-2 py-0.5 text-sm ${
+            open ? "border-accent text-accent" : "border-line text-muted"
+          }`}
         >
-          งานค้าง {pendingCount}
-        </Link>
+          งานค้าง {visibleTasks.length} {open ? "▴" : "▾"}
+        </button>
       </div>
+
+      {open && (
+        <div className="space-y-2 border-t border-line pt-3">
+          {visibleTasks.length === 0 ? (
+            <p className="text-sm text-muted">ไม่มีงานค้างในวิชานี้ 🎉</p>
+          ) : (
+            <ul className="space-y-1">
+              {visibleTasks.map((t) => (
+                <li key={t.id} className="flex items-start gap-3 py-1">
+                  {/* ติ๊กว่าเสร็จ */}
+                  <form
+                    action={async (formData) => {
+                      hideTask(t.id);
+                      await setTaskDone(formData);
+                    }}
+                  >
+                    <input type="hidden" name="id" value={t.id} />
+                    <input type="hidden" name="done" value="true" />
+                    <button
+                      type="submit"
+                      aria-label={`ทำเครื่องหมายว่า "${t.title}" เสร็จแล้ว`}
+                      className="mt-0.5 h-5 w-5 rounded border border-muted/60"
+                    />
+                  </form>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm break-words">{t.title}</p>
+                    {t.due_at ? (
+                      <p className={`text-xs ${t.overdue ? "text-red-600" : "text-muted"}`}>
+                        {formatDue(t.due_at, t.due_has_time)}
+                        {t.overdue && " · เลยกำหนด"}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-amber-700">⚠ ยังไม่กำหนดวันส่ง</p>
+                    )}
+                  </div>
+
+                  {/* ลบงาน */}
+                  <form
+                    action={async (formData) => {
+                      hideTask(t.id);
+                      await deleteTask(formData);
+                    }}
+                    onSubmit={(e) => {
+                      if (!confirm(`ลบงาน "${t.title}" ?`)) e.preventDefault();
+                    }}
+                  >
+                    <input type="hidden" name="id" value={t.id} />
+                    <button
+                      type="submit"
+                      aria-label={`ลบงาน "${t.title}"`}
+                      className="px-1 text-lg leading-none text-muted hover:text-red-600"
+                    >
+                      ×
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link href={`/tasks?course=${course.id}`} className="block text-sm text-accent">
+            เพิ่ม/แก้งานของวิชานี้ในหน้างาน →
+          </Link>
+        </div>
+      )}
 
       {mode === "confirmDelete" ? (
         <div className="space-y-2 rounded-card border border-red-200 bg-red-50/50 p-3">
@@ -86,14 +174,14 @@ export function CourseItem({
       ) : (
         <div className="flex gap-4 text-sm">
           <button type="button" onClick={() => setMode("edit")} className="text-accent">
-            แก้ไข
+            แก้ไขวิชา
           </button>
           <button
             type="button"
             onClick={() => setMode("confirmDelete")}
             className="text-red-600"
           >
-            ลบ
+            ลบวิชา
           </button>
         </div>
       )}
