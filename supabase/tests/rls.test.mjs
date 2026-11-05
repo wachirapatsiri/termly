@@ -40,6 +40,9 @@ await ok('B มองไม่เห็นงาน/วิชาของ A', as
 await ok('B แก้/ลบงานของ A ไม่ได้ (0 แถว)', async()=>{ eq((await as(B,`update tasks set title='hack' where id='${tA}' returning id`)).length,0,'upd'); eq((await as(B,`delete from tasks where id='${tA}' returning id`)).length,0,'del'); });
 await rejects('A ย้ายงานไปเป็นของ B', ()=>as(A,`update tasks set user_id='${B}' where id='${tA}'`));
 await ok('A ติ๊กเสร็จได้', async()=>{ eq((await as(A,`update tasks set done=true where id='${tA}' returning done`))[0].done,true,'done'); });
+await ok('A แก้ชื่อ/รหัสวิชาได้', async()=>{ const r=await as(A,`update courses set name='สถิติ 1', code=null where id='${cA}' returning name,code`); eq(r[0],{name:'สถิติ 1',code:null},'upd'); });
+await rejects('ชื่อวิชาว่าง', ()=>as(A,`update courses set name='  ' where id='${cA}'`));
+await ok('B แก้/ลบวิชาของ A ไม่ได้ (0 แถว)', async()=>{ eq((await as(B,`update courses set name='hack' where id='${cA}' returning id`)).length,0,'upd'); eq((await as(B,`delete from courses where id='${cA}' returning id`)).length,0,'del'); });
 await ok('ลบวิชา → งานยังอยู่ course_id = null', async()=>{ await as(A,`delete from courses where id='${cA}'`); const r=await as(A,`select course_id,user_id from tasks where id='${tA}'`); eq(r[0].course_id,null,'course'); eq(r[0].user_id,A,'user'); });
 await ok('A ลบงานได้', async()=>{ eq((await as(A,`delete from tasks where id='${tA}' returning id`)).length,1,'del'); });
 await rejects('anon อ่าน tasks ไม่ได้', ()=>as(null,`select * from tasks`));

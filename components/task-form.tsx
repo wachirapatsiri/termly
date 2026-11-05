@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect } from "react";
 import {
   createTask,
@@ -16,11 +17,14 @@ const inputClass =
 export function TaskForm({
   task,
   courses,
+  defaultCourseId,
   onSuccess,
   onCancel,
 }: {
   task?: Task;
   courses: Course[];
+  defaultCourseId?: string; // วิชาที่เลือกไว้ล่วงหน้า (เช่น ตอนกรองดูวิชาเดียว)
+
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
@@ -40,7 +44,7 @@ export function TaskForm({
     due_date: due?.date ?? "",
     due_time: due && task?.due_has_time ? due.time : "",
     notes: task?.notes ?? "",
-    course_id: task?.course_id ?? "",
+    course_id: task ? (task.course_id ?? "") : (defaultCourseId ?? ""),
   };
 
   return (
@@ -82,6 +86,15 @@ export function TaskForm({
       <p className="text-xs text-muted">
         ยังไม่รู้วันส่ง เว้นว่างไว้ได้ — งานจะขึ้นป้าย &quot;ยังไม่กำหนดวันส่ง&quot;
       </p>
+
+      {courses.length === 0 && (
+        <p className="text-sm text-muted">
+          อยากผูกงานกับวิชา?{" "}
+          <Link href="/courses" className="text-accent">
+            เพิ่มวิชาก่อน
+          </Link>
+        </p>
+      )}
 
       {courses.length > 0 && (
         <label className="block space-y-1">

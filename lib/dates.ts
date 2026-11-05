@@ -78,7 +78,35 @@ export function formatDue(iso: string, hasTime: boolean): string {
   return hasTime ? `${date} · ${thaiTime.format(d)} น.` : date;
 }
 
-// วันส่งผ่านไปแล้วหรือยัง (เทียบกับเวลาตอนนี้)
-export function isPast(iso: string): boolean {
-  return new Date(iso).getTime() < Date.now();
+// ─── จัดกลุ่มงานตามวันส่ง (ยึดวันในเวลาไทย) ───
+
+export type DueGroup = "overdue" | "today" | "tomorrow" | "week" | "later";
+
+export const DUE_GROUP_LABEL: Record<DueGroup, string> = {
+  overdue: "เลยกำหนด",
+  today: "วันนี้",
+  tomorrow: "พรุ่งนี้",
+  week: "ภายใน 7 วัน",
+  later: "หลังจากนั้น",
+};
+
+// จำนวนวันจาก "วันนี้" ถึงวันส่ง (นับตามปฏิทินไทย ไม่สนชั่วโมง) เช่น พรุ่งนี้ = 1
+export function daysUntil(iso: string, now: Date = new Date()): number {
+  const toDayNumber = (d: string) => {
+    const [y, m, day] = d.split("-").map(Number);
+    return Date.UTC(y, m - 1, day) / 86_400_000;
+  };
+  return (
+    toDayNumber(toBangkokParts(iso).date) -
+    toDayNumber(toBangkokParts(now.toISOString()).date)
+  );
+}
+
+export function dueGroup(iso: string, now: Date = new Date()): DueGroup {
+  if (new Date(iso).getTime() < now.getTime()) return "overdue";
+  const days = daysUntil(iso, now);
+  if (days <= 0) return "today";
+  if (days === 1) return "tomorrow";
+  if (days <= 7) return "week";
+  return "later";
 }
