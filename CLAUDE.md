@@ -10,7 +10,7 @@
 - นักศึกษา Data Science ไม่ใช่นักพัฒนาเว็บเต็มตัว → อธิบายเป็นภาษาไทยง่าย ๆ
 - ทำวันละ 1–2 ชม. → แบ่งงานเป็นชิ้นเล็กที่เสร็จและทดสอบได้ในเซสชันเดียว
 - ก่อนเขียนโค้ดส่วนใหม่ที่ใหญ่ ให้เสนอแผนให้ยืนยันก่อน
-- ตั้งชื่อเซสชันใน Claude รูปแบบ `Termly S<เลข>: <หัวข้อสั้น>` เช่น `Termly S3: ตาราง + RLS`
+- ตั้งชื่อเซสชันในแชท Claude เองทันทีที่รู้ว่าทำเซสชันไหน (ไม่ต้องรอผู้ใช้สั่ง) รูปแบบ `Termly S<เลข>: <สิ่งที่ทำ>` เช่น `Termly S3: ตาราง + RLS` — ใช้ tool `set_session_title`
 - จบทุกเซสชันด้วยสรุป: เสร็จอะไร, ค้างอะไร, เซสชันหน้าควรทำอะไร และอัปเดตส่วน "สถานะ" ด้านล่าง
 
 ## Tech stack
@@ -61,7 +61,7 @@ minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan,
 1. [x] ตั้งโปรเจกต์ Next.js + Tailwind + Anuphan + CLAUDE.md + deploy Vercel — https://termly-zeta.vercel.app (GitHub `wachirapatsiri/termly`, push ขึ้น `main` แล้ว Vercel deploy อัตโนมัติ)
 2. [x] Supabase + ล็อกอินด้วย Google — ทดสอบบนเว็บจริงผ่าน (Supabase project `adbgiuinkqeaohdcfnmm`, Singapore; Google OAuth อยู่โหมด Testing → เพื่อนที่จะลองต้องอยู่ใน Test users หรือ Publish แอปก่อนเซสชัน 12; ขั้นตอนตั้งค่าอยู่ `docs/setup-supabase.md`)
 3. [x] ตาราง courses, tasks, events (+ ai_usage) + RLS → เพิ่ม/ดู/แก้/ลบ task ด้วยมือได้ — SQL `supabase/migrations/0001_init.sql` (รันใน SQL Editor ตาม `docs/setup-supabase.md` ข้อ 6), หน้า `/tasks` + Server Actions `app/tasks/actions.ts`, ทดสอบ RLS ด้วย `npm run test:db` (PGlite)
-4. [ ] หน้าเพิ่มวิชา + หน้ารายการงาน (เรียงตามวัน)
+4. [x] หน้าเพิ่มวิชา + หน้ารายการงาน (เรียงตามวัน) — หน้า `/courses` (เพิ่ม/แก้/ลบวิชา + นับงานค้าง, `app/courses/actions.ts`), `/tasks` แบ่งกลุ่ม ยังไม่กำหนดวันส่ง/เลยกำหนด/วันนี้/พรุ่งนี้/ภายใน 7 วัน/หลังจากนั้น (`dueGroup()` ใน `lib/dates.ts`) + กรองวิชา `?course=<id>`, แถบเมนู `components/app-nav.tsx` — ⏳ รอทดสอบบนเว็บจริงหลัง merge
 5. [ ] หน้าวางข้อความ → AI ฝั่งเซิร์ฟเวอร์ → JSON (title, course, due_date, due_date_confidence, note) + ชุดทดสอบภาษาไทย 3 แบบ
 6. [ ] หน้าตรวจก่อนบันทึก (การ์ด, แก้/ติ๊ก/ลบ, confidence ต่ำ = สีเหลือง, บันทึกทั้งหมด)
 7. [ ] อัปโหลด PDF และรูป
