@@ -61,14 +61,14 @@ minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan,
 1. [x] ตั้งโปรเจกต์ Next.js + Tailwind + Anuphan + CLAUDE.md + deploy Vercel — https://termly-zeta.vercel.app (GitHub `wachirapatsiri/termly`, push ขึ้น `main` แล้ว Vercel deploy อัตโนมัติ)
 2. [x] Supabase + ล็อกอินด้วย Google — ทดสอบบนเว็บจริงผ่าน (Supabase project `adbgiuinkqeaohdcfnmm`, Singapore; Google OAuth อยู่โหมด Testing → เพื่อนที่จะลองต้องอยู่ใน Test users หรือ Publish แอปก่อนเซสชัน 12; ขั้นตอนตั้งค่าอยู่ `docs/setup-supabase.md`)
 3. [x] ตาราง courses, tasks, events (+ ai_usage) + RLS → เพิ่ม/ดู/แก้/ลบ task ด้วยมือได้ — SQL `supabase/migrations/0001_init.sql` (รันใน SQL Editor ตาม `docs/setup-supabase.md` ข้อ 6), หน้า `/tasks` + Server Actions `app/tasks/actions.ts`, ทดสอบ RLS ด้วย `npm run test:db` (PGlite)
-4. [x] หน้าเพิ่มวิชา + หน้ารายการงาน (เรียงตามวัน) — หน้า `/courses` (เพิ่ม/แก้/ลบวิชา + นับงานค้าง, `app/courses/actions.ts`), `/tasks` แบ่งกลุ่ม ยังไม่กำหนดวันส่ง/เลยกำหนด/วันนี้/พรุ่งนี้/ภายใน 7 วัน/หลังจากนั้น (`dueGroup()` ใน `lib/dates.ts`) + กรองวิชา `?course=<id>`, แถบเมนู `components/app-nav.tsx` — ⏳ รอทดสอบบนเว็บจริงหลัง merge
+4. [x] หน้าเพิ่มวิชา + หน้ารายการงาน (เรียงตามวัน) — หน้า `/courses` (เพิ่ม/แก้/ลบวิชา + นับงานค้าง, `app/courses/actions.ts`), `/tasks` แบ่งกลุ่ม ยังไม่กำหนดวันส่ง/เลยกำหนด/วันนี้/พรุ่งนี้/ภายใน 7 วัน/หลังจากนั้น (`dueGroup()` ใน `lib/dates.ts`) + กรองวิชา `?course=<id>` + เลือกหลายงาน (ติ๊กเสร็จ/ลบ), การ์ดวิชากางดูงานค้าง (ติ๊ก/ลบได้), ลบวิชาถามว่าจะลบงานด้วยไหม, หน้า `/settings` (แสดงวิชาเป็นรหัส/ชื่อ), แถบเมนู `components/app-nav.tsx` — ผู้ใช้ลองบนเว็บจริงแล้วโอเค
 5. [ ] หน้าวางข้อความ → AI ฝั่งเซิร์ฟเวอร์ → JSON (title, course, due_date, due_date_confidence, note) + ชุดทดสอบภาษาไทย 3 แบบ
 6. [ ] หน้าตรวจก่อนบันทึก (การ์ด, แก้/ติ๊ก/ลบ, confidence ต่ำ = สีเหลือง, บันทึกทั้งหมด)
 7. [ ] อัปโหลด PDF และรูป
 8. [ ] จำกัด AI 10 ครั้ง/วัน + จัดการ error (AI ตอบผิดรูปแบบ, ไฟล์ใหญ่เกิน)
 9. [ ] มุมมองรายสัปดาห์ + PWA
 10. [ ] ส่งออก .ics
-11. [ ] ปรับ UI + หน้าแรกอธิบายสั้น ๆ + ทดสอบใช้เอง
+11. [ ] ปรับ UI + หน้าแรกอธิบายสั้น ๆ + ทดสอบใช้เอง — + ย้ายการตั้งค่า (ตอนนี้มีแค่ "แสดงวิชาเป็นรหัส/ชื่อ" เก็บใน cookie `course_label`, `lib/preferences.ts`) ไปเก็บในตาราง `user_settings` (migration ใหม่ + RLS) ให้จำข้ามเครื่อง
 12. [ ] เปิดให้เพื่อน 5–10 คนลอง + ฟอร์มความเห็น + ราคาทดลอง
 
 

@@ -3,6 +3,7 @@
 import { useCallback, useOptimistic, useState } from "react";
 import { deleteTask, setTaskDone } from "@/app/tasks/actions";
 import { formatDue } from "@/lib/dates";
+import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import type { Course, Task } from "@/lib/types";
 import { TaskForm } from "@/components/task-form";
 import { useTaskSelection } from "@/components/task-selection";
@@ -12,10 +13,12 @@ export function TaskItem({
   course,
   courses,
   overdue,
+  labelMode,
 }: {
   task: Task;
   course?: Course;
   courses: Course[];
+  labelMode: CourseLabelMode; // แสดงวิชาเป็นรหัส/ชื่อ ตามที่ตั้งค่าไว้
   overdue: boolean; // คำนวณฝั่งเซิร์ฟเวอร์ เพื่อให้ผลตรงกันทั้งสองฝั่ง
 }) {
   const [editing, setEditing] = useState(false);
@@ -54,7 +57,13 @@ export function TaskItem({
             onChange={() => sel.toggle(task.id)}
             className="mt-1 h-5 w-5 shrink-0 accent-accent"
           />
-          <TaskInfo task={task} course={course} overdue={overdue} done={done} />
+          <TaskInfo
+            task={task}
+            course={course}
+            overdue={overdue}
+            done={done}
+            labelMode={labelMode}
+          />
         </label>
       </li>
     );
@@ -83,7 +92,13 @@ export function TaskItem({
       </form>
 
       <div className="min-w-0 flex-1 space-y-1">
-        <TaskInfo task={task} course={course} overdue={overdue} done={done} />
+        <TaskInfo
+          task={task}
+          course={course}
+          overdue={overdue}
+          done={done}
+          labelMode={labelMode}
+        />
 
         <div className="flex gap-4 pt-1 text-sm">
           <button type="button" onClick={() => setEditing(true)} className="text-accent">
@@ -115,11 +130,13 @@ function TaskInfo({
   course,
   overdue,
   done,
+  labelMode,
 }: {
   task: Task;
   course?: Course;
   overdue: boolean;
   done: boolean;
+  labelMode: CourseLabelMode;
 }) {
   return (
     <div className="min-w-0 flex-1 space-y-1">
@@ -138,7 +155,7 @@ function TaskInfo({
             ⚠ ยังไม่กำหนดวันส่ง
           </span>
         )}
-        {course && <span className="text-muted">· {course.code || course.name}</span>}
+        {course && <span className="text-muted">· {courseLabel(course, labelMode)}</span>}
       </div>
 
       {task.notes && (
