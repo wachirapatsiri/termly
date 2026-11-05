@@ -8,6 +8,11 @@ import type { Course, Task } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { TaskForm } from "@/components/task-form";
 import { TaskItem } from "@/components/task-item";
+import {
+  SelectModeButton,
+  SelectionSpacer,
+  TaskSelectionProvider,
+} from "@/components/task-selection";
 
 const GROUP_ORDER: DueGroup[] = ["overdue", "today", "tomorrow", "week", "later"];
 
@@ -37,7 +42,9 @@ async function TasksSection({
   const [tasksRes, coursesRes, params] = await Promise.all([
     supabase
       .from("tasks")
-      .select("id, course_id, title, due_at, due_has_time, notes, source, done, created_at")
+      .select(
+        "id, course_id, title, due_at, due_has_time, notes, source, done, created_at",
+      )
       .order("due_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true }),
     supabase
@@ -90,61 +97,67 @@ async function TasksSection({
   );
 
   return (
-    <div className="space-y-8">
-      {courses.length > 0 && (
-        <CourseFilter courses={courses} activeId={filterCourse?.id} />
-      )}
-
-      <section className="space-y-3 rounded-card border border-line bg-white p-4">
-        <h2 className="font-medium">เพิ่มงานใหม่</h2>
-        {/* key: เปลี่ยนตัวกรอง → ฟอร์มเลือกวิชานั้นไว้ให้ล่วงหน้า */}
-        <TaskForm
-          key={filterCourse?.id ?? "all"}
-          courses={courses}
-          defaultCourseId={filterCourse?.id}
-        />
-      </section>
-
-      <section className="space-y-6">
-        <h2 className="font-medium">
-          ยังไม่เสร็จ <span className="text-muted">({pending.length})</span>
-        </h2>
-
-        {pending.length === 0 && (
-          <p className="text-sm text-muted">ยังไม่มีงานค้าง 🎉</p>
+    <TaskSelectionProvider>
+      <div className="space-y-8">
+        {courses.length > 0 && (
+          <CourseFilter courses={courses} activeId={filterCourse?.id} />
         )}
 
-        {/* งานที่ยังไม่มีวันส่งขึ้นก่อน เพราะต้องไปหาวันส่งมาใส่ */}
-        {noDue.length > 0 && (
-          <TaskGroup label="⚠ ยังไม่กำหนดวันส่ง" count={noDue.length} tone="warn">
-            {noDue.map(renderItem)}
-          </TaskGroup>
-        )}
-        {GROUP_ORDER.map((g) => {
-          const items = groups.get(g);
-          if (!items?.length) return null;
-          return (
-            <TaskGroup
-              key={g}
-              label={DUE_GROUP_LABEL[g]}
-              count={items.length}
-              tone={g === "overdue" ? "danger" : "normal"}
-            >
-              {items.map(renderItem)}
+        <section className="space-y-3 rounded-card border border-line bg-white p-4">
+          <h2 className="font-medium">เพิ่มงานใหม่</h2>
+          {/* key: เปลี่ยนตัวกรอง → ฟอร์มเลือกวิชานั้นไว้ให้ล่วงหน้า */}
+          <TaskForm
+            key={filterCourse?.id ?? "all"}
+            courses={courses}
+            defaultCourseId={filterCourse?.id}
+          />
+        </section>
+
+        <section className="space-y-6">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-medium">
+              ยังไม่เสร็จ <span className="text-muted">({pending.length})</span>
+            </h2>
+            {tasks.length > 0 && <SelectModeButton />}
+          </div>
+
+          {pending.length === 0 && (
+            <p className="text-sm text-muted">ยังไม่มีงานค้าง 🎉</p>
+          )}
+
+          {/* งานที่ยังไม่มีวันส่งขึ้นก่อน เพราะต้องไปหาวันส่งมาใส่ */}
+          {noDue.length > 0 && (
+            <TaskGroup label="⚠ ยังไม่กำหนดวันส่ง" count={noDue.length} tone="warn">
+              {noDue.map(renderItem)}
             </TaskGroup>
-          );
-        })}
-      </section>
+          )}
+          {GROUP_ORDER.map((g) => {
+            const items = groups.get(g);
+            if (!items?.length) return null;
+            return (
+              <TaskGroup
+                key={g}
+                label={DUE_GROUP_LABEL[g]}
+                count={items.length}
+                tone={g === "overdue" ? "danger" : "normal"}
+              >
+                {items.map(renderItem)}
+              </TaskGroup>
+            );
+          })}
+        </section>
 
-      {done.length > 0 && (
-        <details className="space-y-3">
-          <summary className="cursor-pointer font-medium">
-            เสร็จแล้ว <span className="text-muted">({done.length})</span>
-          </summary>
-          <ul className="mt-3 space-y-2">{done.map(renderItem)}</ul>
-        </details>
-      )}
-    </div>
+        {done.length > 0 && (
+          <details className="space-y-3">
+            <summary className="cursor-pointer font-medium">
+              เสร็จแล้ว <span className="text-muted">({done.length})</span>
+            </summary>
+            <ul className="mt-3 space-y-2">{done.map(renderItem)}</ul>
+          </details>
+        )}
+        <SelectionSpacer />
+      </div>
+    </TaskSelectionProvider>
   );
 }
 
@@ -160,7 +173,11 @@ function TaskGroup({
   children: React.ReactNode;
 }) {
   const color =
-    tone === "danger" ? "text-red-600" : tone === "warn" ? "text-amber-700" : "text-muted";
+    tone === "danger"
+      ? "text-red-600"
+      : tone === "warn"
+        ? "text-amber-700"
+        : "text-muted";
   return (
     <div className="space-y-2">
       <h3 className={`text-sm font-medium ${color}`}>

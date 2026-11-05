@@ -84,13 +84,28 @@ export async function updateCourse(
   return { ok: true };
 }
 
-// ลบวิชา → งานในวิชานี้ยังอยู่ แค่ course_id กลายเป็น null (ตั้งไว้ใน migration)
+// ลบวิชา: ถ้า delete_tasks = "true" ลบงานทั้งหมดของวิชานี้ด้วย
+// ไม่งั้นงานยังอยู่ แค่ course_id กลายเป็น null (ตั้งไว้ใน migration)
 export async function deleteCourse(formData: FormData) {
   const user = await requireUser();
   const id = str(formData, "id");
   if (!UUID_RE.test(id)) return;
+  const deleteTasks = str(formData, "delete_tasks") === "true";
 
   const supabase = await createClient();
+  if (deleteTasks) {
+    // ลบงานก่อน — ถ้าลบงานไม่สำเร็จจะไม่ลบวิชา (งานจะได้ไม่หลุดจากวิชาโดยไม่ตั้งใจ)
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("course_id", id)
+      .eq("user_id", user.id);
+    if (error) {
+      console.error("deleteCourse tasks", error);
+      refresh();
+      return;
+    }
+  }
   const { error } = await supabase
     .from("courses")
     .delete()

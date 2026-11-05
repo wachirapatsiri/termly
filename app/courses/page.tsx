@@ -32,7 +32,7 @@ async function CoursesSection() {
       .select("id, name, code")
       .order("code", { ascending: true, nullsFirst: false })
       .order("name"),
-    supabase.from("tasks").select("course_id").eq("done", false),
+    supabase.from("tasks").select("course_id, done"),
   ]);
 
   if (coursesRes.error || tasksRes.error) {
@@ -45,12 +45,14 @@ async function CoursesSection() {
   }
 
   const courses = (coursesRes.data ?? []) as Course[];
-  // นับงานค้างของแต่ละวิชา
-  const pendingByCourse = new Map<string, number>();
+  // นับงานของแต่ละวิชา: ทั้งหมด / ที่ยังค้าง
+  const counts = new Map<string, { total: number; pending: number }>();
   for (const t of tasksRes.data ?? []) {
-    if (t.course_id) {
-      pendingByCourse.set(t.course_id, (pendingByCourse.get(t.course_id) ?? 0) + 1);
-    }
+    if (!t.course_id) continue;
+    const c = counts.get(t.course_id) ?? { total: 0, pending: 0 };
+    c.total++;
+    if (!t.done) c.pending++;
+    counts.set(t.course_id, c);
   }
 
   return (
@@ -74,7 +76,8 @@ async function CoursesSection() {
               <CourseItem
                 key={c.id}
                 course={c}
-                pendingCount={pendingByCourse.get(c.id) ?? 0}
+                pendingCount={counts.get(c.id)?.pending ?? 0}
+                totalCount={counts.get(c.id)?.total ?? 0}
               />
             ))}
           </ul>

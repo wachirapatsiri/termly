@@ -137,3 +137,42 @@ export async function deleteTask(formData: FormData) {
   if (error) console.error("deleteTask", error);
   refresh();
 }
+
+// ─── จัดการหลายงานพร้อมกัน (โหมดเลือกหลายรายการ) ───
+
+function cleanIds(ids: unknown): string[] {
+  if (!Array.isArray(ids)) return [];
+  return ids
+    .filter((id): id is string => typeof id === "string" && UUID_RE.test(id))
+    .slice(0, 500);
+}
+
+export async function setTasksDone(ids: string[], done: boolean) {
+  const user = await requireUser();
+  const valid = cleanIds(ids);
+  if (!valid.length) return;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tasks")
+    .update({ done: done === true })
+    .in("id", valid)
+    .eq("user_id", user.id);
+  if (error) console.error("setTasksDone", error);
+  refresh();
+}
+
+export async function deleteTasks(ids: string[]) {
+  const user = await requireUser();
+  const valid = cleanIds(ids);
+  if (!valid.length) return;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tasks")
+    .delete()
+    .in("id", valid)
+    .eq("user_id", user.id);
+  if (error) console.error("deleteTasks", error);
+  refresh();
+}
