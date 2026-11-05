@@ -3,6 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getCourseLabelMode } from "@/lib/preferences";
+import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import { DUE_GROUP_LABEL, dueGroup, type DueGroup } from "@/lib/dates";
 import type { Course, Task } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
@@ -39,7 +41,7 @@ async function TasksSection({
 
   const supabase = await createClient();
   // RLS ทำให้ได้เฉพาะแถวของผู้ใช้คนนี้อยู่แล้ว
-  const [tasksRes, coursesRes, params] = await Promise.all([
+  const [tasksRes, coursesRes, params, labelMode] = await Promise.all([
     supabase
       .from("tasks")
       .select(
@@ -53,6 +55,7 @@ async function TasksSection({
       .order("code", { ascending: true, nullsFirst: false })
       .order("name"),
     searchParams,
+    getCourseLabelMode(),
   ]);
 
   if (tasksRes.error || coursesRes.error) {
@@ -92,6 +95,7 @@ async function TasksSection({
       task={t}
       course={t.course_id ? courseById.get(t.course_id) : undefined}
       courses={courses}
+      labelMode={labelMode}
       overdue={!t.done && !!t.due_at && dueGroup(t.due_at, now) === "overdue"}
     />
   );
@@ -100,7 +104,11 @@ async function TasksSection({
     <TaskSelectionProvider>
       <div className="space-y-8">
         {courses.length > 0 && (
-          <CourseFilter courses={courses} activeId={filterCourse?.id} />
+          <CourseFilter
+            courses={courses}
+            activeId={filterCourse?.id}
+            labelMode={labelMode}
+          />
         )}
 
         <section className="space-y-3 rounded-card border border-line bg-white p-4">
@@ -189,7 +197,15 @@ function TaskGroup({
 }
 
 // ปุ่มกรองตามวิชา เลื่อนซ้าย-ขวาได้บนมือถือ
-function CourseFilter({ courses, activeId }: { courses: Course[]; activeId?: string }) {
+function CourseFilter({
+  courses,
+  activeId,
+  labelMode,
+}: {
+  courses: Course[];
+  activeId?: string;
+  labelMode: CourseLabelMode;
+}) {
   const chip = (active: boolean) =>
     `shrink-0 rounded-full border px-3 py-1 text-sm ${
       active ? "border-accent bg-accent text-white" : "border-line bg-white text-muted"
@@ -205,7 +221,7 @@ function CourseFilter({ courses, activeId }: { courses: Course[]; activeId?: str
           href={`/tasks?course=${c.id}`}
           className={chip(activeId === c.id)}
         >
-          {c.code || c.name}
+          {courseLabel(c, labelMode)}
         </Link>
       ))}
     </div>
