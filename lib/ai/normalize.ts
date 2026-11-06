@@ -1,10 +1,10 @@
 // ตรวจและเกลาคำตอบของ AI ก่อนส่งให้ผู้ใช้ — ห้ามเดาเงียบ ๆ:
-// อะไรที่ไม่แน่ใจ/ผิดรูปแบบ จะลด confidence เป็น low และแนบคำเตือนภาษาไทย
+// อะไรที่ไม่แน่ใจ/ผิดรูปแบบ จะลด confidence และแนบคำเตือนภาษาไทย
 // (ไฟล์นี้ไม่มี server-only จึงทดสอบด้วย node ได้ตรง ๆ: npm run test:ai-unit)
 import { beToCe, toDueAt } from "../dates.ts";
 import type { AiTask, Confidence, ExtractedTask } from "./schema.ts";
 
-type CourseRef = { id: string; name: string; code: string | null };
+export type CourseRef = { id: string; name: string; code: string | null };
 
 const MAX_TASKS = 100;
 const TIME_RE = /^([01]?\d|2[0-3])[:.]([0-5]\d)$/;
@@ -15,27 +15,56 @@ function clean(s: string | null | undefined, max: number): string | null {
   return t ? t.slice(0, max) : null;
 }
 
-// ทำให้เทียบชื่อวิชาได้ง่าย: ตัวเล็ก ไม่มีช่องว่าง/ขีด
-function key(s: string) {
+// ทำให้เทียบชื่อวิชาได้ง่าย: ตัวเล็ก ไม่มีช่องว่าง/ขีด/จุด
+export function courseKey(s: string) {
   return s.toLowerCase().replace(/[\s\-_.]/g, "");
 }
 
-// จับคู่ข้อความวิชาจาก AI กับวิชาของผู้ใช้: รหัสตรงกัน > ชื่อตรงกัน > ชื่อมีส่วนที่ตรง
-export function matchCourse(text: string | null, courses: CourseRef[]): string | null {
-  if (!text) return null;
-  const k = key(text);
+// จับคู่วิชาจาก AI กับวิชาของผู้ใช้: รหัสตรงกัน > ชื่อตรงกัน > ชื่อมีส่วนที่ตรง (ต้องเจอวิชาเดียว)
+export function matchCourse(
+  code: string | null,
+  name: string | null,
+  courses: CourseRef[],
+): string | null {
+  const k = courseKey(`${code ?? ""}${name ?? ""}`);
   if (!k) return null;
-  const byCode = courses.find((c) => c.code && k.includes(key(c.code)));
+  const byCode = courses.find((c) => c.code && k.includes(courseKey(c.code)));
   if (byCode) return byCode.id;
-  const byName = courses.find((c) => key(c.name) === k);
+  if (!name) return null;
+  const n = courseKey(name);
+  const byName = courses.find((c) => courseKey(c.name) === n);
   if (byName) return byName.id;
-  const partial = courses.filter(
-    (c) => key(c.name).length >= 4 && (k.includes(key(c.name)) || key(c.name).includes(k)),
-  );
+  const partial = courses.filter((c) => {
+    const cn = courseKey(c.name);
+    return cn.length >= 4 && n.length >= 4 && (n.includes(cn) || cn.includes(n));
+  });
   return partial.length === 1 ? partial[0].id : null; // เจอหลายวิชา = ไม่ชัด ไม่เลือกให้
 }
 
-// todayIso = วันนี้ (YYYY-MM-DD เวลาไทย) ใช้ตรวจว่าปีดูสมเหตุสมผลไหม
+// ─── ตรวจวันในสัปดาห์ ("วันอาทิตย์ที่ 30 สิงหาคม") ให้ตรงกับวันที่ ───
+// ช่วยจับกรณี AI เลือกปีผิด เพราะปีที่ต่างกัน วันในสัปดาห์จะไม่ตรง
+const WEEKDAY_PATTERNS: [number, RegExp][] = [
+  [0, /อาทิตย์(?!\s*(หน้า|นี้|ก่อน|ที่แล้ว|ถัดไป))|\bsun(day)?\b/i],
+  [1, /จันทร์|\bmon(day)?\b/i],
+  [2, /อังคาร|\btue(s|sday)?\b/i],
+  [3, /พุธ|\bwed(nesday)?\b/i],
+  [4, /พฤหัส|\bthu(rs|rsday)?\b/i],
+  [5, /ศุกร์|\bfri(day)?\b/i],
+  [6, /เสาร์|\bsat(urday)?\b/i],
+];
+
+// คืนเลขวัน (0 = อาทิตย์) ถ้าข้อความระบุวันในสัปดาห์ "วันเดียว" ไม่งั้นคืน null
+export function mentionedWeekday(text: string | null): number | null {
+  if (!text) return null;
+  const found = WEEKDAY_PATTERNS.filter(([, re]) => re.test(text)).map(([d]) => d);
+  return found.length === 1 ? found[0] : null;
+}
+
+function weekdayOf(iso: string) {
+  return new Date(`${iso}T00:00:00Z`).getUTCDay();
+}
+
+// todayIso = วันนี้ (YYYY-MM-DD เวลาไทย) ใช้ตรวจปีและงานที่เลยกำหนด
 export function normalizeTasks(
   raw: AiTask[],
   courses: CourseRef[],
@@ -52,6 +81,7 @@ export function normalizeTasks(
     let confidence: Confidence = t.due_date_confidence ?? "low";
     let dueDate: string | null = null;
     let dueTime: string | null = null;
+    const rawText = clean(t.raw_date_text, 200);
 
     // ── วันที่ ──
     const rawDate = clean(t.due_date, 20);
@@ -72,12 +102,18 @@ export function normalizeTasks(
         if (!toDueAt(iso)) {
           warnings.push("วันที่นี้ไม่มีอยู่จริง กรุณาใส่วันส่งเอง");
           confidence = "low";
-        } else if (Math.abs(year - thisYear) > 1) {
-          warnings.push(`ปี ${year + 543} ดูไม่ตรงกับเทอมนี้ กรุณาตรวจ`);
-          confidence = "low";
-          dueDate = iso;
         } else {
           dueDate = iso;
+          if (Math.abs(year - thisYear) > 1) {
+            warnings.push(`ปี ${year + 543} ดูไม่ตรงกับเทอมนี้ กรุณาตรวจ`);
+            confidence = "low";
+          }
+          const wd = mentionedWeekday(rawText);
+          if (wd !== null && wd !== weekdayOf(iso)) {
+            warnings.push("วันในสัปดาห์ไม่ตรงกับวันที่ (ปีหรือวันอาจผิด) กรุณาตรวจ");
+            confidence = "low";
+          }
+          if (iso < todayIso) warnings.push("วันส่งผ่านไปแล้ว");
         }
       }
     } else if (confidence !== "low") {
@@ -94,19 +130,21 @@ export function normalizeTasks(
     }
 
     if (!dueDate) warnings.unshift("ยังไม่รู้วันส่ง");
-    else if (confidence === "low" && warnings.length === 0) {
+    else if (confidence === "low" && !warnings.some((w) => w !== "วันส่งผ่านไปแล้ว")) {
       warnings.push("AI ไม่แน่ใจวันที่ กรุณาตรวจกับต้นฉบับ");
     }
 
-    const courseText = clean(t.course, 200);
+    const courseCode = clean(t.course_code, 50);
+    const courseName = clean(t.course_name, 200);
     out.push({
       title,
-      course_text: courseText,
-      course_id: matchCourse(courseText, courses),
+      course_code: courseCode,
+      course_name: courseName,
+      course_id: matchCourse(courseCode, courseName, courses),
       due_date: dueDate,
       due_time: dueTime,
       confidence,
-      raw_date_text: clean(t.raw_date_text, 200),
+      raw_date_text: rawText,
       note: clean(t.note, 2000),
       warnings,
     });

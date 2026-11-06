@@ -1,12 +1,12 @@
 // ทดสอบการตรวจ/เกลาคำตอบของ AI (ไม่เรียก AI จริง ไม่เสียเงิน) — npm run test:ai-unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { matchCourse, normalizeTasks } from "../lib/ai/normalize.ts";
+import { matchCourse, mentionedWeekday, normalizeTasks } from "../lib/ai/normalize.ts";
 import { AiResultSchema, type AiTask } from "../lib/ai/schema.ts";
 
 const TODAY = "2026-11-06";
 const COURSES = [
-  { id: "c1", name: "การวิเคราะห์ข้อมูลเบื้องต้น", code: "DS201" },
+  { id: "c1", name: "Image Processing", code: "204383" },
   { id: "c2", name: "สถิติ", code: "STAT102" },
   { id: "c3", name: "Programming Fundamentals", code: null },
 ];
@@ -14,7 +14,8 @@ const COURSES = [
 function task(overrides: Partial<AiTask>): AiTask {
   return {
     title: "การบ้าน",
-    course: null,
+    course_code: null,
+    course_name: null,
     due_date: "2026-11-13",
     due_time: null,
     due_date_confidence: "high",
@@ -89,11 +90,43 @@ test("ชื่องานว่างถูกตัดทิ้ง และ�
 });
 
 test("จับคู่วิชา: รหัส, ชื่อ, ไม่ชัดไม่เลือก", () => {
-  assert.equal(matchCourse("DS 201 การวิเคราะห์ข้อมูล", COURSES), "c1");
-  assert.equal(matchCourse("stat102", COURSES), "c2");
-  assert.equal(matchCourse("CS105 Programming Fundamentals", COURSES), "c3");
-  assert.equal(matchCourse("ฟิสิกส์", COURSES), null);
-  assert.equal(matchCourse(null, COURSES), null);
+  assert.equal(matchCourse("204383", "การประมวลผลภาพ", COURSES), "c1");
+  assert.equal(matchCourse(null, "image processing", COURSES), "c1");
+  assert.equal(matchCourse("stat 102", null, COURSES), "c2");
+  assert.equal(matchCourse("CS105", "Programming Fundamentals", COURSES), "c3");
+  assert.equal(matchCourse(null, "ฟิสิกส์", COURSES), null);
+  assert.equal(matchCourse(null, null, COURSES), null);
+});
+
+test("อ่านวันในสัปดาห์จากข้อความ", () => {
+  assert.equal(mentionedWeekday("วันอาทิตย์ที่ 30 สิงหาคม"), 0);
+  assert.equal(mentionedWeekday("Due: Fri, 3 Jul 2026 12:30"), 5);
+  assert.equal(mentionedWeekday("ส่งอาทิตย์หน้า"), null); // อาทิตย์ = สัปดาห์
+  assert.equal(mentionedWeekday("อังคาร และ ศุกร์"), null); // หลายวัน = ไม่ตรวจ
+  assert.equal(mentionedWeekday("Monthly report"), null);
+});
+
+test("วันในสัปดาห์ไม่ตรง (AI เลือกปีผิด) → เตือน + low", () => {
+  const ok = normalizeTasks(
+    [task({ due_date: "2026-08-30", raw_date_text: "วันอาทิตย์ที่ 30 สิงหาคม", due_date_confidence: "medium" })],
+    [],
+    "2026-08-01",
+  )[0];
+  assert.equal(ok.confidence, "medium");
+  assert.deepEqual(ok.warnings, []);
+  const bad = normalizeTasks(
+    [task({ due_date: "2027-08-30", raw_date_text: "วันอาทิตย์ที่ 30 สิงหาคม", due_date_confidence: "medium" })],
+    [],
+    "2026-08-01",
+  )[0];
+  assert.equal(bad.confidence, "low");
+  assert.match(bad.warnings.join(), /วันในสัปดาห์/);
+});
+
+test("วันส่งผ่านไปแล้ว → เตือนแต่ไม่ลด confidence", () => {
+  const [t] = normalizeTasks([task({ due_date: "2026-09-14", raw_date_text: "Mon, 14 Sep 2026" })], [], TODAY);
+  assert.equal(t.confidence, "high");
+  assert.deepEqual(t.warnings, ["วันส่งผ่านไปแล้ว"]);
 });
 
 test("Zod ปฏิเสธคำตอบผิดรูปแบบ", () => {

@@ -7,10 +7,14 @@ export type Confidence = (typeof CONFIDENCE)[number];
 
 export const AiTaskSchema = z.object({
   title: z.string().describe("ชื่องานสั้น ๆ เช่น 'รายงานบทที่ 3', 'Quiz 2'"),
-  course: z
+  course_code: z
     .string()
     .nullable()
-    .describe("ชื่อหรือรหัสวิชาตามที่เขียนในเอกสาร ถ้าไม่ระบุให้เป็น null"),
+    .describe("รหัสวิชาตัวเลข/ตัวอักษร เช่น '204383', 'CS101' ถ้าไม่มีให้เป็น null"),
+  course_name: z
+    .string()
+    .nullable()
+    .describe("ชื่อวิชา เช่น 'Image Processing' หรือ 'การประมวลผลภาพ' ถ้าไม่มีให้เป็น null"),
   due_date: z
     .string()
     .nullable()
@@ -39,7 +43,8 @@ export type AiResult = z.infer<typeof AiResultSchema>;
 // รายการที่ผ่านการตรวจฝั่งเราแล้ว พร้อมส่งให้หน้าเว็บ
 export type ExtractedTask = {
   title: string;
-  course_text: string | null; // ชื่อวิชาตามที่ AI อ่านได้
+  course_code: string | null; // รหัสวิชาตามที่ AI อ่านได้
+  course_name: string | null; // ชื่อวิชาตามที่ AI อ่านได้
   course_id: string | null; // จับคู่กับวิชาของผู้ใช้ได้ (ถ้ามี)
   due_date: string | null; // YYYY-MM-DD ค.ศ.
   due_time: string | null; // HH:MM
