@@ -5,7 +5,9 @@ import type { AiTask } from "./schema.ts";
 
 type DemoSet = {
   label: string; // ชื่อไฟล์ที่แสดงให้ผู้ใช้รู้ว่าแอปจับได้ว่าเป็นเอกสารไหน
-  keywords: string[]; // ต้องเจอทุกคำ (ไม่สนตัวพิมพ์เล็ก/ใหญ่)
+  // เจอ "ทุกคำ" ในกลุ่มใดกลุ่มหนึ่ง = ตรง (ไม่สนตัวพิมพ์เล็ก/ใหญ่)
+  // มีหลายกลุ่มเผื่อข้อความที่ก๊อปจาก PDF ภาษาไทยเพี้ยน (เช่น สระ/วรรณยุกต์หาย)
+  keywords: string[][];
   tasks: AiTask[];
 };
 
@@ -17,7 +19,7 @@ const PDS = { course_code: "229223", course_name: "Programming for Data Science"
 export const DEMO_SETS: DemoSet[] = [
   {
     label: "Canvas: 02 [Group] Vector to Raster Image",
-    keywords: ["vector to raster"],
+    keywords: [["vector to raster"]],
     tasks: [
       {
         title: "02 [Group] Vector to Raster Image with Your Colors",
@@ -32,7 +34,7 @@ export const DEMO_SETS: DemoSet[] = [
   },
   {
     label: "Canvas: 04 (Individual) Spirits",
-    keywords: ["spirits"],
+    keywords: [["spirits"]],
     tasks: [
       {
         title: "04 (Individual) Spirits",
@@ -47,7 +49,7 @@ export const DEMO_SETS: DemoSet[] = [
   },
   {
     label: "Canvas: Lec #1 Data transformation",
-    keywords: ["data transformation", "due"],
+    keywords: [["data transformation", "due"]],
     tasks: [
       {
         title: "Lec #1 Data transformation",
@@ -62,7 +64,7 @@ export const DEMO_SETS: DemoSet[] = [
   },
   {
     label: "Canvas: HW07 Bayes Net",
-    keywords: ["bayes net"],
+    keywords: [["bayes net"]],
     tasks: [
       {
         title: "HW07 Bayes Net",
@@ -77,7 +79,7 @@ export const DEMO_SETS: DemoSet[] = [
   },
   {
     label: "Canvas: HW11 Learning",
-    keywords: ["hw11"],
+    keywords: [["hw11"]],
     tasks: [
       {
         title: "HW11 Learning",
@@ -92,7 +94,10 @@ export const DEMO_SETS: DemoSet[] = [
   },
   {
     label: "ซิลลาบัส 204383 Image Processing",
-    keywords: ["204383", "สอบไล่"],
+    keywords: [
+      ["204383", "สอบกลางภาค"],
+      ["204383", "สอบไล"],
+    ],
     tasks: [
       {
         title: "สอบกลางภาค",
@@ -116,7 +121,10 @@ export const DEMO_SETS: DemoSet[] = [
   },
   {
     label: "ซิลลาบัส 204471 Artificial Intelligence",
-    keywords: ["204471", "วันสำคัญ"],
+    keywords: [
+      ["204471", "สอบกลางภาค"],
+      ["204471", "วันสำคัญ"],
+    ],
     tasks: [
       {
         title: "สอบกลางภาค",
@@ -150,7 +158,11 @@ export const DEMO_SETS: DemoSet[] = [
   {
     // เอกสารนี้ปีขัดกันเอง (หัวเอกสาร 2565 แต่วันสอบ 2567) → ระบบควรเตือนทุกรายการ
     label: "ซิลลาบัส 229223 Programming for Data Science (PDF)",
-    keywords: ["229223"],
+    // ซิลลาบัสวิชาอื่นอาจมี "229223" เป็นวิชาที่ต้องผ่านก่อน → ต้องเจอชื่อวิชาด้วย
+    keywords: [
+      ["229223", "programming for data science"],
+      ["229223", "การโปรแกรม"],
+    ],
     tasks: [
       ...(
         [
@@ -195,5 +207,7 @@ export const DEMO_SETS: DemoSet[] = [
 // หาเอกสารตัวอย่างที่ตรงกับข้อความที่วาง (วางหลายเอกสารพร้อมกันได้)
 export function findDemoSets(text: string): DemoSet[] {
   const t = text.toLowerCase();
-  return DEMO_SETS.filter((s) => s.keywords.every((k) => t.includes(k.toLowerCase())));
+  return DEMO_SETS.filter((s) =>
+    s.keywords.some((group) => group.every((k) => t.includes(k.toLowerCase()))),
+  );
 }
