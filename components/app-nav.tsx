@@ -3,10 +3,11 @@ import Link from "next/link";
 const LINKS = [
   { href: "/tasks", label: "งาน" },
   { href: "/courses", label: "วิชา" },
+  { href: "/import", label: "นำเข้า" },
 ] as const;
 
 // แถบเมนูด้านบนของหน้าที่ต้องล็อกอิน
-export function AppNav({ current }: { current: "/tasks" | "/courses" | "/settings" }) {
+export function AppNav({ current }: { current: "/tasks" | "/courses" | "/import" | "/settings" }) {
   return (
     <nav className="flex items-center justify-between">
       <Link href="/" className="font-semibold tracking-tight">
@@ -19,7 +20,7 @@ export function AppNav({ current }: { current: "/tasks" | "/courses" | "/setting
               key={l.href}
               href={l.href}
               aria-current={l.href === current ? "page" : undefined}
-              className={`rounded-[calc(var(--radius-card)-2px)] px-4 py-1.5 ${
+              className={`rounded-[calc(var(--radius-card)-2px)] px-3 py-1.5 ${
                 l.href === current ? "bg-accent text-white" : "text-muted"
               }`}
             >

@@ -1,0 +1,9 @@
+CS105 Programming Fundamentals — Course Schedule (Semester 2/2026)
+
+Week 1-3: Python basics
+Lab 1 due: Nov 20, 2026 11:59 PM (submit on GitHub Classroom)
+Lab 2 due: Week 6
+Assignment 1: Mini calculator — deadline 4 Dec 2026
+Midterm Exam: TBA
+Final Project presentation: ปลายเทอม (ประมาณกลางเดือนกุมภาพันธ์)
+Office hours: Tue 13:00-15:00
