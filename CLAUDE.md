@@ -17,6 +17,7 @@
 - Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 — เวอร์ชันใหม่ อ่าน docs ใน `node_modules/next/dist/docs/` ก่อนเขียนโค้ด
 - Supabase: Google login + Postgres + Row Level Security
 - Deploy บน Vercel
+- AI env: `ANTHROPIC_API_KEY` (ฝั่งเซิร์ฟเวอร์เท่านั้น), `ANTHROPIC_MODEL`, `AI_MODE`; `lib/ai/*.ts` import กันด้วยนามสกุล `.ts` (ให้ `node --test` รันได้ตรง)
 - Supabase auth: `@supabase/ssr` + `getClaims()` (ตรวจ JWT) ผ่าน `getCurrentUser()` ใน `lib/auth.ts`; `cacheComponents` เปิดอยู่ → ส่วนที่อ่าน user ต้องอยู่ใน `<Suspense>`; env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (ดู `.env.example`)
 - ฐานข้อมูล: แก้ตารางด้วยไฟล์ใหม่ใน `supabase/migrations/` (เลขถัดไป) ห้ามแก้ไฟล์ที่รันไปแล้ว; user_id เติม `auth.uid()` เอง ไม่ต้องส่งจากแอป; `ai_usage` ผู้ใช้แก้/ลบไม่ได้
 - Node.js อยู่ที่ `/usr/local/bin` (ถ้า shell หาไม่เจอให้ `export PATH="/usr/local/bin:$PATH"`)
@@ -49,7 +50,8 @@
 - ไม่เก็บไฟล์ที่อัปโหลด: ส่งให้ AI แล้วทิ้ง
 - AI ส่ง `confidence` + `raw_date_text` ต่อรายการ; รายการไม่มั่นใจไฮไลต์เตือน และต้องยืนยันก่อนบันทึก
 - "สัปดาห์งานหนัก" = นับจำนวนงานต่อสัปดาห์ (จันทร์–อาทิตย์)
-- AI: Claude API ฝั่งเซิร์ฟเวอร์ (อ่าน PDF/รูปได้ตรง)
+- AI: Claude API ฝั่งเซิร์ฟเวอร์ (อ่าน PDF/รูปได้ตรง); รุ่น Claude Sonnet 5.5 (`claude-sonnet-5-5`, เปลี่ยนได้ด้วย env `ANTHROPIC_MODEL`); ไม่มี key หรือ `AI_MODE=mock` = โหมดจำลอง (ไม่เสียเงิน ไม่นับลิมิต)
+- ไฟล์จริงของผู้ใช้ (ซิลลาบัส/แคปงาน) ห้าม commit ลง git — ใช้เป็นแนวทางเขียน fixture สมมติใน `tests/fixtures/` เท่านั้น
 
 ## สไตล์ UI
 minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan, พื้นหลัง `#FAFAF8`, ตัวอักษร `#1F2328`, สีเน้น `#3B5BDB`, เส้นขอบบางแทนเงา, มุมโค้งเล็กน้อย, เว้นระยะกว้าง, mobile-first
@@ -62,8 +64,8 @@ minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan,
 2. [x] Supabase + ล็อกอินด้วย Google — ทดสอบบนเว็บจริงผ่าน (Supabase project `adbgiuinkqeaohdcfnmm`, Singapore; Google OAuth อยู่โหมด Testing → เพื่อนที่จะลองต้องอยู่ใน Test users หรือ Publish แอปก่อนเซสชัน 12; ขั้นตอนตั้งค่าอยู่ `docs/setup-supabase.md`)
 3. [x] ตาราง courses, tasks, events (+ ai_usage) + RLS → เพิ่ม/ดู/แก้/ลบ task ด้วยมือได้ — SQL `supabase/migrations/0001_init.sql` (รันใน SQL Editor ตาม `docs/setup-supabase.md` ข้อ 6), หน้า `/tasks` + Server Actions `app/tasks/actions.ts`, ทดสอบ RLS ด้วย `npm run test:db` (PGlite)
 4. [x] หน้าเพิ่มวิชา + หน้ารายการงาน (เรียงตามวัน) — หน้า `/courses` (เพิ่ม/แก้/ลบวิชา + นับงานค้าง, `app/courses/actions.ts`), `/tasks` แบ่งกลุ่ม ยังไม่กำหนดวันส่ง/เลยกำหนด/วันนี้/พรุ่งนี้/ภายใน 7 วัน/หลังจากนั้น (`dueGroup()` ใน `lib/dates.ts`) + กรองวิชา `?course=<id>` + เลือกหลายงาน (ติ๊กเสร็จ/ลบ), การ์ดวิชากางดูงานค้าง (ติ๊ก/ลบได้), ลบวิชาถามว่าจะลบงานด้วยไหม, หน้า `/settings` (แสดงวิชาเป็นรหัส/ชื่อ), แถบเมนู `components/app-nav.tsx` — ผู้ใช้ลองบนเว็บจริงแล้วโอเค
-5. [ ] หน้าวางข้อความ → AI ฝั่งเซิร์ฟเวอร์ → JSON (title, course, due_date, due_date_confidence, note) + ชุดทดสอบภาษาไทย 3 แบบ
-6. [ ] หน้าตรวจก่อนบันทึก (การ์ด, แก้/ติ๊ก/ลบ, confidence ต่ำ = สีเหลือง, บันทึกทั้งหมด)
+5. [x] หน้าวางข้อความ → AI ฝั่งเซิร์ฟเวอร์ → JSON + ชุดทดสอบภาษาไทย — หน้า `/import` (`components/import-form.tsx`), `POST /api/extract` (ล็อกอิน + ลิมิต 10 ครั้ง/วันจาก `ai_usage` + ข้อความ ≤ 20,000 ตัวอักษร), `lib/ai/` (`schema.ts` Zod: title, course_code, course_name, due_date, due_time, due_date_confidence, raw_date_text, note; `prompt.ts` รองรับหน้า Canvas "Due" vs "Submitted/Available" และซิลลาบัสไม่มีปี; `claude.ts` Sonnet 5.5 structured output + โหมดจำลอง; `normalize.ts` แปลง พ.ศ., ตรวจวันในสัปดาห์ให้ตรงกับวันที่, เตือนวันที่ผ่านไปแล้ว, จับคู่วิชา), ทดสอบ `npm run test:ai-unit` (ฟรี, 13 ข้อ) และ `npm run test:ai` (AI จริง 5 fixtures ใน `tests/fixtures/`) — ทำล่วงหน้าจากเซสชัน 6 ด้วย: ติ๊กเลือกงาน (confidence ต่ำไม่ติ๊กให้ ต้องยืนยันเอง), เลือกวิชาต่อการ์ด (วิชาเดิม / "+ เพิ่มวิชาใหม่" จากรหัส+ชื่อที่ AI อ่านได้), ปุ่ม "บันทึกงานที่เลือก" (`app/import/actions.ts` สร้างวิชาที่ยังไม่มีแบบไม่ซ้ำ แล้วบันทึกงาน `source = 'ai'`) — **ค้าง:** ยังไม่มี `ANTHROPIC_API_KEY` (ตอนนี้เป็นโหมดจำลอง) → เติมเงินแล้วรัน `npm run test:ai` + ลองซิลลาบัสจริง
+6. [ ] หน้าตรวจก่อนบันทึก — ที่เหลือ: แก้ชื่อ/วันที่/เวลา/หมายเหตุในการ์ดได้, ลบการ์ด, ติ๊กทั้งหมด/ไม่ติ๊กทั้งหมด, เตือนงานซ้ำกับที่มีอยู่แล้ว (ติ๊กเลือก + เลือกวิชา + บันทึก + สีเหลืองทำแล้วในเซสชัน 5)
 7. [ ] อัปโหลด PDF และรูป
 8. [ ] จำกัด AI 10 ครั้ง/วัน + จัดการ error (AI ตอบผิดรูปแบบ, ไฟล์ใหญ่เกิน)
 9. [ ] มุมมองรายสัปดาห์ + PWA
