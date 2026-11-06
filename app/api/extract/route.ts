@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { toBangkokParts } from "@/lib/dates";
 import { AiError, extractWithClaude, isMockMode, mockExtract } from "@/lib/ai/claude";
 import { normalizeTasks } from "@/lib/ai/normalize";
+import { findDemoSets } from "@/lib/ai/demo-samples";
 import { AI_DAILY_LIMIT, MAX_TEXT_LENGTH } from "@/lib/ai/limits";
 import type { AiTask, ExtractResponse } from "@/lib/ai/schema";
 
@@ -52,9 +53,17 @@ export async function POST(request: Request) {
   const coursesPromise = supabase.from("courses").select("id, name, code");
 
   let raw: AiTask[] = [];
+  let mockSources: string[] = [];
   let success = false;
   try {
-    raw = mock ? mockExtract(today) : await extractWithClaude(text, today);
+    if (mock) {
+      // โหมดจำลอง: ถ้าข้อความตรงกับเอกสารตัวอย่างที่เตรียมไว้ ใช้คำตอบของเอกสารนั้น
+      const demos = findDemoSets(text);
+      mockSources = demos.map((d) => d.label);
+      raw = demos.length ? demos.flatMap((d) => d.tasks) : mockExtract(today);
+    } else {
+      raw = await extractWithClaude(text, today);
+    }
     success = true;
   } catch (err) {
     const message = err instanceof AiError ? err.message : "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง";
@@ -72,5 +81,10 @@ export async function POST(request: Request) {
 
   const { data: courses } = await coursesPromise;
   const tasks = normalizeTasks(raw, courses ?? [], today);
-  return Response.json({ ok: true, tasks, mock } satisfies ExtractResponse);
+  return Response.json({
+    ok: true,
+    tasks,
+    mock,
+    mock_sources: mockSources,
+  } satisfies ExtractResponse);
 }
