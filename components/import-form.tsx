@@ -35,7 +35,7 @@ export function ImportForm({
   const [text, setText] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mock, setMock] = useState(false);
+  const [mock, setMock] = useState<{ on: boolean; sources: string[] }>({ on: false, sources: [] });
   const [rows, setRows] = useState<Row[] | null>(null);
   const [saving, startSaving] = useTransition();
   const [saved, setSaved] = useState<{ saved: number; coursesCreated: number } | null>(null);
@@ -58,7 +58,7 @@ export function ImportForm({
       else if (!data.ok) setError(data.error);
       else {
         setRows(toRows(data.tasks));
-        setMock(data.mock);
+        setMock({ on: data.mock, sources: data.mock_sources ?? [] });
       }
     } catch {
       setError("เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่");
@@ -146,10 +146,24 @@ export function ImportForm({
 
       {rows && (
         <section className="space-y-3">
-          {mock && (
-            <p className="rounded-card border border-line bg-white px-3 py-2 text-sm text-muted">
-              🧪 โหมดจำลอง: ยังไม่ได้เชื่อม AI จริง รายการด้านล่างเป็นตัวอย่าง (ไม่ขึ้นกับข้อความที่วาง)
-            </p>
+          {mock.on && (
+            <div className="space-y-1 rounded-card border border-line bg-white px-3 py-2 text-sm text-muted">
+              {mock.sources.length ? (
+                <>
+                  <p>🧪 โหมดจำลอง: ใช้คำตอบที่เตรียมไว้สำหรับ</p>
+                  <ul className="list-disc pl-5">
+                    {mock.sources.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p>
+                  🧪 โหมดจำลอง: ยังไม่ได้เชื่อม AI จริง และข้อความนี้ไม่ตรงกับเอกสารตัวอย่าง
+                  รายการด้านล่างเป็นตัวอย่างทั่วไป
+                </p>
+              )}
+            </div>
           )}
           <h2 className="text-sm text-muted">
             {rows.length

@@ -55,5 +55,6 @@ export type ExtractedTask = {
 };
 
 export type ExtractResponse =
-  | { ok: true; tasks: ExtractedTask[]; mock: boolean }
+  // mock_sources = ชื่อเอกสารตัวอย่างที่โหมดจำลองจับได้ (ว่าง = ใช้ชุดตัวอย่างทั่วไป)
+  | { ok: true; tasks: ExtractedTask[]; mock: boolean; mock_sources?: string[] }
   | { ok: false; error: string };
