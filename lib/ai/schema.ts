@@ -5,8 +5,54 @@ import { z } from "zod";
 export const CONFIDENCE = ["high", "medium", "low"] as const;
 export type Confidence = (typeof CONFIDENCE)[number];
 
+// ประเภทรายการ: 3 แบบแรก = สอบ (บันทึกลงตาราง events) ที่เหลือ = งาน (บันทึกลง tasks)
+export const ITEM_KINDS = [
+  "midterm",
+  "final",
+  "exam_other",
+  "homework",
+  "quiz",
+  "lab",
+  "project",
+  "report",
+  "presentation",
+  "other",
+] as const;
+export type ItemKind = (typeof ITEM_KINDS)[number];
+
+export type ExamType = "midterm" | "final" | "other";
+export const EXAM_TYPE_LABEL: Record<ExamType, string> = {
+  midterm: "สอบกลางภาค",
+  final: "สอบปลายภาค",
+  other: "สอบอื่น ๆ",
+};
+
+// ประเภทของ AI → ชนิดสอบ (null = ไม่ใช่สอบ)
+export function examTypeOf(kind: ItemKind): ExamType | null {
+  if (kind === "midterm") return "midterm";
+  if (kind === "final") return "final";
+  if (kind === "exam_other") return "other";
+  return null;
+}
+
+// ประเภทของ AI → ชื่อประเภทงานตั้งต้น (ตรงกับ supabase/migrations/0002)
+export const KIND_CATEGORY: Record<Exclude<ItemKind, "midterm" | "final" | "exam_other">, string> = {
+  homework: "การบ้าน",
+  quiz: "Quiz",
+  lab: "Lab",
+  project: "โปรเจกต์",
+  report: "รายงาน",
+  presentation: "นำเสนอ",
+  other: "อื่น ๆ",
+};
+
 export const AiTaskSchema = z.object({
-  title: z.string().describe("ชื่องานสั้น ๆ เช่น 'รายงานบทที่ 3', 'Quiz 2'"),
+  title: z.string().describe("ชื่องานหรือชื่อการสอบสั้น ๆ เช่น 'รายงานบทที่ 3', 'Quiz 2', 'สอบกลางภาค'"),
+  kind: z
+    .enum(ITEM_KINDS)
+    .describe(
+      "midterm = สอบกลางภาค, final = สอบปลายภาค/สอบไล่, exam_other = สอบอื่นตามตารางสอบ, homework = การบ้าน/แบบฝึกหัด, quiz = quiz ในคาบ, lab, project = โปรเจกต์, report = รายงาน, presentation = นำเสนอ, other = อื่น ๆ",
+    ),
   course_code: z
     .string()
     .nullable()
@@ -18,11 +64,19 @@ export const AiTaskSchema = z.object({
   due_date: z
     .string()
     .nullable()
-    .describe("วันส่งรูปแบบ YYYY-MM-DD ปี ค.ศ. เท่านั้น ถ้าไม่รู้วันแน่ชัดให้เป็น null"),
+    .describe("วันส่ง (หรือวันสอบ) รูปแบบ YYYY-MM-DD ปี ค.ศ. เท่านั้น ถ้าไม่รู้วันแน่ชัดให้เป็น null"),
   due_time: z
     .string()
     .nullable()
-    .describe("เวลาส่งรูปแบบ HH:MM (24 ชม.) ถ้าเอกสารไม่ระบุเวลาให้เป็น null"),
+    .describe("เวลาส่ง (หรือเวลาเริ่มสอบ) รูปแบบ HH:MM (24 ชม.) ถ้าเอกสารไม่ระบุเวลาให้เป็น null"),
+  end_time: z
+    .string()
+    .nullable()
+    .describe("เวลาสอบเสร็จ รูปแบบ HH:MM (เฉพาะสอบ) ถ้าไม่ระบุหรือไม่ใช่สอบให้เป็น null"),
+  location: z
+    .string()
+    .nullable()
+    .describe("สถานที่สอบ เช่น 'ห้อง 301 ตึก 30 ปี' (เฉพาะสอบ) ถ้าไม่ระบุให้เป็น null"),
   due_date_confidence: z
     .enum(CONFIDENCE)
     .describe("high = เขียนวันที่ชัดเจน, medium = ต้องอนุมานเล็กน้อย, low = ไม่ชัด/ต้องเดา"),
@@ -43,11 +97,14 @@ export type AiResult = z.infer<typeof AiResultSchema>;
 // รายการที่ผ่านการตรวจฝั่งเราแล้ว พร้อมส่งให้หน้าเว็บ
 export type ExtractedTask = {
   title: string;
+  kind: ItemKind;
   course_code: string | null; // รหัสวิชาตามที่ AI อ่านได้
   course_name: string | null; // ชื่อวิชาตามที่ AI อ่านได้
   course_id: string | null; // จับคู่กับวิชาของผู้ใช้ได้ (ถ้ามี)
   due_date: string | null; // YYYY-MM-DD ค.ศ.
-  due_time: string | null; // HH:MM
+  due_time: string | null; // HH:MM (สอบ = เวลาเริ่ม)
+  end_time: string | null; // HH:MM เวลาสอบเสร็จ (เฉพาะสอบ)
+  location: string | null; // สถานที่สอบ
   confidence: Confidence;
   raw_date_text: string | null;
   note: string | null;
