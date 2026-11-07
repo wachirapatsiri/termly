@@ -17,7 +17,7 @@ async function run(file: string): Promise<ExtractedTask[]> {
   console.log(`\n── ${file} ──`);
   for (const t of tasks) {
     console.log(
-      `  [${t.confidence.padEnd(6)}] ${t.due_date ?? "—".padEnd(10)} ${t.due_time ?? "     "} ${t.title}` +
+      `  [${t.confidence.padEnd(6)}] ${t.kind.padEnd(12)} ${t.due_date ?? "—".padEnd(10)} ${t.due_time ?? "     "}${t.end_time ? `–${t.end_time}` : ""} ${t.title}` +
         (t.warnings.length ? `  ⚠ ${t.warnings.join(" / ")}` : ""),
     );
   }
@@ -34,7 +34,12 @@ test("1) ซิลลาบัสตาราง ปี พ.ศ.", { skip }, asy
   assert.equal(hw2?.due_date, "2026-11-27");
   assert.equal(hw2?.due_time, "23:59");
   assert.equal(find(tasks, /Regression|ครั้งที่ 3/i)?.due_date, "2027-01-08");
-  assert.equal(find(tasks, /กลางภาค|midterm/i)?.due_date, "2026-12-16");
+  const mid = find(tasks, /กลางภาค|midterm/i);
+  assert.equal(mid?.due_date, "2026-12-16");
+  assert.equal(mid?.kind, "midterm");
+  assert.equal(mid?.due_time, "09:00");
+  assert.equal(mid?.end_time, "12:00");
+  assert.equal(find(tasks, /Visualization|ครั้งที่ 2/i)?.kind, "homework");
 });
 
 test("2) ประกาศภาษาพูด วันสัมพัทธ์", { skip }, async () => {
@@ -42,11 +47,14 @@ test("2) ประกาศภาษาพูด วันสัมพัทธ�
   const sheet = find(tasks, /ใบงาน|บทที่ 5/);
   assert.equal(sheet?.due_date, "2026-11-13", "ศุกร์หน้า = 13 พ.ย.");
   assert.notEqual(sheet?.confidence, "high", "วันสัมพัทธ์ไม่ควร high");
-  assert.equal(find(tasks, /quiz/i)?.due_date, "2026-11-10", "อังคารนี้ = 10 พ.ย.");
+  const quiz = find(tasks, /quiz/i);
+  assert.equal(quiz?.due_date, "2026-11-10", "อังคารนี้ = 10 พ.ย.");
+  assert.equal(quiz?.kind, "quiz", "quiz ในคาบ = งาน ไม่ใช่สอบ");
   const project = find(tasks, /โปรเจกต์|project/i);
   assert.ok(project, "ต้องมีโปรเจกต์");
   assert.equal(project.due_date, null, "โปรเจกต์ยังไม่ประกาศวัน ต้องไม่เดา");
   assert.equal(project.confidence, "low");
+  assert.equal(project.kind, "project");
 });
 
 test("3) ไทยปนอังกฤษ + วันที่กำกวม", { skip }, async () => {
@@ -78,9 +86,12 @@ test("5) ซิลลาบัสไม่มีปี: เดาปีจาก
   const mid = find(tasks, /กลางภาค|midterm/i);
   assert.equal(mid?.due_date, "2026-08-30", "อาทิตย์ 30 ส.ค. = ปี 2026");
   assert.equal(mid?.due_time, "15:30");
+  assert.equal(mid?.end_time, "18:30");
+  assert.equal(mid?.kind, "midterm");
   assert.notEqual(mid?.confidence, "high", "ไม่มีปีในเอกสาร ไม่ควร high");
   const fin = find(tasks, /ปลายภาค|final/i);
   assert.equal(fin?.due_date, "2026-10-26");
   assert.equal(fin?.due_time, "08:00");
+  assert.equal(fin?.kind, "final");
   assert.ok(!find(tasks, /เตรียมสอบ|เข้าพรรษา|intro/i), "สัปดาห์เตรียมสอบ/วันหยุดไม่ใช่งาน");
 });

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEMO_SETS, findDemoSets } from "../lib/ai/demo-samples.ts";
 import { normalizeTasks } from "../lib/ai/normalize.ts";
-import { AiResultSchema } from "../lib/ai/schema.ts";
+import { AiResultSchema, examTypeOf } from "../lib/ai/schema.ts";
 
 const TODAY = "2026-11-06";
 
@@ -72,5 +72,22 @@ test("229223 (ปีขัดกันเอง) ถูกเตือนทุ�
   for (const t of out) {
     assert.equal(t.confidence, "low", t.title);
     assert.ok(t.warnings.some((w) => w.includes("ไม่ตรงกับเทอมนี้")), t.title);
+  }
+});
+
+test("แยกสอบ/งาน: ซิลลาบัสมีแต่สอบ, Canvas เป็นงาน, Lab Quiz เป็นงาน", () => {
+  const kinds = (text: string) => findDemoSets(text).flatMap((s) => s.tasks).map((t) => t.kind);
+  assert.deepEqual(kinds("204383 สอบกลางภาค"), ["midterm", "final"]);
+  assert.deepEqual(kinds("HW07 Bayes Net"), ["homework"]);
+  const pds = kinds("229223 Programming for Data Science");
+  assert.equal(pds.filter((k) => k === "quiz").length, 4);
+  assert.equal(pds.filter((k) => examTypeOf(k)).length, 2);
+});
+
+test("สอบทุกรายการที่มีเวลาเริ่ม มีเวลาจบด้วย", () => {
+  for (const s of DEMO_SETS) {
+    for (const t of normalizeTasks(s.tasks, [], TODAY)) {
+      if (examTypeOf(t.kind) && t.due_time) assert.ok(t.end_time, `${s.label}: ${t.title}`);
+    }
   }
 });

@@ -45,7 +45,7 @@ async function TasksSection({
     supabase
       .from("tasks")
       .select(
-        "id, course_id, title, due_at, due_has_time, notes, source, done, created_at",
+        "id, course_id, category_id, title, due_at, due_has_time, notes, source, done, created_at",
       )
       .order("due_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: true }),

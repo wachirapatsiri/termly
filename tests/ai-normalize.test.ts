@@ -14,10 +14,13 @@ const COURSES = [
 function task(overrides: Partial<AiTask>): AiTask {
   return {
     title: "การบ้าน",
+    kind: "homework",
     course_code: null,
     course_name: null,
     due_date: "2026-11-13",
     due_time: null,
+    end_time: null,
+    location: null,
     due_date_confidence: "high",
     raw_date_text: "13 พ.ย. 69",
     note: null,
@@ -133,4 +136,55 @@ test("Zod ปฏิเสธคำตอบผิดรูปแบบ", () => {
   assert.equal(AiResultSchema.safeParse({ tasks: [{ title: "x" }] }).success, false);
   assert.equal(AiResultSchema.safeParse({ items: [] }).success, false);
   assert.equal(AiResultSchema.safeParse({ tasks: [] }).success, true);
+});
+
+test("สอบ: เวลาเริ่ม–จบ + สถานที่ + คำเตือนใช้คำว่า 'วันสอบ'", () => {
+  const [ok] = normalizeTasks(
+    [task({ title: "สอบกลางภาค", kind: "midterm", due_time: "8.00", end_time: "11:00", location: " ห้อง 301 " })],
+    [],
+    TODAY,
+  );
+  assert.equal(ok.kind, "midterm");
+  assert.equal(ok.due_time, "08:00");
+  assert.equal(ok.end_time, "11:00");
+  assert.equal(ok.location, "ห้อง 301");
+  assert.deepEqual(ok.warnings, []);
+
+  const [none] = normalizeTasks(
+    [task({ title: "สอบปลายภาค", kind: "final", due_date: null, due_date_confidence: "low" })],
+    [],
+    TODAY,
+  );
+  assert.equal(none.warnings[0], "ยังไม่รู้วันสอบ");
+
+  const [past] = normalizeTasks([task({ kind: "final", due_date: "2026-10-25" })], [], TODAY);
+  assert.deepEqual(past.warnings, ["วันสอบผ่านไปแล้ว"]);
+});
+
+test("สอบ: เวลาจบก่อนเวลาเริ่ม → ทิ้ง + เตือน, ไม่มีเวลาเริ่ม → ไม่มีเวลาจบ", () => {
+  const [bad, noStart] = normalizeTasks(
+    [
+      task({ kind: "midterm", due_time: "11:00", end_time: "08:00" }),
+      task({ title: "ข", kind: "midterm", due_time: null, end_time: "11:00" }),
+    ],
+    [],
+    TODAY,
+  );
+  assert.equal(bad.end_time, null);
+  assert.match(bad.warnings.join(), /เวลาสอบเสร็จ/);
+  assert.equal(noStart.end_time, null);
+});
+
+test("งาน (ไม่ใช่สอบ) ไม่เก็บเวลาจบ/สถานที่, ประเภทแปลก → other", () => {
+  const [a, b] = normalizeTasks(
+    [
+      task({ kind: "quiz", end_time: "11:00", location: "ห้อง 1", due_time: "09:00" }),
+      task({ title: "ข", kind: "party" as never }),
+    ],
+    [],
+    TODAY,
+  );
+  assert.equal(a.end_time, null);
+  assert.equal(a.location, null);
+  assert.equal(b.kind, "other");
 });

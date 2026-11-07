@@ -2,7 +2,7 @@
 // อะไรที่ไม่แน่ใจ/ผิดรูปแบบ จะลด confidence และแนบคำเตือนภาษาไทย
 // (ไฟล์นี้ไม่มี server-only จึงทดสอบด้วย node ได้ตรง ๆ: npm run test:ai-unit)
 import { beToCe, toDueAt } from "../dates.ts";
-import type { AiTask, Confidence, ExtractedTask } from "./schema.ts";
+import { ITEM_KINDS, examTypeOf, type AiTask, type Confidence, type ExtractedTask, type ItemKind } from "./schema.ts";
 
 export type CourseRef = { id: string; name: string; code: string | null };
 
@@ -60,6 +60,12 @@ export function mentionedWeekday(text: string | null): number | null {
   return found.length === 1 ? found[0] : null;
 }
 
+// "9.00" / "9:00" → "09:00" (อ่านไม่ออก = null)
+function parseTime(s: string): string | null {
+  const tm = TIME_RE.exec(s);
+  return tm ? `${tm[1].padStart(2, "0")}:${tm[2]}` : null;
+}
+
 function weekdayOf(iso: string) {
   return new Date(`${iso}T00:00:00Z`).getUTCDay();
 }
@@ -77,6 +83,10 @@ export function normalizeTasks(
     const title = clean(t.title, 300);
     if (!title) continue; // ไม่มีชื่องาน = ไม่ใช่รายการที่ใช้ได้
 
+    // AI ส่งประเภทแปลก ๆ มา → ถือเป็นงาน "อื่น ๆ" (ผู้ใช้เปลี่ยนได้ในหน้าตรวจ)
+    const kind: ItemKind = (ITEM_KINDS as readonly string[]).includes(t.kind) ? t.kind : "other";
+    const exam = examTypeOf(kind) !== null;
+    const dayWord = exam ? "วันสอบ" : "วันส่ง";
     const warnings: string[] = [];
     let confidence: Confidence = t.due_date_confidence ?? "low";
     let dueDate: string | null = null;
@@ -88,7 +98,7 @@ export function normalizeTasks(
     if (rawDate) {
       const m = DATE_RE.exec(rawDate);
       if (!m) {
-        warnings.push("AI ส่งวันที่ผิดรูปแบบ กรุณาใส่วันส่งเอง");
+        warnings.push(`AI ส่งวันที่ผิดรูปแบบ กรุณาใส่${dayWord}เอง`);
         confidence = "low";
       } else {
         let year = Number(m[1]);
@@ -100,7 +110,7 @@ export function normalizeTasks(
         }
         const iso = `${year}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
         if (!toDueAt(iso)) {
-          warnings.push("วันที่นี้ไม่มีอยู่จริง กรุณาใส่วันส่งเอง");
+          warnings.push(`วันที่นี้ไม่มีอยู่จริง กรุณาใส่${dayWord}เอง`);
           confidence = "low";
         } else {
           dueDate = iso;
@@ -113,7 +123,7 @@ export function normalizeTasks(
             warnings.push("วันในสัปดาห์ไม่ตรงกับวันที่ (ปีหรือวันอาจผิด) กรุณาตรวจ");
             confidence = "low";
           }
-          if (iso < todayIso) warnings.push("วันส่งผ่านไปแล้ว");
+          if (iso < todayIso) warnings.push(`${dayWord}ผ่านไปแล้ว`);
         }
       }
     } else if (confidence !== "low") {
@@ -124,13 +134,25 @@ export function normalizeTasks(
     // ── เวลา ──
     const rawTime = clean(t.due_time, 10);
     if (rawTime && dueDate) {
-      const tm = TIME_RE.exec(rawTime);
-      if (tm) dueTime = `${tm[1].padStart(2, "0")}:${tm[2]}`;
-      else warnings.push("เวลาส่งอ่านไม่ออก ถือว่าส่งได้ถึง 23:59");
+      dueTime = parseTime(rawTime);
+      if (!dueTime) {
+        warnings.push(exam ? "เวลาสอบอ่านไม่ออก กรุณาใส่เอง" : "เวลาส่งอ่านไม่ออก ถือว่าส่งได้ถึง 23:59");
+      }
     }
 
-    if (!dueDate) warnings.unshift("ยังไม่รู้วันส่ง");
-    else if (confidence === "low" && !warnings.some((w) => w !== "วันส่งผ่านไปแล้ว")) {
+    // ── เวลาสอบเสร็จ + สถานที่ (เฉพาะสอบ) ──
+    let endTime: string | null = null;
+    const rawEnd = clean(t.end_time, 10);
+    if (exam && rawEnd && dueTime) {
+      endTime = parseTime(rawEnd);
+      if (!endTime || endTime <= dueTime) {
+        endTime = null;
+        warnings.push("เวลาสอบเสร็จไม่ถูกต้อง กรุณาตรวจ");
+      }
+    }
+
+    if (!dueDate) warnings.unshift(`ยังไม่รู้${dayWord}`);
+    else if (confidence === "low" && !warnings.some((w) => w !== `${dayWord}ผ่านไปแล้ว`)) {
       warnings.push("AI ไม่แน่ใจวันที่ กรุณาตรวจกับต้นฉบับ");
     }
 
@@ -138,11 +160,14 @@ export function normalizeTasks(
     const courseName = clean(t.course_name, 200);
     out.push({
       title,
+      kind,
       course_code: courseCode,
       course_name: courseName,
       course_id: matchCourse(courseCode, courseName, courses),
       due_date: dueDate,
       due_time: dueTime,
+      end_time: endTime,
+      location: exam ? clean(t.location, 300) : null,
       confidence,
       raw_date_text: rawText,
       note: clean(t.note, 2000),

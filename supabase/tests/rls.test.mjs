@@ -52,6 +52,25 @@ await rejects('ai_usage: แก้ไม่ได้', ()=>as(A,`update ai_usage
 await ok('events: เพิ่มสอบ', async()=>{ await as(A,`insert into events(title,kind,starts_at) values('Midterm','exam','2026-12-01T02:00:00Z')`); });
 await rejects('events: kind แปลก', ()=>as(A,`insert into events(title,kind,starts_at) values('x','party',now())`));
 await rejects('events: ends ก่อน starts', ()=>as(A,`insert into events(title,starts_at,ends_at) values('x','2026-12-01','2026-11-01')`));
+// ── 0002: ประเภทงาน + สอบ ──
+let catA, catB;
+await ok('ผู้ใช้เดิมได้ประเภทตั้งต้น 7 แบบ', async()=>{ const r=await as(A,`select id,name from task_categories order by position`); eq(r.length,7,'n'); eq(r[0].name,'การบ้าน','first'); eq(r[6].name,'อื่น ๆ','last'); catA=r[0].id; });
+await ok('ผู้ใช้ใหม่ได้ประเภทตั้งต้นอัตโนมัติ', async()=>{ const C='33333333-3333-3333-3333-333333333333'; await db.exec(`insert into auth.users values ('${C}')`); eq((await as(C,`select id from task_categories`)).length,7,'n'); });
+await ok('B เห็นเฉพาะประเภทของตัวเอง', async()=>{ const r=await as(B,`select id from task_categories`); eq(r.length,7,'n'); catB=r[0].id; });
+await ok('A เพิ่มประเภทเอง', async()=>{ await as(A,`insert into task_categories(name) values('Workshop')`); });
+await rejects('ชื่อประเภทซ้ำ (ไม่สนตัวพิมพ์)', ()=>as(A,`insert into task_categories(name) values(' quiz ')`));
+await rejects('ชื่อประเภทยาวเกิน 30', ()=>as(A,`insert into task_categories(name) values('${'ก'.repeat(31)}')`));
+await rejects('ผู้ใช้เรียกฟังก์ชันเติมประเภทเองไม่ได้', ()=>as(A,`select public.seed_task_categories('${B}')`));
+let tCat;
+await ok('A ใส่ประเภทให้งาน', async()=>{ tCat=(await as(A,`insert into tasks(title,category_id) values('HW1','${catA}') returning id`))[0].id; });
+await rejects('A ใช้ประเภทของ B', ()=>as(A,`insert into tasks(title,category_id) values('แอบ','${catB}')`));
+await ok('ลบประเภท → งานยังอยู่ category_id = null', async()=>{ await as(A,`delete from task_categories where id='${catA}'`); eq((await as(A,`select category_id from tasks where id='${tCat}'`))[0].category_id,null,'cat'); });
+await ok('events: สอบที่ยังไม่รู้วัน', async()=>{ await as(A,`insert into events(title,kind,exam_type) values('สอบปลายภาค','exam','final')`); });
+await ok('events: สอบมีเวลาเริ่ม–จบ', async()=>{ await as(A,`insert into events(title,kind,exam_type,starts_at,ends_at,has_time,location) values('สอบกลางภาค','exam','midterm','2026-12-16T01:00:00Z','2026-12-16T04:00:00Z',true,'ห้อง 101')`); });
+await rejects('events: ไม่มีวันแต่มีเวลา', ()=>as(A,`insert into events(title,kind,has_time) values('x','exam',true)`));
+await rejects('events: ไม่มีวันแต่มีเวลาจบ', ()=>as(A,`insert into events(title,kind,ends_at) values('x','exam',now())`));
+await rejects('events: exam_type แปลก', ()=>as(A,`insert into events(title,kind,exam_type,starts_at) values('x','exam','quiz',now())`));
+await rejects('events: exam_type กับ kind ที่ไม่ใช่สอบ', ()=>as(A,`insert into events(title,kind,exam_type,starts_at) values('x','activity','final',now())`));
 await ok('ลบผู้ใช้ → ข้อมูลหายตาม', async()=>{ await db.exec(`delete from auth.users where id='${A}'`); eq((await db.query(`select count(*)::int n from tasks`)).rows[0].n,0,'tasks'); });
 console.log(`\n${pass} ผ่าน, ${fail} ไม่ผ่าน`);
 if (fail) process.exit(1);

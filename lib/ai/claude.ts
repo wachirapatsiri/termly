@@ -75,7 +75,7 @@ export async function extractWithClaude(text: string, todayIso: string): Promise
 }
 
 // ข้อมูลตัวอย่างสำหรับโหมดจำลอง — ครอบคลุมทุกกรณีที่หน้าเว็บต้องแสดง
-// (มั่นใจ / ต้องอนุมาน / ไม่รู้วันส่ง / AI ลืมแปลงปี พ.ศ. / วิชาใหม่ที่ยังไม่มีในระบบ)
+// (มั่นใจ / ต้องอนุมาน / ไม่รู้วันส่ง / AI ลืมแปลงปี พ.ศ. / วิชาใหม่ที่ยังไม่มีในระบบ / สอบพร้อมเวลาจบ+ห้อง)
 export function mockExtract(todayIso: string): AiTask[] {
   const addDays = (n: number) => {
     const d = new Date(`${todayIso}T00:00:00Z`);
@@ -87,40 +87,52 @@ export function mockExtract(todayIso: string): AiTask[] {
   return [
     {
       title: "[ตัวอย่าง] 02 [Group] Vector to Raster Image",
+      kind: "homework",
       course_code: "204383",
       course_name: "Image Processing",
       due_date: addDays(5),
       due_time: "12:30",
+      end_time: null,
+      location: null,
       due_date_confidence: "high",
       raw_date_text: "Due: ... 12:30",
       note: "งานกลุ่ม 1–3 คน ส่ง PNG + PDF โค้ด",
     },
     {
       title: "[ตัวอย่าง] HW07 Bayes Net",
+      kind: "homework",
       course_code: "204471",
       course_name: "Artificial Intelligence",
       due_date: addDays(9),
       due_time: "23:59",
+      end_time: null,
+      location: null,
       due_date_confidence: "medium",
       raw_date_text: "สัปดาห์หน้า ก่อน 23:59",
       note: "เขียนด้วยลายมือ ส่ง PDF",
     },
     {
       title: "[ตัวอย่าง] สอบกลางภาค",
+      kind: "midterm",
       course_code: "204383",
       course_name: "Image Processing",
       due_date: beDate(addDays(20)), // จำลองกรณี AI ลืมแปลง พ.ศ.
       due_time: "08:00",
+      end_time: "11:00",
+      location: "ห้อง 301",
       due_date_confidence: "high",
       raw_date_text: "สอบกลางภาค 8:00 – 11:00 น.",
       note: "Open-book",
     },
     {
       title: "[ตัวอย่าง] นำเสนอโปรเจกต์",
+      kind: "presentation",
       course_code: "204471",
       course_name: "Artificial Intelligence",
       due_date: null,
       due_time: null,
+      end_time: null,
+      location: null,
       due_date_confidence: "low",
       raw_date_text: "สัปดาห์ที่ 15 นำเสนอ",
       note: null,
