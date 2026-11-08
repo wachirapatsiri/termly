@@ -6,28 +6,47 @@ import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import { formatDue, toDueAt } from "@/lib/dates";
 import { MAX_TEXT_LENGTH } from "@/lib/ai/limits";
 import {
-  EXAM_TYPE_LABEL,
   KIND_CATEGORY,
   examTypeOf,
-  type ExamType,
   type ExtractedTask,
   type ExtractResponse,
 } from "@/lib/ai/schema";
+import { courseKey } from "@/lib/ai/normalize";
+import { EXAM_TYPES, EXAM_TYPE_LABEL, type ExamType } from "@/lib/exams";
+import { batchDuplicates, findDuplicate, type DupItem } from "@/lib/duplicates";
 import type { Course, TaskCategory } from "@/lib/types";
 import { saveImportedItems, type ImportItem } from "@/app/import/actions";
 
 // courseChoice: "" = ไม่ระบุ, "new" = สร้างวิชาใหม่ตามที่ AI อ่านได้, อื่น ๆ = id วิชา
 // typeChoice: "exam:<ชนิดสอบ>" = สอบ, "cat:<ชื่อประเภท>" = งาน, "new" = งานประเภทใหม่ (พิมพ์ใน customCategory)
 type Row = ExtractedTask & {
+  key: number; // ไว้ใช้เป็น React key (ลบการ์ดแล้วลำดับเลื่อน)
   checked: boolean;
   courseChoice: string;
   typeChoice: string;
   customCategory: string;
+  edited: boolean; // ผู้ใช้แก้ชื่อ/วันที่/เวลาเองแล้ว
 };
 
+// งาน/สอบที่บันทึกไว้แล้ว (ส่งมาจากหน้า /import) ใช้เตือนรายการซ้ำ
+export type ExistingItem = DupItem;
+
 const NEW_TYPE = "new";
-const EXAM_TYPES: ExamType[] = ["midterm", "final", "other"];
 const isExamRow = (r: Row) => r.typeChoice.startsWith("exam:");
+
+function toDupItem(r: Row): DupItem {
+  const exam = isExamRow(r);
+  return {
+    kind: exam ? "exam" : "task",
+    title: r.title,
+    date: r.due_date,
+    course_id:
+      r.courseChoice === "new"
+        ? `new:${courseKey(r.course_code ?? r.course_name ?? "")}`
+        : r.courseChoice || null,
+    exam_type: exam ? (r.typeChoice.slice("exam:".length) as ExamType) : null,
+  };
+}
 
 function defaultType(t: ExtractedTask): string {
   const exam = examTypeOf(t.kind);
@@ -35,14 +54,22 @@ function defaultType(t: ExtractedTask): string {
   return `cat:${KIND_CATEGORY[t.kind as keyof typeof KIND_CATEGORY] ?? KIND_CATEGORY.other}`;
 }
 
-function toRows(tasks: ExtractedTask[]): Row[] {
-  return tasks.map((t) => ({
+function toRows(tasks: ExtractedTask[], existing: ExistingItem[]): Row[] {
+  const rows: Row[] = tasks.map((t, i) => ({
     ...t,
-    // ไม่มั่นใจ = ไม่ติ๊กให้ ผู้ใช้ต้องตรวจแล้วติ๊กเอง (ยืนยันก่อนบันทึก)
-    checked: t.confidence !== "low",
+    key: i,
+    checked: true,
     courseChoice: t.course_id ?? (t.course_code || t.course_name ? "new" : ""),
     typeChoice: defaultType(t),
     customCategory: "",
+    edited: false,
+  }));
+  // ไม่ติ๊กให้: ไม่มั่นใจ (ผู้ใช้ต้องตรวจแล้วติ๊กเอง) หรือน่าจะซ้ำกับของเดิม/ซ้ำกันเองในชุดนี้
+  const batchDup = batchDuplicates(rows.map(toDupItem));
+  return rows.map((r, i) => ({
+    ...r,
+    checked:
+      r.confidence !== "low" && !batchDup.has(i) && !findDuplicate(toDupItem(r), existing),
   }));
 }
 
@@ -75,10 +102,12 @@ function toItem(r: Row): ImportItem {
 export function ImportForm({
   courses,
   categories,
+  existing,
   labelMode,
 }: {
   courses: Course[];
   categories: TaskCategory[];
+  existing: ExistingItem[];
   labelMode: CourseLabelMode;
 }) {
   const [text, setText] = useState("");
@@ -111,7 +140,7 @@ export function ImportForm({
       if (!data) setError("เซิร์ฟเวอร์ตอบกลับผิดพลาด ลองใหม่อีกครั้ง");
       else if (!data.ok) setError(data.error);
       else {
-        setRows(toRows(data.tasks));
+        setRows(toRows(data.tasks, existing));
         setMock({ on: data.mock, sources: data.mock_sources ?? [] });
       }
     } catch {
@@ -121,13 +150,23 @@ export function ImportForm({
     }
   }
 
-  function update(i: number, patch: Partial<Row>) {
-    setRows((prev) => prev && prev.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  function update(key: number, patch: Partial<Row>) {
+    setRows((prev) => prev && prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  }
+  function remove(key: number) {
+    setRows((prev) => prev && prev.filter((r) => r.key !== key));
+  }
+  function checkAll(checked: boolean) {
+    setRows((prev) => prev && prev.map((r) => ({ ...r, checked })));
   }
 
   function save() {
     if (!rows) return;
     const selected = rows.filter((r) => r.checked);
+    if (selected.some((r) => !r.title.trim())) {
+      setError("มีรายการที่ยังไม่มีชื่อ ใส่ชื่อก่อนบันทึก");
+      return;
+    }
     if (selected.some((r) => r.typeChoice === NEW_TYPE && !r.customCategory.trim())) {
       setError("พิมพ์ชื่อประเภทงานใหม่ให้ครบก่อนบันทึก");
       return;
@@ -154,20 +193,31 @@ export function ImportForm({
   }
 
   const tooLong = text.length > MAX_TEXT_LENGTH;
-  const indexed = (rows ?? []).map((r, i) => ({ r, i }));
+  // เช็กซ้ำใหม่ทุกครั้งที่ผู้ใช้แก้ (ชื่อ/วัน/วิชา/ประเภทเปลี่ยน ผลก็เปลี่ยน)
+  const dupItems = (rows ?? []).map(toDupItem);
+  const batchDup = batchDuplicates(dupItems);
+  const indexed = (rows ?? []).map((r, i) => ({
+    r,
+    dupExisting: findDuplicate(dupItems[i], existing),
+    dupBatch: batchDup.has(i),
+  }));
   const exams = indexed.filter(({ r }) => isExamRow(r));
   const tasks = indexed.filter(({ r }) => !isExamRow(r));
   const checkedExams = exams.filter(({ r }) => r.checked).length;
   const checkedTasks = tasks.filter(({ r }) => r.checked).length;
+  const allChecked = indexed.length > 0 && indexed.every(({ r }) => r.checked);
 
-  const renderCard = ({ r, i }: { r: Row; i: number }) => (
+  const renderCard = ({ r, dupExisting, dupBatch }: (typeof indexed)[number]) => (
     <ExtractedCard
-      key={i}
+      key={r.key}
       row={r}
       courses={courses}
       categoryNames={categoryNames}
       labelMode={labelMode}
-      onChange={(patch) => update(i, patch)}
+      dupExisting={dupExisting}
+      dupBatch={dupBatch}
+      onChange={(patch) => update(r.key, patch)}
+      onRemove={() => remove(r.key)}
     />
   );
 
@@ -253,13 +303,22 @@ export function ImportForm({
           )}
 
           {rows.length === 0 ? (
-            <h2 className="text-sm text-muted">AI ไม่เจองานหรือวันสอบในข้อความนี้</h2>
+            <h2 className="text-sm text-muted">ไม่มีงานหรือวันสอบเหลือให้บันทึก</h2>
           ) : (
-            <p className="text-sm text-muted">
-              AI เจอ {exams.length > 0 && `${exams.length} สอบ`}
-              {exams.length > 0 && tasks.length > 0 && " และ "}
-              {tasks.length > 0 && `${tasks.length} งาน`} — ตรวจแล้วติ๊กรายการที่จะบันทึก
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-muted">
+                {exams.length > 0 && `${exams.length} สอบ`}
+                {exams.length > 0 && tasks.length > 0 && " และ "}
+                {tasks.length > 0 && `${tasks.length} งาน`} — ตรวจ แก้ แล้วติ๊กรายการที่จะบันทึก
+              </p>
+              <button
+                type="button"
+                onClick={() => checkAll(!allChecked)}
+                className="text-sm text-accent"
+              >
+                {allChecked ? "ไม่ติ๊กทั้งหมด" : "ติ๊กทั้งหมด"}
+              </button>
+            </div>
           )}
 
           {exams.length > 0 && (
@@ -302,24 +361,39 @@ function Missing({ children }: { children: React.ReactNode }) {
   return <span className="text-amber-800">⚠ {children}</span>;
 }
 
+const editInput =
+  "w-full rounded-card border border-line bg-white px-2 py-1.5 text-base outline-none focus:border-accent";
+
 function ExtractedCard({
   row,
   courses,
   categoryNames,
   labelMode,
+  dupExisting,
+  dupBatch,
   onChange,
+  onRemove,
 }: {
   row: Row;
   courses: Course[];
   categoryNames: string[];
   labelMode: CourseLabelMode;
+  dupExisting?: ExistingItem;
+  dupBatch: boolean;
   onChange: (patch: Partial<Row>) => void;
+  onRemove: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
   const low = row.confidence === "low";
   const exam = isExamRow(row);
   const canCreate = Boolean(row.course_code || row.course_name);
   const dayIso = row.due_date ? toDueAt(row.due_date) : null;
   const dueIso = row.due_date ? toDueAt(row.due_date, row.due_time) : null;
+
+  // แก้วันที่/เวลาเอง = ผู้ใช้ยืนยันแล้ว → ล้างคำเตือนเรื่องวันที่ของ AI
+  const editDate = (patch: Partial<Row>) =>
+    onChange({ ...patch, edited: true, warnings: [], confidence: "high" });
+  const badEnd = Boolean(exam && row.due_time && row.end_time && row.end_time <= row.due_time);
 
   return (
     <li
@@ -327,6 +401,87 @@ function ExtractedCard({
         low ? "border-amber-300 bg-amber-50" : "border-line bg-white"
       } ${row.checked ? "" : "opacity-80"}`}
     >
+      {editing && (
+        <div className="space-y-2 rounded-card border border-accent/40 bg-white p-3">
+          <label className="block space-y-1">
+            <span className="text-xs text-muted">ชื่อ</span>
+            <input
+              value={row.title}
+              onChange={(e) => onChange({ title: e.target.value, edited: true })}
+              maxLength={300}
+              className={editInput}
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-xs text-muted">{exam ? "วันสอบ" : "วันส่ง"}</span>
+            <input
+              type="date"
+              value={row.due_date ?? ""}
+              onChange={(e) =>
+                editDate(
+                  e.target.value
+                    ? { due_date: e.target.value }
+                    : { due_date: null, due_time: null, end_time: null },
+                )
+              }
+              className={editInput}
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block space-y-1">
+              <span className="text-xs text-muted">{exam ? "เวลาเริ่ม" : "เวลาส่ง"}</span>
+              <input
+                type="time"
+                value={row.due_time ?? ""}
+                disabled={!row.due_date}
+                onChange={(e) => editDate({ due_time: e.target.value || null })}
+                className={editInput}
+              />
+            </label>
+            {exam && (
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">เวลาจบ</span>
+                <input
+                  type="time"
+                  value={row.end_time ?? ""}
+                  disabled={!row.due_date}
+                  onChange={(e) => editDate({ end_time: e.target.value || null })}
+                  className={editInput}
+                />
+              </label>
+            )}
+          </div>
+          {exam && (
+            <label className="block space-y-1">
+              <span className="text-xs text-muted">สถานที่</span>
+              <input
+                value={row.location ?? ""}
+                onChange={(e) => onChange({ location: e.target.value || null, edited: true })}
+                maxLength={300}
+                className={editInput}
+              />
+            </label>
+          )}
+          <label className="block space-y-1">
+            <span className="text-xs text-muted">หมายเหตุ</span>
+            <textarea
+              value={row.note ?? ""}
+              onChange={(e) => onChange({ note: e.target.value || null, edited: true })}
+              rows={2}
+              maxLength={2000}
+              className={editInput}
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            className="w-full rounded-card bg-accent px-3 py-2 text-sm text-white"
+          >
+            เสร็จ
+          </button>
+        </div>
+      )}
+
       <label className="flex items-start gap-3">
         <input
           type="checkbox"
@@ -335,7 +490,9 @@ function ExtractedCard({
           className="mt-1 size-4 accent-[var(--color-accent)]"
         />
         <span className="space-y-1">
-          <span className="block font-medium">{row.title}</span>
+          <span className="block font-medium break-words">
+            {row.title || <Missing>ยังไม่มีชื่อ</Missing>}
+          </span>
           {exam ? (
             <span className="block space-y-0.5 text-sm">
               <span className="block">
@@ -345,7 +502,7 @@ function ExtractedCard({
               {dayIso && (
                 <span className="block">
                   {row.due_time ? (
-                    `${row.due_time}${row.end_time ? `–${row.end_time}` : ""} น.`
+                    `${row.due_time}${row.end_time && !badEnd ? `–${row.end_time}` : ""} น.`
                   ) : (
                     <Missing>ไม่ระบุเวลา</Missing>
                   )}
@@ -424,8 +581,27 @@ function ExtractedCard({
             ⚠ {w}
           </p>
         ))}
+        {badEnd && <p className="text-xs text-amber-800">⚠ เวลาจบต้องหลังเวลาเริ่ม (จะไม่บันทึกเวลาจบ)</p>}
+        {dupExisting && (
+          <p className="text-xs text-amber-800">
+            ⚠ อาจซ้ำกับ{dupExisting.kind === "exam" ? "สอบ" : "งาน"}ที่บันทึกไว้แล้ว: “{dupExisting.title}”
+          </p>
+        )}
+        {dupBatch && <p className="text-xs text-amber-800">⚠ ซ้ำกับรายการอื่นในชุดนี้</p>}
         {low && !row.checked && (
           <p className="text-xs text-amber-800">ตรวจกับต้นฉบับแล้วติ๊กเพื่อยืนยัน</p>
+        )}
+        {row.edited && <p className="text-xs text-muted">✎ แก้ไขแล้ว</p>}
+
+        {!editing && (
+          <div className="flex gap-4 pt-1 text-sm">
+            <button type="button" onClick={() => setEditing(true)} className="text-accent">
+              แก้ไข
+            </button>
+            <button type="button" onClick={onRemove} className="text-red-600">
+              เอาออก
+            </button>
+          </div>
         )}
       </div>
     </li>
