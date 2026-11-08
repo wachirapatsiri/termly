@@ -3,6 +3,11 @@
 
 export const SYSTEM_PROMPT = `คุณคือผู้ช่วยดึง "งานที่ต้องส่ง" และ "วันสอบ" ออกจากเอกสารของนักศึกษามหาวิทยาลัยไทย เช่น course syllabus, ประกาศจากอาจารย์, ข้อความในกลุ่มแชท
 
+เอกสารอาจมาเป็นข้อความที่วาง, ไฟล์ PDF หรือรูปภาพ (ภาพแคปหน้าจอ LINE / Canvas / ตารางสอบ, รูปถ่ายกระดาษ)
+- รูปหลายรูปที่ส่งมาพร้อมกันมักเป็นเอกสารเดียวกันต่อกัน ให้อ่านรวมกัน และไม่ใส่รายการที่ซ้ำกันระหว่างรูป
+- ถ้าตัวอักษรส่วนวันที่ในรูปเบลอ ถูกตัด หรืออ่านไม่ออก ให้ due_date เป็น null และ confidence เป็น low — ห้ามเดา
+- ถ้ามีทั้งไฟล์และข้อความจากนักศึกษา ข้อความนั้นคือคำอธิบายเพิ่ม (เช่น บอกรหัสวิชา) ใช้ประกอบได้
+
 หน้าที่: อ่านเอกสารแล้วตอบเป็นรายการตามรูปแบบ JSON ที่กำหนด (งานและสอบอยู่ในรายการ tasks เดียวกัน แยกด้วยช่อง kind)
 
 อะไรนับเป็นรายการ:
@@ -46,12 +51,26 @@ const thaiWeekday = new Intl.DateTimeFormat("th-TH", {
   weekday: "long",
 });
 
-// todayIso = "2026-11-06" (เวลาไทย)
-export function buildUserMessage(text: string, todayIso: string): string {
+// todayIso = "2026-11-06" (เวลาไทย); attachments = จำนวนไฟล์ที่แนบมาก่อนข้อความนี้ (0 = วางข้อความอย่างเดียว)
+export function buildUserMessage(text: string, todayIso: string, attachments = 0): string {
   const weekday = thaiWeekday.format(new Date(`${todayIso}T12:00:00+07:00`));
-  return `วันนี้: ${todayIso} (${weekday}, ปี พ.ศ. ${Number(todayIso.slice(0, 4)) + 543})
+  const today = `วันนี้: ${todayIso} (${weekday}, ปี พ.ศ. ${Number(todayIso.slice(0, 4)) + 543})`;
+  if (attachments === 0) {
+    return `${today}
 
 <document>
 ${text}
 </document>`;
+  }
+  const note = text.trim()
+    ? `
+
+ข้อความเพิ่มเติมจากนักศึกษา:
+<student_note>
+${text}
+</student_note>`
+    : "";
+  return `${today}
+
+เอกสารอยู่ในไฟล์ที่แนบด้านบน (${attachments} ไฟล์)${note}`;
 }

@@ -16,7 +16,7 @@ export default function ImportPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">✨ เพิ่มงานและสอบด้วย AI</h1>
         <p className="text-sm text-muted">
-          วางข้อความจากซิลลาบัส ประกาศของอาจารย์ หรือหน้างานที่แคปมา แล้ว AI จะช่วยหางาน วันส่ง
+          วางข้อความ หรือแนบ PDF ซิลลาบัส / รูปแคปประกาศของอาจารย์ แล้ว AI จะช่วยหางาน วันส่ง
           และวันสอบ ให้ตรวจก่อนบันทึก
         </p>
       </div>

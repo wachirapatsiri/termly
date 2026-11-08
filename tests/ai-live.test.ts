@@ -1,4 +1,4 @@
-// ทดสอบกับ AI จริง ด้วยข้อความตัวอย่างใน tests/fixtures/ (3 แบบแต่งเอง + 2 แบบจำลองจากเอกสารจริงของผู้ใช้ ตัดข้อมูลส่วนตัวออก) — npm run test:ai
+// ทดสอบกับ AI จริง ด้วยข้อความตัวอย่างใน tests/fixtures/ (3 แบบแต่งเอง + 2 แบบจำลองจากเอกสารจริงของผู้ใช้ ตัดข้อมูลส่วนตัวออก + PDF/รูปที่สร้างจากข้อความเหล่านั้น) — npm run test:ai
 // ⚠ เสียเงินจริง (Sonnet 5.5 ประมาณ 0.5 บาท/ไฟล์) ต้องมี ANTHROPIC_API_KEY ใน .env.local
 // สมมติว่า "วันนี้" = ศุกร์ 6 พ.ย. 2569 เพื่อให้ผลคงที่
 import { test } from "node:test";
@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { extractWithClaude, isMockMode } from "../lib/ai/claude.ts";
 import { normalizeTasks } from "../lib/ai/normalize.ts";
+import { checkUploads } from "../lib/ai/files.ts";
 import type { ExtractedTask } from "../lib/ai/schema.ts";
 
 const TODAY = "2026-11-06";
@@ -94,4 +95,33 @@ test("5) ซิลลาบัสไม่มีปี: เดาปีจาก
   assert.equal(fin?.due_time, "08:00");
   assert.equal(fin?.kind, "final");
   assert.ok(!find(tasks, /เตรียมสอบ|เข้าพรรษา|intro/i), "สัปดาห์เตรียมสอบ/วันหยุดไม่ใช่งาน");
+});
+
+// ── ไฟล์แนบ (เซสชัน 8): สร้างจากข้อความสมมติด้วย node scripts/make-file-fixtures.mjs ──
+async function runFile(file: string, text = ""): Promise<ExtractedTask[]> {
+  const bytes = new Uint8Array(readFileSync(new URL(`./fixtures/${file}`, import.meta.url)));
+  const check = checkUploads([{ name: file, bytes }]);
+  assert.ok(check.ok, "ไฟล์ทดสอบต้องผ่านการตรวจ");
+  const tasks = normalizeTasks(await extractWithClaude(text, TODAY, check.attachments), [], TODAY);
+  console.log(`\n── ${file} ──`);
+  for (const t of tasks) console.log(`  [${t.confidence.padEnd(6)}] ${t.kind.padEnd(12)} ${t.due_date ?? "—"} ${t.due_time ?? ""} ${t.title}`);
+  return tasks;
+}
+
+test("6) PDF ซิลลาบัสตาราง (ไฟล์เดียวกับข้อ 1)", { skip }, async () => {
+  const tasks = await runFile("6-syllabus-table.pdf");
+  assert.ok(tasks.length >= 5 && tasks.length <= 6, `ควรได้ 5 รายการ (ได้ ${tasks.length})`);
+  assert.equal(find(tasks, /Regression|ครั้งที่ 3/i)?.due_date, "2027-01-08");
+  const mid = find(tasks, /กลางภาค|midterm/i);
+  assert.equal(mid?.kind, "midterm");
+  assert.equal(mid?.due_date, "2026-12-16");
+  assert.equal(mid?.end_time, "12:00");
+});
+
+test("7) รูปแคปหน้างาน Canvas (ไฟล์เดียวกับข้อ 4)", { skip }, async () => {
+  const tasks = await runFile("7-canvas-assignment.png");
+  assert.equal(tasks.length, 1, `ควรได้ 1 งาน (ได้ ${tasks.length})`);
+  assert.equal(tasks[0].due_date, "2026-07-17");
+  assert.equal(tasks[0].due_time, "12:30");
+  assert.equal(tasks[0].course_code, "204383");
 });

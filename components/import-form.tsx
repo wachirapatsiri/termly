@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import { formatDue, toDueAt } from "@/lib/dates";
-import { MAX_TEXT_LENGTH } from "@/lib/ai/limits";
+import { MAX_IMAGES, MAX_TEXT_LENGTH, MAX_UPLOAD_BYTES } from "@/lib/ai/limits";
+import { prepareImage } from "@/lib/image-resize";
 import {
   KIND_CATEGORY,
   examTypeOf,
@@ -41,6 +42,17 @@ type Row = ExtractedTask & {
   customCategory: string;
   edited: boolean; // ผู้ใช้แก้ชื่อ/วันที่/เวลาเองแล้ว
 };
+
+// ไฟล์ที่แนบ (ย่อรูปแล้ว) — preview = object URL ของรูปย่อ (PDF ไม่มี)
+type Picked = { id: number; file: File; kind: "pdf" | "image"; preview: string | null };
+
+const isPdf = (f: File) => f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+const isImage = (f: File) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name);
+const formatBytes = (n: number) =>
+  n < 1024 * 1024
+    ? `${Math.max(1, Math.round(n / 1024)).toLocaleString("th-TH")} KB`
+    : `${(n / 1024 / 1024).toLocaleString("th-TH", { maximumFractionDigits: 1 })} MB`;
+let pickedId = 0;
 
 // งาน/สอบที่บันทึกไว้แล้ว (ส่งมาจากหน้า /import) ใช้เตือนรายการซ้ำ + เวลาสอบชน
 export type ExistingItem = DupItem & Partial<TimedExam>;
@@ -133,9 +145,17 @@ export function ImportForm({
   labelMode: CourseLabelMode;
 }) {
   const [text, setText] = useState("");
+  const [files, setFiles] = useState<Picked[]>([]);
+  const [preparing, setPreparing] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mock, setMock] = useState<{ on: boolean; sources: string[] }>({ on: false, sources: [] });
+  const [mock, setMock] = useState<{ on: boolean; sources: string[]; files: boolean }>({
+    on: false,
+    sources: [],
+    files: false,
+  });
   const [rows, setRows] = useState<Row[] | null>(null);
   const [saving, startSaving] = useTransition();
   const [saved, setSaved] = useState<{
@@ -145,25 +165,125 @@ export function ImportForm({
     categoriesCreated: number;
   } | null>(null);
 
+  // คืนหน่วยความจำของรูปย่อเมื่อออกจากหน้า
+  const filesRef = useRef(files);
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+  useEffect(
+    () => () => filesRef.current.forEach((f) => f.preview && URL.revokeObjectURL(f.preview)),
+    [],
+  );
+
+  // เพิ่มไฟล์ (จากปุ่มแนบ / ลากวาง / วางรูปด้วย Ctrl+V): PDF 1 ไฟล์ หรือรูปไม่เกิน 5 รูป รวม ≤ 4 MB
+  // เช็กซ้ำอีกรอบที่เซิร์ฟเวอร์ (lib/ai/files.ts) — ตรงนี้แค่ให้ผู้ใช้รู้ก่อนกดส่ง
+  async function addFiles(incoming: File[]) {
+    if (!incoming.length || preparing) return;
+    setError(null);
+    const bad = incoming.find((f) => !isPdf(f) && !isImage(f));
+    if (bad) {
+      setError(`ไฟล์ "${bad.name}" ไม่รองรับ ใช้ได้เฉพาะ PDF หรือรูป`);
+      return;
+    }
+    const pdfs = incoming.filter(isPdf);
+    const hasPdf = files.some((f) => f.kind === "pdf");
+    if (pdfs.length && (pdfs.length > 1 || incoming.length > 1 || files.length > 0)) {
+      setError("ส่ง PDF ได้ครั้งละ 1 ไฟล์ และไม่ปนกับรูป (เอาไฟล์เดิมออกก่อน)");
+      return;
+    }
+    if (hasPdf) {
+      setError("แนบ PDF ไว้แล้ว ส่ง PDF ได้ครั้งละ 1 ไฟล์ และไม่ปนกับรูป");
+      return;
+    }
+    if (!pdfs.length && files.length + incoming.length > MAX_IMAGES) {
+      setError(`ส่งรูปได้ครั้งละไม่เกิน ${MAX_IMAGES} รูป`);
+      return;
+    }
+
+    setPreparing(true);
+    try {
+      const added: Picked[] = [];
+      for (const f of incoming) {
+        if (isPdf(f)) {
+          added.push({ id: ++pickedId, file: f, kind: "pdf", preview: null });
+          continue;
+        }
+        try {
+          const small = await prepareImage(f);
+          added.push({ id: ++pickedId, file: small, kind: "image", preview: URL.createObjectURL(small) });
+        } catch {
+          setError(`เปิดรูป "${f.name}" ไม่ได้ ลองแคปหน้าจอใหม่ หรือบันทึกเป็น JPG/PNG`);
+          added.forEach((a) => a.preview && URL.revokeObjectURL(a.preview));
+          return;
+        }
+      }
+      const total = [...files, ...added].reduce((s, f) => s + f.file.size, 0);
+      if (total > MAX_UPLOAD_BYTES) {
+        added.forEach((a) => a.preview && URL.revokeObjectURL(a.preview));
+        setError(
+          `ไฟล์ใหญ่เกินไป (${formatBytes(total)}) รวมกันได้ไม่เกิน ${formatBytes(MAX_UPLOAD_BYTES)} — ลองแคปเฉพาะหน้าที่มีกำหนดส่ง หรือบีบอัด PDF ก่อน`,
+        );
+        return;
+      }
+      setFiles((prev) => [...prev, ...added]);
+    } finally {
+      setPreparing(false);
+    }
+  }
+
+  function removeFile(id: number) {
+    setFiles((prev) => {
+      const f = prev.find((p) => p.id === id);
+      if (f?.preview) URL.revokeObjectURL(f.preview);
+      return prev.filter((p) => p.id !== id);
+    });
+  }
+
+  function clearFiles() {
+    files.forEach((f) => f.preview && URL.revokeObjectURL(f.preview));
+    setFiles([]);
+  }
+
+  function onPaste(e: React.ClipboardEvent) {
+    const pasted = [...e.clipboardData.files].filter(isImage);
+    if (pasted.length) {
+      e.preventDefault(); // วางรูปแคปหน้าจอ → แนบเป็นไฟล์ (ข้อความวางตามปกติ)
+      void addFiles(pasted);
+    }
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    void addFiles([...e.dataTransfer.files]);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!text.trim() || pending) return;
+    if ((!text.trim() && !files.length) || pending || preparing) return;
     setPending(true);
     setError(null);
     setRows(null);
     setSaved(null);
     try {
-      const res = await fetch("/api/extract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
+      let body: BodyInit;
+      const headers: HeadersInit = {};
+      if (files.length) {
+        const form = new FormData();
+        form.append("text", text);
+        for (const f of files) form.append("files", f.file, f.file.name);
+        body = form; // เบราว์เซอร์ใส่ Content-Type multipart ให้เอง
+      } else {
+        headers["Content-Type"] = "application/json";
+        body = JSON.stringify({ text });
+      }
+      const res = await fetch("/api/extract", { method: "POST", headers, body });
       const data = (await res.json().catch(() => null)) as ExtractResponse | null;
       if (!data) setError("เซิร์ฟเวอร์ตอบกลับผิดพลาด ลองใหม่อีกครั้ง");
       else if (!data.ok) setError(data.error);
       else {
         setRows(toRows(data.tasks, existing));
-        setMock({ on: data.mock, sources: data.mock_sources ?? [] });
+        setMock({ on: data.mock, sources: data.mock_sources ?? [], files: !!data.mock_files });
       }
     } catch {
       setError("เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่");
@@ -201,6 +321,7 @@ export function ImportForm({
         setSaved(res);
         setRows(null);
         setText("");
+        clearFiles();
       }
     });
   }
@@ -264,24 +385,100 @@ export function ImportForm({
 
   return (
     <div className="space-y-8">
-      <form onSubmit={submit} className="space-y-3">
+      <form
+        onSubmit={submit}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        className="space-y-3"
+      >
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={10}
-          placeholder={"เช่น\n204383 Image Processing\nการบ้าน 2 Due: Fri, 3 Jul 2026 12:30\nสอบกลางภาค วันศุกร์ที่ 28 สิงหาคม พ.ศ. 2569 เวลา 8:00 – 11:00 น."}
-          className="w-full rounded-card border border-line bg-white px-3 py-2 text-base outline-none focus:border-accent"
+          onPaste={onPaste}
+          rows={files.length ? 3 : 10}
+          placeholder={
+            files.length
+              ? "พิมพ์อธิบายเพิ่มได้ (ไม่บังคับ) เช่น นี่คือวิชา 204383"
+              : "วางข้อความ เช่น\n204383 Image Processing\nการบ้าน 2 Due: Fri, 3 Jul 2026 12:30\nสอบกลางภาค วันศุกร์ที่ 28 สิงหาคม พ.ศ. 2569 เวลา 8:00 – 11:00 น.\n\nหรือแนบ PDF / รูปแคปหน้าจอด้านล่าง"
+          }
+          className={`w-full rounded-card border bg-white px-3 py-2 text-base outline-none focus:border-accent ${
+            dragging ? "border-accent" : "border-line"
+          }`}
         />
+
+        <div className="space-y-2">
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/pdf,image/*,.heic,.heif"
+            multiple
+            hidden
+            onChange={(e) => {
+              void addFiles([...(e.target.files ?? [])]);
+              e.target.value = ""; // เลือกไฟล์เดิมซ้ำได้
+            }}
+          />
+          {files.length > 0 && (
+            <ul className="space-y-2">
+              {files.map((f) => (
+                <li
+                  key={f.id}
+                  className="flex items-center gap-3 rounded-card border border-line bg-white p-2 text-sm"
+                >
+                  {f.preview ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- รูปย่อจาก object URL ในเครื่อง
+                    <img src={f.preview} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
+                  ) : (
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-background text-xl">
+                      📄
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{f.file.name}</span>
+                    <span className="text-xs text-muted">{formatBytes(f.file.size)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(f.id)}
+                    disabled={pending}
+                    aria-label={`เอา ${f.file.name} ออก`}
+                    className="px-2 text-muted hover:text-foreground"
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              disabled={pending || preparing || files.some((f) => f.kind === "pdf") || files.length >= MAX_IMAGES}
+              className="rounded-card border border-line bg-white px-3 py-1.5 text-sm disabled:opacity-50"
+            >
+              {preparing ? "กำลังเตรียมรูป…" : files.length ? "📎 เพิ่มรูป" : "📎 แนบ PDF / รูป"}
+            </button>
+            <span className="text-xs text-muted">
+              PDF 1 ไฟล์ หรือรูปไม่เกิน {MAX_IMAGES} รูป รวมไม่เกิน {formatBytes(MAX_UPLOAD_BYTES)}
+            </span>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between gap-3">
           <span className={`text-xs ${tooLong ? "text-red-700" : "text-muted"}`}>
             {text.length.toLocaleString("th-TH")} / {MAX_TEXT_LENGTH.toLocaleString("th-TH")}
           </span>
           <button
             type="submit"
-            disabled={pending || !text.trim() || tooLong}
+            disabled={pending || preparing || (!text.trim() && !files.length) || tooLong}
             className="rounded-card bg-accent px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            {pending ? "AI กำลังอ่าน…" : "ให้ AI ดึงงาน"}
+            {pending ? (files.length ? "AI กำลังอ่านไฟล์…" : "AI กำลังอ่าน…") : "ให้ AI ดึงงาน"}
           </button>
         </div>
       </form>
@@ -325,7 +522,13 @@ export function ImportForm({
         <section className="space-y-6">
           {mock.on && (
             <div className="space-y-1 rounded-card border border-line bg-white px-3 py-2 text-sm text-muted">
-              {mock.sources.length ? (
+              {mock.files && (
+                <p>
+                  🧪 โหมดจำลองยังอ่านไฟล์จริงไม่ได้ (ยังไม่ได้เชื่อม AI) — รายการด้านล่างเป็นตัวอย่าง
+                  ไม่ได้มาจากไฟล์ที่แนบ
+                </p>
+              )}
+              {mock.files && !mock.sources.length ? null : mock.sources.length ? (
                 <>
                   <p>🧪 โหมดจำลอง: ใช้คำตอบที่เตรียมไว้สำหรับ</p>
                   <ul className="list-disc pl-5">
