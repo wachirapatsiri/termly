@@ -4,6 +4,9 @@ export type Course = {
   id: string;
   name: string;
   code: string | null;
+  // ติ๊ก "ไม่มีสอบ" (migration 0003) — บางหน้าไม่ได้โหลดมา จึงเป็น optional
+  no_midterm?: boolean;
+  no_final?: boolean;
 };
 
 export type TaskCategory = {

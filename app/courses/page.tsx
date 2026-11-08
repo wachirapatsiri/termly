@@ -2,11 +2,15 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { dueGroup } from "@/lib/dates";
-import type { Course, Task } from "@/lib/types";
+import { daysUntil, dueGroup } from "@/lib/dates";
+import { findOverlaps, formatExamTime } from "@/lib/exams";
+import { findSimilarCourse } from "@/lib/duplicates";
+import { getCourseLabelMode } from "@/lib/preferences";
+import type { CalendarEvent, Course, Task } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { CourseForm } from "@/components/course-form";
-import { CourseItem, type CourseTask } from "@/components/course-item";
+import { CourseItem, type CourseExam, type CourseTask } from "@/components/course-item";
+import { examLabel } from "@/lib/exam-display";
 
 export default function CoursesPage() {
   return (
@@ -27,10 +31,11 @@ async function CoursesSection() {
 
   const supabase = await createClient();
   // RLS ทำให้ได้เฉพาะแถวของผู้ใช้คนนี้อยู่แล้ว
-  const [coursesRes, tasksRes] = await Promise.all([
+  const [coursesRes, tasksRes, examsRes, labelMode] = await Promise.all([
+    // select("*"): ถ้ายังไม่ได้รัน migration 0003 หน้านี้ก็ยังโหลดได้ (แค่ไม่มีช่อง no_midterm/no_final)
     supabase
       .from("courses")
-      .select("id, name, code")
+      .select("*")
       .order("code", { ascending: true, nullsFirst: false })
       .order("name"),
     supabase
@@ -39,7 +44,16 @@ async function CoursesSection() {
       .not("course_id", "is", null)
       .order("due_at", { ascending: true, nullsFirst: true })
       .order("created_at", { ascending: true }),
+    supabase
+      .from("events")
+      .select(
+        "id, course_id, title, kind, exam_type, starts_at, ends_at, has_time, location, notes, created_at",
+      )
+      .eq("kind", "exam")
+      .order("starts_at", { ascending: true, nullsFirst: true }),
+    getCourseLabelMode(),
   ]);
+  if (examsRes.error) console.error("load exams for courses", examsRes.error);
 
   if (coursesRes.error || tasksRes.error) {
     console.error("load courses", coursesRes.error ?? tasksRes.error);
@@ -75,6 +89,25 @@ async function CoursesSection() {
     byCourse.set(t.course_id, c);
   }
 
+  // สอบของแต่ละวิชา + เวลาชน (เช็กกับสอบทุกวิชา เพราะชนข้ามวิชาได้)
+  const courseById = new Map(courses.map((c) => [c.id, c]));
+  const exams = (examsRes.data ?? []) as CalendarEvent[];
+  const overlaps = findOverlaps(exams);
+  const examsByCourse = new Map<string, CourseExam[]>();
+  exams.forEach((e, i) => {
+    if (!e.course_id) return;
+    const list = examsByCourse.get(e.course_id) ?? [];
+    list.push({
+      ...e,
+      past: !!e.starts_at && daysUntil(e.starts_at, now) < 0,
+      overlapsWith: (overlaps.get(i) ?? []).map((h) => {
+        const hc = h.course_id ? courseById.get(h.course_id) : undefined;
+        return `${examLabel(h, hc, labelMode)} (${formatExamTime(h)})`;
+      }),
+    });
+    examsByCourse.set(e.course_id, list);
+  });
+
   return (
     <div className="space-y-8">
       <section className="space-y-3 rounded-card border border-line bg-white p-4">
@@ -96,8 +129,11 @@ async function CoursesSection() {
               <CourseItem
                 key={c.id}
                 course={c}
+                courses={courses}
                 pendingTasks={byCourse.get(c.id)?.pending ?? []}
                 totalCount={byCourse.get(c.id)?.total ?? 0}
+                exams={examsByCourse.get(c.id) ?? []}
+                similarTo={findSimilarCourse(c, courses)}
               />
             ))}
           </ul>

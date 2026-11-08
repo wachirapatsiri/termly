@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { toDueAt } from "@/lib/dates";
 import { courseKey, matchCourse } from "@/lib/ai/normalize";
-import type { ExamType } from "@/lib/ai/schema";
+import { categoryKey } from "@/lib/categories";
+import { EXAM_TYPES, type ExamType } from "@/lib/exams";
 
 // รายการที่ผู้ใช้ติ๊กเลือกจากหน้า /import
 // course: วิชาที่มีอยู่ (id) | วิชาใหม่ที่จะสร้าง (code/name) | null = ไม่ระบุวิชา
@@ -34,7 +35,6 @@ export type ImportResult =
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-const EXAM_TYPES: ExamType[] = ["midterm", "final", "other"];
 
 function text(v: unknown, max: number): string | null {
   if (typeof v !== "string") return null;
@@ -46,9 +46,6 @@ function time(v: unknown): string | null {
   const t = text(v, 5);
   return t && TIME_RE.test(t) ? t : null;
 }
-
-// เทียบชื่อประเภทแบบเดียวกับ unique index ในฐานข้อมูล (lower + btrim)
-const categoryKey = (s: string) => s.trim().toLowerCase();
 
 type CourseRef = { id: string } | { key: string } | null;
 

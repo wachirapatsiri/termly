@@ -4,7 +4,7 @@ import { useCallback, useOptimistic, useState } from "react";
 import { deleteTask, setTaskDone } from "@/app/tasks/actions";
 import { formatDue } from "@/lib/dates";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
-import type { Course, Task } from "@/lib/types";
+import type { Course, Task, TaskCategory } from "@/lib/types";
 import { TaskForm } from "@/components/task-form";
 import { useTaskSelection } from "@/components/task-selection";
 
@@ -12,12 +12,16 @@ export function TaskItem({
   task,
   course,
   courses,
+  category,
+  categories,
   overdue,
   labelMode,
 }: {
   task: Task;
   course?: Course;
   courses: Course[];
+  category?: TaskCategory;
+  categories: TaskCategory[];
   labelMode: CourseLabelMode; // แสดงวิชาเป็นรหัส/ชื่อ ตามที่ตั้งค่าไว้
   overdue: boolean; // คำนวณฝั่งเซิร์ฟเวอร์ เพื่อให้ผลตรงกันทั้งสองฝั่ง
 }) {
@@ -36,7 +40,13 @@ export function TaskItem({
   if (editing) {
     return (
       <li className="rounded-card border border-accent/40 bg-white p-4">
-        <TaskForm task={task} courses={courses} onSuccess={close} onCancel={close} />
+        <TaskForm
+          task={task}
+          courses={courses}
+          categories={categories}
+          onSuccess={close}
+          onCancel={close}
+        />
       </li>
     );
   }
@@ -60,6 +70,7 @@ export function TaskItem({
           <TaskInfo
             task={task}
             course={course}
+            category={category}
             overdue={overdue}
             done={done}
             labelMode={labelMode}
@@ -95,6 +106,7 @@ export function TaskItem({
         <TaskInfo
           task={task}
           course={course}
+          category={category}
           overdue={overdue}
           done={done}
           labelMode={labelMode}
@@ -124,16 +136,18 @@ export function TaskItem({
   );
 }
 
-// ชื่องาน + วันส่ง + วิชา + หมายเหตุ (ใช้ทั้งโหมดปกติและโหมดเลือก)
+// ชื่องาน + ประเภท + วันส่ง + วิชา + หมายเหตุ (ใช้ทั้งโหมดปกติและโหมดเลือก)
 function TaskInfo({
   task,
   course,
+  category,
   overdue,
   done,
   labelMode,
 }: {
   task: Task;
   course?: Course;
+  category?: TaskCategory;
   overdue: boolean;
   done: boolean;
   labelMode: CourseLabelMode;
@@ -145,6 +159,11 @@ function TaskInfo({
       </p>
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+        {category && (
+          <span className="rounded border border-line bg-background px-1.5 py-0.5 text-xs text-muted">
+            {category.name}
+          </span>
+        )}
         {task.due_at ? (
           <span className={overdue && !done ? "text-red-600" : "text-muted"}>
             {formatDue(task.due_at, task.due_has_time)}

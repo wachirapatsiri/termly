@@ -3,13 +3,17 @@
 import { refresh } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { toDueAt } from "@/lib/dates";
+import { toBangkokParts, toDueAt } from "@/lib/dates";
+import { findDuplicate } from "@/lib/duplicates";
+import { NEW_CATEGORY, resolveCategory } from "@/lib/categories";
 
 // ค่าที่ส่งกลับให้ฟอร์ม: error ภาษาไทย + ค่าที่กรอกไว้ (จะได้ไม่ต้องพิมพ์ใหม่)
+// duplicate = ชื่องานที่มีอยู่แล้วและน่าจะซ้ำ → ฟอร์มถามก่อนเพิ่ม
 export type TaskFormState = {
   ok?: boolean;
   error?: string;
   values?: Record<string, string>;
+  duplicate?: string;
 };
 
 const UUID_RE =
@@ -27,13 +31,30 @@ function parseTaskForm(formData: FormData) {
   const time = str(formData, "due_time");
   const notes = str(formData, "notes");
   const courseId = str(formData, "course_id");
-  const values = { title, due_date: date, due_time: time, notes, course_id: courseId };
+  const category = str(formData, "category");
+  const newCategory = str(formData, "new_category").replace(/\s+/g, " ");
+  const values = {
+    title,
+    due_date: date,
+    due_time: time,
+    notes,
+    course_id: courseId,
+    category,
+    new_category: newCategory,
+  };
 
   if (!title) return { error: "กรุณาใส่ชื่องาน", values };
   if (title.length > 300) return { error: "ชื่องานยาวเกิน 300 ตัวอักษร", values };
   if (notes.length > 2000) return { error: "หมายเหตุยาวเกิน 2,000 ตัวอักษร", values };
   if (time && !date) return { error: "ใส่เวลาแล้ว กรุณาเลือกวันส่งด้วย", values };
   if (courseId && !UUID_RE.test(courseId)) return { error: "วิชาไม่ถูกต้อง", values };
+  if (category && category !== NEW_CATEGORY && !UUID_RE.test(category)) {
+    return { error: "ประเภทงานไม่ถูกต้อง", values };
+  }
+  if (category === NEW_CATEGORY && !newCategory) {
+    return { error: "พิมพ์ชื่อประเภทใหม่ หรือเลือกประเภทที่มีอยู่", values };
+  }
+  if (newCategory.length > 30) return { error: "ชื่อประเภทยาวเกิน 30 ตัวอักษร", values };
 
   let dueAt: string | null = null;
   if (date) {
@@ -49,6 +70,9 @@ function parseTaskForm(formData: FormData) {
       notes: notes || null,
       course_id: courseId || null,
     },
+    // ประเภท: id ที่มีอยู่ | { name } = สร้างใหม่ (ถ้ายังไม่มีชื่อนี้) | null
+    category:
+      category === NEW_CATEGORY ? { name: newCategory } : category ? { id: category } : null,
     values,
   };
 }
@@ -68,10 +92,32 @@ export async function createTask(
   if (!parsed.data) return { error: parsed.error, values: parsed.values };
 
   const supabase = await createClient();
+  // เช็กงานซ้ำก่อน (ผู้ใช้กด "เพิ่มต่อ" = intent add_anyway)
+  if (str(formData, "intent") !== "add_anyway") {
+    const { data: existing } = await supabase.from("tasks").select("title, due_at, course_id");
+    const dup = findDuplicate(
+      {
+        kind: "task",
+        title: parsed.data.title,
+        date: parsed.values.due_date || null,
+        course_id: parsed.data.course_id,
+      },
+      (existing ?? []).map((t) => ({
+        kind: "task" as const,
+        title: t.title,
+        date: t.due_at ? toBangkokParts(t.due_at).date : null,
+        course_id: t.course_id,
+      })),
+    );
+    if (dup) return { duplicate: dup.title, values: parsed.values };
+  }
+
+  const cat = await resolveCategory(supabase, parsed.category);
+  if (!cat.ok) return { error: cat.error, values: parsed.values };
   // user_id ไม่ต้องส่ง — ฐานข้อมูลเติม auth.uid() ให้ และ RLS ตรวจซ้ำอีกชั้น
   const { error } = await supabase
     .from("tasks")
-    .insert({ ...parsed.data, source: "manual" });
+    .insert({ ...parsed.data, category_id: cat.id, source: "manual" });
   if (error) {
     console.error("createTask", error);
     return { error: "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง", values: parsed.values };
@@ -92,9 +138,11 @@ export async function updateTask(
   if (!parsed.data) return { error: parsed.error, values: parsed.values };
 
   const supabase = await createClient();
+  const cat = await resolveCategory(supabase, parsed.category);
+  if (!cat.ok) return { error: cat.error, values: parsed.values };
   const { data, error } = await supabase
     .from("tasks")
-    .update(parsed.data)
+    .update({ ...parsed.data, category_id: cat.id })
     .eq("id", id)
     .eq("user_id", user.id)
     .select("id");

@@ -1,6 +1,7 @@
 // รูปแบบข้อมูลที่ AI ต้องตอบกลับ (ตรวจด้วย Zod)
 // ใช้ทั้งเป็น "แบบฟอร์ม" ที่ส่งให้ Claude (structured output) และตรวจซ้ำฝั่งเรา
 import { z } from "zod";
+import { EXAM_TYPE_LABEL, type ExamType } from "../exams.ts";
 
 export const CONFIDENCE = ["high", "medium", "low"] as const;
 export type Confidence = (typeof CONFIDENCE)[number];
@@ -20,12 +21,8 @@ export const ITEM_KINDS = [
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number];
 
-export type ExamType = "midterm" | "final" | "other";
-export const EXAM_TYPE_LABEL: Record<ExamType, string> = {
-  midterm: "สอบกลางภาค",
-  final: "สอบปลายภาค",
-  other: "สอบอื่น ๆ",
-};
+// ชนิดสอบ + ชื่อภาษาไทย อยู่ที่ lib/exams.ts (ใช้ร่วมกับหน้า /exams)
+export { EXAM_TYPE_LABEL, type ExamType };
 
 // ประเภทของ AI → ชนิดสอบ (null = ไม่ใช่สอบ)
 export function examTypeOf(kind: ItemKind): ExamType | null {

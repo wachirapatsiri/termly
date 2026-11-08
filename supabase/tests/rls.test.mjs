@@ -72,6 +72,13 @@ await rejects('events: ไม่มีวันแต่มีเวลาจบ
 await rejects('events: exam_type แปลก', ()=>as(A,`insert into events(title,kind,exam_type,starts_at) values('x','exam','quiz',now())`));
 await rejects('events: exam_type กับ kind ที่ไม่ใช่สอบ', ()=>as(A,`insert into events(title,kind,exam_type,starts_at) values('x','activity','final',now())`));
 await ok('ลบผู้ใช้ → ข้อมูลหายตาม', async()=>{ await db.exec(`delete from auth.users where id='${A}'`); eq((await db.query(`select count(*)::int n from tasks`)).rows[0].n,0,'tasks'); });
+// ── 0003: ติ๊กไม่มีสอบ ──
+let cA3;
+// (A ถูกลบไปในข้อก่อนหน้า → ใช้ B เป็นเจ้าของ, C เป็นคนอื่น)
+const C3='33333333-3333-3333-3333-333333333333';
+await ok('วิชาใหม่: no_midterm/no_final ค่าตั้งต้น false', async()=>{ const r=await as(B,`insert into courses(name) values('วิชา 0003') returning id,no_midterm,no_final`); cA3=r[0].id; eq([r[0].no_midterm,r[0].no_final],[false,false],'default'); });
+await ok('เจ้าของติ๊กไม่มีสอบกลางภาคได้', async()=>{ eq((await as(B,`update courses set no_midterm=true where id='${cA3}' returning no_midterm`))[0].no_midterm,true,'upd'); });
+await ok('คนอื่นติ๊กแทนไม่ได้ (0 แถว)', async()=>{ eq((await as(C3,`update courses set no_final=true where id='${cA3}' returning id`)).length,0,'upd'); });
 console.log(`\n${pass} ผ่าน, ${fail} ไม่ผ่าน`);
 if (fail) process.exit(1);
 })();

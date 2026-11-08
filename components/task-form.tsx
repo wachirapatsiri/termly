@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   createTask,
   updateTask,
   type TaskFormState,
 } from "@/app/tasks/actions";
 import { toBangkokParts } from "@/lib/dates";
-import type { Course, Task } from "@/lib/types";
+import { MAX_CATEGORY_LENGTH, NEW_CATEGORY } from "@/lib/categories";
+import type { Course, Task, TaskCategory } from "@/lib/types";
+import { ConfirmBox, DefaultSubmit } from "@/components/confirm-box";
 
 const inputClass =
   "w-full rounded-card border border-line bg-white px-3 py-2 text-base outline-none focus:border-accent";
@@ -17,12 +19,14 @@ const inputClass =
 export function TaskForm({
   task,
   courses,
+  categories,
   defaultCourseId,
   onSuccess,
   onCancel,
 }: {
   task?: Task;
   courses: Course[];
+  categories: TaskCategory[];
   defaultCourseId?: string; // วิชาที่เลือกไว้ล่วงหน้า (เช่น ตอนกรองดูวิชาเดียว)
 
   onSuccess?: () => void;
@@ -39,16 +43,33 @@ export function TaskForm({
 
   // ค่าเริ่มต้น: ถ้าบันทึกไม่ผ่านใช้ค่าที่เพิ่งกรอก, ถ้าแก้ไขใช้ค่าเดิมของงาน
   const due = task?.due_at ? toBangkokParts(task.due_at) : null;
-  const v = state.values ?? {
+  // "ไม่เพิ่ม" ในกล่องถามงานซ้ำ → ซ่อนกล่อง + ล้างฟอร์ม (remount ด้วย key)
+  const [cancelled, setCancelled] = useState<TaskFormState | null>(null);
+  const [formKey, setFormKey] = useState(0);
+  const isCancelled = cancelled === state;
+  const v = (isCancelled ? undefined : state.values) ?? {
     title: task?.title ?? "",
     due_date: due?.date ?? "",
     due_time: due && task?.due_has_time ? due.time : "",
     notes: task?.notes ?? "",
     course_id: task ? (task.course_id ?? "") : (defaultCourseId ?? ""),
+    category: task?.category_id ?? "",
+    new_category: "",
   };
 
+  // แสดงช่องพิมพ์ประเภทใหม่เมื่อเลือก "+ พิมพ์ประเภทใหม่…"
+  // ผลบันทึกเปลี่ยน → ปรับตามค่าที่ฟอร์มจะถูกรีเซ็ตกลับไป (ปรับ state ระหว่าง render ตามแนวทาง React)
+  const [showNew, setShowNew] = useState(v.category === NEW_CATEGORY);
+  const [seenState, setSeenState] = useState(state);
+  if (seenState !== state) {
+    setSeenState(state);
+    setShowNew(state.values?.category === NEW_CATEGORY);
+  }
+
   return (
-    <form action={formAction} className="space-y-3">
+    <form key={formKey} action={formAction} className="space-y-3">
+      {/* ต้องอยู่ก่อนปุ่มอื่น: กด Enter = บันทึกปกติ ไม่ใช่ปุ่มในกล่องถาม */}
+      <DefaultSubmit />
       {task && <input type="hidden" name="id" value={task.id} />}
 
       <label className="block space-y-1">
@@ -114,6 +135,37 @@ export function TaskForm({
         </label>
       )}
 
+      <div className="space-y-2">
+        <label className="block space-y-1">
+          <span className="text-sm text-muted">ประเภท</span>
+          <select
+            name="category"
+            defaultValue={v.category}
+            onChange={(e) => setShowNew(e.target.value === NEW_CATEGORY)}
+            className={inputClass}
+          >
+            <option value="">— ไม่ระบุ —</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+            <option value={NEW_CATEGORY}>+ พิมพ์ประเภทใหม่…</option>
+          </select>
+        </label>
+        {showNew && (
+          <input
+            name="new_category"
+            maxLength={MAX_CATEGORY_LENGTH}
+            defaultValue={v.new_category}
+            placeholder="ชื่อประเภท เช่น Workshop"
+            aria-label="ชื่อประเภทใหม่"
+            autoFocus
+            className={inputClass}
+          />
+        )}
+      </div>
+
       <label className="block space-y-1">
         <span className="text-sm text-muted">หมายเหตุ</span>
         <textarea
@@ -124,6 +176,18 @@ export function TaskForm({
           className={inputClass}
         />
       </label>
+
+      {state.duplicate && !isCancelled && (
+        <ConfirmBox
+          message={<>มีงาน “{state.duplicate}” อยู่แล้ว — ยังจะเพิ่มอีกไหม?</>}
+          actions={[{ intent: "add_anyway", label: "เพิ่มต่อ" }]}
+          onCancel={() => {
+            setCancelled(state);
+            setFormKey((k) => k + 1);
+            setShowNew(false);
+          }}
+        />
+      )}
 
       {state.error && (
         <p className="rounded-card border border-red-200 bg-red-50 p-3 text-sm text-red-700">
