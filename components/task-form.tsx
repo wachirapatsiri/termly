@@ -10,7 +10,7 @@ import {
 import { toBangkokParts } from "@/lib/dates";
 import { MAX_CATEGORY_LENGTH, NEW_CATEGORY } from "@/lib/categories";
 import type { Course, Task, TaskCategory } from "@/lib/types";
-import { ConfirmBox } from "@/components/confirm-box";
+import { ConfirmBox, DefaultSubmit } from "@/components/confirm-box";
 
 const inputClass =
   "w-full rounded-card border border-line bg-white px-3 py-2 text-base outline-none focus:border-accent";
@@ -68,6 +68,8 @@ export function TaskForm({
 
   return (
     <form key={formKey} action={formAction} className="space-y-3">
+      {/* ต้องอยู่ก่อนปุ่มอื่น: กด Enter = บันทึกปกติ ไม่ใช่ปุ่มในกล่องถาม */}
+      <DefaultSubmit />
       {task && <input type="hidden" name="id" value={task.id} />}
 
       <label className="block space-y-1">

@@ -39,3 +39,11 @@ export function ConfirmBox({
     </div>
   );
 }
+
+// ปุ่ม submit ล่องหน วางเป็นลูกตัวแรกของฟอร์มที่มี ConfirmBox
+// เหตุผล: กด Enter ในช่องกรอก เบราว์เซอร์จะใช้ "ปุ่ม submit ตัวแรก" ของฟอร์ม
+// ถ้าตัวแรกเป็นปุ่มใน ConfirmBox (เช่น "แก้วิชาเดิม") จะทำงานนั้นทั้งที่ผู้ใช้ไม่ได้กด
+// ปุ่มนี้ไม่มี intent → Enter = บันทึกปกติ (ถ้ายังซ้ำ กล่องถามจะขึ้นอีกครั้ง)
+export function DefaultSubmit() {
+  return <button type="submit" tabIndex={-1} aria-hidden="true" className="sr-only" />;
+}
