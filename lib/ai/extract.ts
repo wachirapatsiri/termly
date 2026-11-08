@@ -10,12 +10,22 @@ import type { AiTask } from "./schema.ts";
 export type AiProvider = "claude" | "gemini";
 
 export function aiProvider(): AiProvider {
-  return process.env.AI_PROVIDER?.trim().toLowerCase() === "gemini" ? "gemini" : "claude";
+  return process.env.AI_PROVIDER?.trim().toLowerCase().replace(/^["']|["']$/g, "") === "gemini" ? "gemini" : "claude";
 }
 
 export function isMockMode(): boolean {
   if (process.env.AI_MODE === "mock") return true;
   return aiProvider() === "gemini" ? !process.env.GEMINI_API_KEY : !process.env.ANTHROPIC_API_KEY;
+}
+
+// ทำไมถึงเป็นโหมดจำลอง — แสดงบนหน้าเว็บช่วยเช็กการตั้งค่าใน Vercel (บอกแค่ชื่อตัวแปร ไม่เปิดเผยค่า key)
+export function mockReason(): string | null {
+  if (!isMockMode()) return null;
+  if (process.env.AI_MODE === "mock") return "ตั้ง AI_MODE=mock ไว้";
+  const raw = process.env.AI_PROVIDER;
+  if (aiProvider() === "gemini") return "AI_PROVIDER=gemini แล้ว แต่ไม่พบ GEMINI_API_KEY";
+  if (raw && raw.trim()) return `AI_PROVIDER="${raw.trim().slice(0, 20)}" ไม่รู้จัก (ใช้ gemini หรือ claude) และไม่พบ ANTHROPIC_API_KEY`;
+  return "ไม่พบ AI_PROVIDER และ ANTHROPIC_API_KEY";
 }
 
 export function extractTasks(text: string, todayIso: string, files: Attachment[] = []): Promise<AiTask[]> {

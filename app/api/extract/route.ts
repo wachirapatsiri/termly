@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { toBangkokParts } from "@/lib/dates";
 import { mockExtract } from "@/lib/ai/claude";
 import { AiError } from "@/lib/ai/errors";
-import { extractTasks, isMockMode } from "@/lib/ai/extract";
+import { extractTasks, isMockMode, mockReason } from "@/lib/ai/extract";
 import { normalizeTasks } from "@/lib/ai/normalize";
 import { findDemoSets } from "@/lib/ai/demo-samples";
 import { AI_DAILY_LIMIT, MAX_TEXT_LENGTH, MAX_UPLOAD_BYTES } from "@/lib/ai/limits";
@@ -117,5 +117,6 @@ export async function POST(request: Request) {
     mock,
     mock_sources: mockSources,
     mock_files: mock && files.length > 0,
+    mock_reason: mockReason() ?? undefined,
   } satisfies ExtractResponse);
 }

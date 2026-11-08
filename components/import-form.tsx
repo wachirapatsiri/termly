@@ -152,7 +152,7 @@ export function ImportForm({
   const fileInput = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mock, setMock] = useState<{ on: boolean; sources: string[]; files: boolean }>({
+  const [mock, setMock] = useState<{ on: boolean; sources: string[]; files: boolean; reason?: string }>({
     on: false,
     sources: [],
     files: false,
@@ -284,7 +284,12 @@ export function ImportForm({
       else if (!data.ok) setError(data.error);
       else {
         setRows(toRows(data.tasks, existing));
-        setMock({ on: data.mock, sources: data.mock_sources ?? [], files: !!data.mock_files });
+        setMock({
+          on: data.mock,
+          sources: data.mock_sources ?? [],
+          files: !!data.mock_files,
+          reason: data.mock_reason,
+        });
       }
     } catch {
       setError("เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่");
@@ -523,6 +528,7 @@ export function ImportForm({
         <section className="space-y-6">
           {mock.on && (
             <div className="space-y-1 rounded-card border border-line bg-white px-3 py-2 text-sm text-muted">
+              {mock.reason && <p className="text-xs">สาเหตุ: {mock.reason}</p>}
               {mock.files && (
                 <p>
                   🧪 โหมดจำลองยังอ่านไฟล์จริงไม่ได้ (ยังไม่ได้เชื่อม AI) — รายการด้านล่างเป็นตัวอย่าง

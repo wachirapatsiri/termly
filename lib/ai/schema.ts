@@ -117,5 +117,6 @@ export type ExtractResponse =
       mock: boolean;
       mock_sources?: string[];
       mock_files?: boolean;
+      mock_reason?: string; // ทำไมเป็นโหมดจำลอง (ช่วยเช็กการตั้งค่า env)
     }
   | { ok: false; error: string };
