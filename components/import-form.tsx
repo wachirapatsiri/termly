@@ -151,6 +151,17 @@ export function ImportForm({
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
+  // นับวินาทีระหว่างรอ AI (โควตาฟรีบางทีช้า) ให้ผู้ใช้รู้ว่ายังทำงานอยู่ ไม่ได้ค้าง
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!pending) return;
+    const started = Date.now();
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => {
+      clearInterval(id);
+      setElapsed(0);
+    };
+  }, [pending]);
   const [error, setError] = useState<string | null>(null);
   const [mock, setMock] = useState<{ on: boolean; sources: string[]; files: boolean; reason?: string }>({
     on: false,
@@ -484,9 +495,18 @@ export function ImportForm({
             disabled={pending || preparing || (!text.trim() && !files.length) || tooLong}
             className="rounded-card bg-accent px-4 py-2 text-sm text-white disabled:opacity-50"
           >
-            {pending ? (files.length ? "AI กำลังอ่านไฟล์…" : "AI กำลังอ่าน…") : "ให้ AI ดึงงาน"}
+            {pending
+              ? `${files.length ? "AI กำลังอ่านไฟล์…" : "AI กำลังอ่าน…"}${elapsed > 0 ? ` ${elapsed} วิ` : ""}`
+              : "ให้ AI ดึงงาน"}
           </button>
         </div>
+        {pending && (
+          <p role="status" className="text-sm text-muted">
+            {elapsed < 20
+              ? "AI กำลังอ่านเอกสาร ปกติใช้ 5–20 วินาที (ซิลลาบัสยาวหรือไฟล์อาจนานกว่านี้) อย่าเพิ่งปิดหน้านี้นะ"
+              : "ยังทำงานอยู่ — ช่วงนี้ AI คนใช้เยอะ อาจใช้ถึง 1 นาที"}
+          </p>
+        )}
       </form>
 
       {error && (
