@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useOptimistic, useState } from "react";
-import { deleteCourse } from "@/app/courses/actions";
+import { deleteCourse, setCourseNoExam } from "@/app/courses/actions";
 import { deleteTask, setTaskDone } from "@/app/tasks/actions";
 import { formatDue } from "@/lib/dates";
-import type { Course } from "@/lib/types";
+import { EXAM_TYPE_LABEL, formatExamTime, type ExamType } from "@/lib/exams";
+import type { CalendarEvent, Course } from "@/lib/types";
 import { CourseForm } from "@/components/course-form";
+import { EXAM_TYPE_TONE } from "@/components/exam-item";
 
 // งานค้างของวิชา (ข้อมูลเท่าที่การ์ดวิชาต้องใช้)
 export type CourseTask = {
@@ -17,14 +19,27 @@ export type CourseTask = {
   overdue: boolean; // คำนวณฝั่งเซิร์ฟเวอร์
 };
 
+// สอบของวิชา (ข้อมูลเท่าที่การ์ดวิชาต้องใช้)
+export type CourseExam = Pick<
+  CalendarEvent,
+  "id" | "title" | "exam_type" | "starts_at" | "ends_at" | "has_time" | "location"
+> & {
+  past: boolean;
+  overlapsWith: string[]; // สอบที่เวลาชนกัน (คำนวณฝั่งเซิร์ฟเวอร์)
+};
+
 export function CourseItem({
   course,
   pendingTasks,
   totalCount,
+  exams,
+  similarTo,
 }: {
   course: Course;
   pendingTasks: CourseTask[]; // งานที่ยังไม่เสร็จในวิชานี้ (เรียงตามวันส่งแล้ว)
   totalCount: number; // งานทั้งหมดในวิชานี้ (รวมที่เสร็จแล้ว)
+  exams: CourseExam[]; // สอบของวิชานี้ (เรียงตามวันแล้ว)
+  similarTo?: Course; // วิชาที่น่าจะซ้ำกัน (รหัสเดียวกัน/ชื่อคล้าย)
 }) {
   const [mode, setMode] = useState<"view" | "edit" | "confirmDelete">("view");
   const [open, setOpen] = useState(false);
@@ -80,12 +95,20 @@ export function CourseItem({
             open ? "border-accent text-accent" : "border-line text-muted"
           }`}
         >
-          งานค้าง {visibleTasks.length} {open ? "▴" : "▾"}
+          งาน {visibleTasks.length} · สอบ {exams.length} {open ? "▴" : "▾"}
         </button>
       </div>
 
+      {similarTo && (
+        <p className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+          ⚠ อาจซ้ำกับวิชา {similarTo.code ? `${similarTo.code} ` : ""}
+          {similarTo.name} — ถ้าเป็นวิชาเดียวกัน ลบอันที่ไม่ใช้ได้
+        </p>
+      )}
+
       {open && (
         <div className="space-y-2 border-t border-line pt-3">
+          <h3 className="text-sm font-medium text-muted">งานค้าง</h3>
           {visibleTasks.length === 0 ? (
             <p className="text-sm text-muted">ไม่มีงานค้างในวิชานี้ 🎉</p>
           ) : (
@@ -146,6 +169,8 @@ export function CourseItem({
           <Link href={`/tasks?course=${course.id}`} className="block text-sm text-accent">
             เพิ่ม/แก้งานของวิชานี้ในหน้างาน →
           </Link>
+
+          <CourseExams course={course} exams={exams} />
         </div>
       )}
 
@@ -186,5 +211,100 @@ export function CourseItem({
         </div>
       )}
     </li>
+  );
+}
+
+// ส่วน "สอบ" ในการ์ดวิชา: กลางภาค/ปลายภาคเป็นหลัก + สอบอื่น ๆ แยกด้านล่าง
+function CourseExams({ course, exams }: { course: Course; exams: CourseExam[] }) {
+  // ติ๊ก "ไม่มีสอบ" แล้วเปลี่ยนบนจอทันที
+  const [noExam, setNoExam] = useOptimistic(
+    { midterm: !!course.no_midterm, final: !!course.no_final },
+    (cur, patch: Partial<Record<"midterm" | "final", boolean>>) => ({ ...cur, ...patch }),
+  );
+  const ofType = (t: ExamType) => exams.filter((e) => (e.exam_type ?? "other") === t);
+  const others = ofType("other");
+
+  const toggle = (type: "midterm" | "final", value: boolean) => (
+    <form
+      action={async (formData) => {
+        setNoExam({ [type]: value });
+        await setCourseNoExam(formData);
+      }}
+    >
+      <input type="hidden" name="id" value={course.id} />
+      <input type="hidden" name="type" value={type} />
+      <input type="hidden" name="value" value={String(value)} />
+      {/* value = ค่าที่จะตั้งเมื่อกด: true = ยังไม่ติ๊ก (กดเพื่อติ๊ก) */}
+      <button
+        type="submit"
+        aria-pressed={!value}
+        className={`text-xs ${value ? "text-muted" : "text-accent"}`}
+      >
+        {value ? "☐" : "☑"} ไม่มีสอบ
+      </button>
+    </form>
+  );
+
+  return (
+    <div className="space-y-2 border-t border-line pt-3">
+      <h3 className="text-sm font-medium text-muted">สอบ</h3>
+      <ul className="space-y-2">
+        {(["midterm", "final"] as const).map((t) => {
+          const list = ofType(t);
+          const tone = EXAM_TYPE_TONE[t];
+          return (
+            <li key={t} className="space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className={`rounded border px-1.5 py-0.5 text-xs ${tone.badge}`}>
+                  {EXAM_TYPE_LABEL[t]}
+                </span>
+                {/* ยังไม่มีข้อมูล → ไม่ต้องเตือนอะไร แค่ให้ติ๊กได้ว่าไม่มีสอบ */}
+                {list.length === 0 && toggle(t, !noExam[t])}
+              </div>
+              {list.length > 0 ? (
+                list.map((e) => <ExamLine key={e.id} exam={e} />)
+              ) : noExam[t] ? (
+                <p className="text-sm text-muted">วิชานี้ไม่มี{EXAM_TYPE_LABEL[t]}</p>
+              ) : (
+                <p className="text-sm text-muted">ยังไม่มีข้อมูล</p>
+              )}
+            </li>
+          );
+        })}
+        {others.length > 0 && (
+          <li className="space-y-1">
+            <span className={`rounded border px-1.5 py-0.5 text-xs ${EXAM_TYPE_TONE.other.badge}`}>
+              สอบอื่น ๆ
+            </span>
+            {others.map((e) => (
+              <ExamLine key={e.id} exam={e} showTitle />
+            ))}
+          </li>
+        )}
+      </ul>
+      <Link href="/exams" className="block text-sm text-accent">
+        เพิ่ม/แก้สอบในหน้าสอบ →
+      </Link>
+    </div>
+  );
+}
+
+function ExamLine({ exam, showTitle }: { exam: CourseExam; showTitle?: boolean }) {
+  const time = formatExamTime(exam);
+  return (
+    <div className={`space-y-0.5 text-sm ${exam.past ? "text-muted" : ""}`}>
+      {showTitle && <p className="break-words">{exam.title}</p>}
+      <p>
+        {exam.starts_at ? formatDue(exam.starts_at, false) : (
+          <span className="text-amber-700">⚠ ยังไม่ประกาศวันสอบ</span>
+        )}
+        {time && <span className="text-muted"> · {time}</span>}
+        {exam.past && " · สอบแล้ว"}
+      </p>
+      {exam.location && <p className="text-xs text-muted">📍 {exam.location}</p>}
+      {exam.overlapsWith.length > 0 && !exam.past && (
+        <p className="text-xs text-red-700">⚠ เวลาชนกับ {exam.overlapsWith.join(", ")}</p>
+      )}
+    </div>
   );
 }

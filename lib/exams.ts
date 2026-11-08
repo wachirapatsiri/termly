@@ -80,3 +80,34 @@ export function upcomingExams<T extends { starts_at: string | null }>(
     .filter((e) => e.daysLeft >= 0 && e.daysLeft <= days)
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 }
+
+// ─── เวลาสอบชนกัน ───
+
+export type TimedExam = {
+  starts_at: string | null;
+  ends_at: string | null;
+  has_time: boolean;
+};
+
+// ชนกัน = ช่วงเวลาทับกันจริง (ต้องรู้เวลาเริ่มทั้งคู่)
+// 08:00–11:00 กับ 11:00–13:00 ไม่ชน (จบพอดีตอนอีกวิชาเริ่ม)
+// เริ่มเวลาเดียวกัน = ชน; ไม่รู้เวลาจบ = ถือเป็นจุดเวลาเริ่ม (ชนเมื่ออยู่ในช่วงของอีกวิชา)
+export function examsOverlap(a: TimedExam, b: TimedExam): boolean {
+  if (!a.starts_at || !b.starts_at || !a.has_time || !b.has_time) return false;
+  const aS = Date.parse(a.starts_at);
+  const bS = Date.parse(b.starts_at);
+  const aE = a.ends_at ? Date.parse(a.ends_at) : aS;
+  const bE = b.ends_at ? Date.parse(b.ends_at) : bS;
+  if (aS === bS) return true;
+  return aS < bE && bS < aE;
+}
+
+// รายการที่ชนกับแต่ละตัว (key = ลำดับใน array)
+export function findOverlaps<T extends TimedExam>(exams: T[]): Map<number, T[]> {
+  const out = new Map<number, T[]>();
+  exams.forEach((a, i) => {
+    const hits = exams.filter((b, j) => j !== i && examsOverlap(a, b));
+    if (hits.length) out.set(i, hits);
+  });
+  return out;
+}

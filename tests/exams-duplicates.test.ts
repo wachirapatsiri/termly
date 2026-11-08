@@ -116,3 +116,45 @@ test("findDuplicate + batchDuplicates", () => {
     [2],
   );
 });
+
+import { examsOverlap, findOverlaps } from "../lib/exams.ts";
+import { findSimilarCourse, similarCourseName } from "../lib/duplicates.ts";
+
+const slot = (start: string | null, end: string | null, date = "2026-12-29") =>
+  buildExamTimes(date, start, end) as { starts_at: string; ends_at: string | null; has_time: boolean };
+
+test("เวลาสอบชน: ทับกัน / เริ่มพร้อมกัน / เริ่มกลางช่วง", () => {
+  assert.ok(examsOverlap(slot("08:00", "11:00"), slot("08:00", "10:00")));
+  assert.ok(examsOverlap(slot("08:00", "11:00"), slot("09:00", "12:00")));
+  assert.ok(examsOverlap(slot("08:00", "11:00"), slot("09:00", null))); // ไม่รู้เวลาจบ
+  assert.ok(examsOverlap(slot("08:00", null), slot("08:00", null)));
+});
+
+test("เวลาสอบไม่ชน: ต่อกันพอดี / คนละวัน / ไม่รู้เวลา", () => {
+  assert.ok(!examsOverlap(slot("08:00", "11:00"), slot("11:00", "13:00")));
+  assert.ok(!examsOverlap(slot("08:00", "11:00"), slot("11:00", null)));
+  assert.ok(!examsOverlap(slot("08:00", "11:00"), slot("08:00", "11:00", "2026-12-30")));
+  assert.ok(!examsOverlap(slot("08:00", "11:00"), slot(null, null))); // รู้แค่วัน
+  assert.ok(!examsOverlap(slot("08:00", null), slot("09:00", null)));
+});
+
+test("findOverlaps: คืนรายการที่ชนของแต่ละตัว", () => {
+  const list = [slot("08:00", "11:00"), slot("11:00", "13:00"), slot("09:00", "10:00")];
+  const got = findOverlaps(list);
+  assert.deepEqual([...got.keys()], [0, 2]);
+  assert.equal(got.get(0)?.[0], list[2]);
+});
+
+test("วิชาคล้ายกัน: รหัสเดียวกัน / ชื่อพิมพ์ตกหล่น / ไม่นับตัวเอง", () => {
+  const courses = [
+    { id: "a", name: "Data Engineering", code: "204426" },
+    { id: "b", name: "สถิติเบื้องต้น", code: null },
+  ];
+  assert.equal(findSimilarCourse({ name: "Data Engineerin", code: "204426" }, courses)?.id, "a");
+  assert.equal(findSimilarCourse({ name: "Data Engineerin", code: null }, courses)?.id, "a");
+  assert.equal(findSimilarCourse({ name: "อะไรก็ได้", code: " 204426" }, courses)?.id, "a");
+  assert.equal(findSimilarCourse({ name: "สถิติเบื้องต้น", code: "STAT1" }, courses)?.id, "b");
+  assert.equal(findSimilarCourse({ id: "a", name: "Data Engineering", code: "204426" }, courses), undefined);
+  assert.equal(findSimilarCourse({ name: "Image Processing", code: "204383" }, courses), undefined);
+  assert.ok(!similarCourseName("Lab", "Lab 2")); // ชื่อสั้นเกินไป ไม่เดา
+});

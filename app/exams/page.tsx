@@ -5,24 +5,27 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getCourseLabelMode } from "@/lib/preferences";
 import { daysUntil } from "@/lib/dates";
+import {
+  EXAM_TYPES,
+  EXAM_TYPE_LABEL,
+  findOverlaps,
+  formatExamTime,
+  isExamType,
+  type ExamType,
+} from "@/lib/exams";
 import type { CalendarEvent, Course } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { ExamForm } from "@/components/exam-form";
-import { ExamItem } from "@/components/exam-item";
+import { EXAM_TYPE_TONE, ExamItem, examLabel } from "@/components/exam-item";
 
-export default function ExamsPage() {
+export default function ExamsPage({ searchParams }: PageProps<"/exams">) {
   return (
     <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6">
       <AppNav current="/exams" />
-      <div className="flex items-baseline justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">ตารางสอบ</h1>
-        <Link href="/import" className="text-sm text-accent">
-          ✨ นำเข้าจากซิลลาบัส
-        </Link>
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight">ตารางสอบ</h1>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
-        <ExamsSection />
+        <ExamsSection searchParams={searchParams} />
       </Suspense>
     </main>
   );
@@ -31,13 +34,24 @@ export default function ExamsPage() {
 const EXAM_COLUMNS =
   "id, course_id, title, kind, exam_type, starts_at, ends_at, has_time, location, notes, created_at";
 
-async function ExamsSection() {
+// หัวตารางของแต่ละชนิด (สอบอื่น ๆ ใช้คำว่า "สอบอื่น ๆ" เหมือนป้าย)
+const SECTION_TITLE: Record<ExamType, string> = {
+  midterm: "สอบกลางภาค",
+  final: "สอบปลายภาค",
+  other: "สอบอื่น ๆ",
+};
+
+async function ExamsSection({
+  searchParams,
+}: {
+  searchParams: PageProps<"/exams">["searchParams"];
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const supabase = await createClient();
   // RLS ทำให้ได้เฉพาะแถวของผู้ใช้คนนี้อยู่แล้ว
-  const [examsRes, coursesRes, labelMode] = await Promise.all([
+  const [examsRes, coursesRes, labelMode, params] = await Promise.all([
     supabase
       .from("events")
       .select(EXAM_COLUMNS)
@@ -50,6 +64,7 @@ async function ExamsSection() {
       .order("code", { ascending: true, nullsFirst: false })
       .order("name"),
     getCourseLabelMode(),
+    searchParams,
   ]);
 
   if (examsRes.error || coursesRes.error) {
@@ -64,91 +79,117 @@ async function ExamsSection() {
   const exams = (examsRes.data ?? []) as CalendarEvent[];
   const courses = (coursesRes.data ?? []) as Course[];
   const courseById = new Map(courses.map((c) => [c.id, c]));
+  const courseOf = (e: CalendarEvent) => (e.course_id ? courseById.get(e.course_id) : undefined);
+
+  // ตัวกรองชนิดสอบจาก URL เช่น /exams?type=midterm (ค่าอื่น = แสดงทุกชนิด)
+  const filter = isExamType(params.type) ? params.type : null;
+
+  // เวลาชนกัน: เช็กกับสอบทุกชนิด (กลางภาคอาจชนกับสอบอื่น ๆ ได้)
+  const overlaps = findOverlaps(exams);
+  const overlapText = new Map(
+    [...overlaps].map(([i, hits]) => [
+      exams[i].id,
+      hits.map((h) => `${examLabel(h, courseOf(h), labelMode)} (${formatExamTime(h)})`),
+    ]),
+  );
 
   const now = new Date();
   const withDays = exams.map((e) => ({
     exam: e,
     daysLeft: e.starts_at ? daysUntil(e.starts_at, now) : null,
   }));
-  const noDate = withDays.filter((x) => x.daysLeft === null);
-  const upcoming = withDays.filter((x) => x.daysLeft !== null && x.daysLeft >= 0);
-  // ผ่านไปแล้ว: ล่าสุดขึ้นก่อน
-  const past = withDays.filter((x) => x.daysLeft !== null && x.daysLeft < 0).reverse();
+  const typeOf = (e: CalendarEvent): ExamType => e.exam_type ?? "other";
+  const shown = withDays.filter((x) => !filter || typeOf(x.exam) === filter);
+  // ยังไม่ผ่าน (ยังไม่ประกาศวันขึ้นก่อน ตามลำดับที่ query เรียงมา) / ผ่านไปแล้ว (ล่าสุดก่อน)
+  const active = shown.filter((x) => x.daysLeft === null || x.daysLeft >= 0);
+  const past = shown.filter((x) => x.daysLeft !== null && x.daysLeft < 0).reverse();
 
   const renderItem = ({ exam, daysLeft }: (typeof withDays)[number]) => (
     <ExamItem
       key={exam.id}
       exam={exam}
-      course={exam.course_id ? courseById.get(exam.course_id) : undefined}
+      course={courseOf(exam)}
       courses={courses}
       labelMode={labelMode}
       daysLeft={daysLeft}
+      overlapsWith={overlapText.get(exam.id) ?? []}
     />
   );
 
+  const chip = (active: boolean) =>
+    `shrink-0 rounded-full border px-3 py-1 text-sm ${
+      active ? "border-accent bg-accent text-white" : "border-line bg-white text-muted"
+    }`;
+  const overlapCount = overlaps.size;
+
   return (
     <div className="space-y-8">
-      <details className="group rounded-card border border-line bg-white p-4">
+      <details className="rounded-card border border-line bg-white p-4">
         <summary className="cursor-pointer font-medium">+ เพิ่มสอบเอง</summary>
         <div className="mt-3">
           <ExamForm courses={courses} />
         </div>
       </details>
 
-      {exams.length === 0 && (
+      {exams.length === 0 ? (
         <div className="space-y-2 rounded-card border border-dashed border-line p-4 text-sm text-muted">
           <p>ยังไม่มีตารางสอบ</p>
           <p>
             วางข้อความซิลลาบัสที่{" "}
             <Link href="/import" className="text-accent">
-              ✨ นำเข้า
+              ✨ AI ช่วยเพิ่ม
             </Link>{" "}
             แล้ว AI จะแยกวันสอบมาให้ หรือกด &quot;เพิ่มสอบเอง&quot; ด้านบน
           </p>
         </div>
-      )}
+      ) : (
+        <>
+          {/* กดดูทีละชนิดได้ */}
+          <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1">
+            <Link href="/exams" className={chip(!filter)}>
+              ทั้งหมด
+            </Link>
+            {EXAM_TYPES.map((t) => (
+              <Link key={t} href={`/exams?type=${t}`} className={chip(filter === t)}>
+                {EXAM_TYPE_LABEL[t].replace("สอบ", "")}
+              </Link>
+            ))}
+          </div>
 
-      {noDate.length > 0 && (
-        <ExamGroup label="⚠ ยังไม่ประกาศวันสอบ" count={noDate.length} tone="warn">
-          {noDate.map(renderItem)}
-        </ExamGroup>
-      )}
+          {overlapCount > 0 && (
+            <p className="rounded-card border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              ⚠ มีสอบเวลาชนกัน {overlapCount} รายการ — ดูป้ายสีแดงในการ์ด
+            </p>
+          )}
 
-      {upcoming.length > 0 && (
-        <ExamGroup label="กำลังจะมาถึง" count={upcoming.length} tone="normal">
-          {upcoming.map(renderItem)}
-        </ExamGroup>
-      )}
+          {EXAM_TYPES.filter((t) => !filter || filter === t).map((t) => {
+            const items = active.filter((x) => typeOf(x.exam) === t);
+            const tone = EXAM_TYPE_TONE[t];
+            return (
+              <section key={t} className="space-y-2">
+                <h2 className={`flex items-center gap-2 font-medium ${tone.text}`}>
+                  <span className={`h-3 w-3 rounded-full ${tone.dot}`} aria-hidden />
+                  {SECTION_TITLE[t]} <span className="text-muted">({items.length})</span>
+                </h2>
+                {items.length === 0 ? (
+                  <p className="text-sm text-muted">ไม่มี{SECTION_TITLE[t]}ที่กำลังจะมาถึง</p>
+                ) : (
+                  <ul className="space-y-2">{items.map(renderItem)}</ul>
+                )}
+              </section>
+            );
+          })}
 
-      {past.length > 0 && (
-        <details className="space-y-3">
-          <summary className="cursor-pointer font-medium">
-            สอบไปแล้ว <span className="text-muted">({past.length})</span>
-          </summary>
-          <ul className="mt-3 space-y-2">{past.map(renderItem)}</ul>
-        </details>
+          {past.length > 0 && (
+            <details className="space-y-3">
+              <summary className="cursor-pointer font-medium">
+                สอบไปแล้ว <span className="text-muted">({past.length})</span>
+              </summary>
+              <ul className="mt-3 space-y-2">{past.map(renderItem)}</ul>
+            </details>
+          )}
+        </>
       )}
     </div>
-  );
-}
-
-function ExamGroup({
-  label,
-  count,
-  tone,
-  children,
-}: {
-  label: string;
-  count: number;
-  tone: "normal" | "warn";
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-2">
-      <h2 className={`text-sm font-medium ${tone === "warn" ? "text-amber-700" : "text-muted"}`}>
-        {label} ({count})
-      </h2>
-      <ul className="space-y-2">{children}</ul>
-    </section>
   );
 }

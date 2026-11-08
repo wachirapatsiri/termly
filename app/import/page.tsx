@@ -14,9 +14,10 @@ export default function ImportPage() {
     <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6">
       <AppNav current="/import" />
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">นำเข้างานและตารางสอบ</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">✨ เพิ่มงานและสอบด้วย AI</h1>
         <p className="text-sm text-muted">
-          วางข้อความจากซิลลาบัสหรือประกาศของอาจารย์ แล้วให้ AI ช่วยหางาน วันส่ง และวันสอบ
+          วางข้อความจากซิลลาบัส ประกาศของอาจารย์ หรือหน้างานที่แคปมา แล้ว AI จะช่วยหางาน วันส่ง
+          และวันสอบ ให้ตรวจก่อนบันทึก
         </p>
       </div>
 
@@ -41,7 +42,10 @@ async function ImportSection() {
       .order("created_at"),
     // งาน/สอบที่บันทึกไว้แล้ว → เตือนถ้านำเข้าซ้ำ (เช่น วางซิลลาบัสเดิมอีกรอบ)
     supabase.from("tasks").select("title, due_at, course_id"),
-    supabase.from("events").select("title, starts_at, course_id, exam_type").eq("kind", "exam"),
+    supabase
+      .from("events")
+      .select("title, starts_at, ends_at, has_time, course_id, exam_type")
+      .eq("kind", "exam"),
     getCourseLabelMode(),
   ]);
   const courses: Course[] = coursesRes.data ?? [];
@@ -60,6 +64,9 @@ async function ImportSection() {
       date: day(e.starts_at),
       course_id: e.course_id,
       exam_type: isExamType(e.exam_type) ? e.exam_type : null,
+      starts_at: e.starts_at,
+      ends_at: e.ends_at,
+      has_time: e.has_time,
     })),
   ];
 

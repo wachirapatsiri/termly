@@ -51,3 +51,47 @@ export function batchDuplicates(items: DupItem[]): Set<number> {
   });
   return dup;
 }
+
+// ─── วิชาที่คล้ายกัน (เช่น รหัสเดียวกันแต่พิมพ์ชื่อต่างกัน) ───
+
+type CourseLike = { id: string; name: string; code: string | null };
+
+const courseNameKey = (s: string) => s.toLowerCase().replace(/[\s\-_.,:;()]/g, "");
+
+// จำนวนตัวอักษรที่ต้องแก้ให้สองคำเหมือนกัน (Levenshtein)
+function editDistance(a: string, b: string): number {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+// ชื่อคล้ายกัน: เหมือนกัน / อันหนึ่งขึ้นต้นด้วยอีกอัน / พิมพ์ผิดไม่เกิน 2 ตัว (ชื่อยาว ≥ 6)
+export function similarCourseName(a: string, b: string): boolean {
+  const x = courseNameKey(a);
+  const y = courseNameKey(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+  if (short.length >= 5 && long.startsWith(short)) return true;
+  return short.length >= 6 && editDistance(x, y) <= 2;
+}
+
+// วิชาที่มีอยู่แล้วที่น่าจะเป็นวิชาเดียวกัน: รหัสตรงกัน หรือชื่อคล้ายกัน (ไม่นับตัวเอง)
+export function findSimilarCourse<T extends CourseLike>(
+  input: { id?: string; name: string; code: string | null },
+  courses: T[],
+): T | undefined {
+  const code = input.code ? courseNameKey(input.code) : "";
+  return courses.find(
+    (c) =>
+      c.id !== input.id &&
+      ((code && c.code && courseNameKey(c.code) === code) ||
+        similarCourseName(c.name, input.name)),
+  );
+}

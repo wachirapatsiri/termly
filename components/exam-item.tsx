@@ -3,10 +3,47 @@
 import { useCallback, useOptimistic, useState } from "react";
 import { deleteExam } from "@/app/exams/actions";
 import { formatDue } from "@/lib/dates";
-import { EXAM_TYPE_LABEL, countdownLabel, formatExamTime } from "@/lib/exams";
+import { EXAM_TYPE_LABEL, countdownLabel, formatExamTime, type ExamType } from "@/lib/exams";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import type { CalendarEvent, Course } from "@/lib/types";
 import { ExamForm, type ExamField } from "@/components/exam-form";
+
+// สีของแต่ละชนิดสอบ: กลางภาค = น้ำเงิน, ปลายภาค = ม่วง, อื่น ๆ = เทา
+// (เขียนชื่อคลาสเต็ม ๆ ให้ Tailwind หาเจอ)
+export const EXAM_TYPE_TONE: Record<
+  ExamType,
+  { badge: string; dot: string; text: string; border: string }
+> = {
+  midterm: {
+    badge: "border-blue-200 bg-blue-50 text-blue-700",
+    dot: "bg-blue-500",
+    text: "text-blue-800",
+    border: "border-l-blue-500",
+  },
+  final: {
+    badge: "border-violet-200 bg-violet-50 text-violet-700",
+    dot: "bg-violet-500",
+    text: "text-violet-800",
+    border: "border-l-violet-500",
+  },
+  other: {
+    badge: "border-line bg-background text-muted",
+    dot: "bg-slate-400",
+    text: "text-foreground",
+    border: "border-l-slate-300",
+  },
+};
+
+// ชื่อสั้นของสอบ: มีวิชา → "สอบกลางภาค 204383" ไม่มี → ชื่อที่บันทึกไว้
+export function examLabel(
+  exam: Pick<CalendarEvent, "title" | "exam_type">,
+  course: Course | undefined,
+  labelMode: CourseLabelMode,
+) {
+  return course
+    ? `${EXAM_TYPE_LABEL[exam.exam_type ?? "other"]} ${courseLabel(course, labelMode)}`
+    : exam.title;
+}
 
 // การ์ดสอบ 1 รายการ — ช่องที่ยังไม่มีข้อมูลขึ้น "⚠ ไม่ระบุ…" กดแล้วเปิดฟอร์มแก้ช่องนั้นเลย
 export function ExamItem({
@@ -15,12 +52,14 @@ export function ExamItem({
   courses,
   labelMode,
   daysLeft,
+  overlapsWith = [],
 }: {
   exam: CalendarEvent;
   course?: Course;
   courses: Course[];
   labelMode: CourseLabelMode;
   daysLeft: number | null; // คำนวณฝั่งเซิร์ฟเวอร์ (null = ยังไม่รู้วัน)
+  overlapsWith?: string[]; // ชื่อสอบที่เวลาชนกัน (คำนวณฝั่งเซิร์ฟเวอร์)
 }) {
   const [editing, setEditing] = useState<{ focus?: ExamField } | null>(null);
   const close = useCallback(() => setEditing(null), []);
@@ -43,6 +82,8 @@ export function ExamItem({
   }
 
   const time = formatExamTime(exam);
+  const type = exam.exam_type ?? "other";
+  const tone = EXAM_TYPE_TONE[type];
   const past = daysLeft !== null && daysLeft < 0;
   const missing = (label: string, focus: ExamField) => (
     <button
@@ -55,12 +96,14 @@ export function ExamItem({
   );
 
   return (
-    <li className="space-y-2 rounded-card border border-line bg-white p-4">
+    <li
+      className={`space-y-2 rounded-card border border-l-4 border-line bg-white p-4 ${tone.border}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="rounded border border-accent/30 bg-accent/5 px-1.5 py-0.5 text-accent">
-              📝 {EXAM_TYPE_LABEL[exam.exam_type ?? "other"]}
+            <span className={`rounded border px-1.5 py-0.5 ${tone.badge}`}>
+              📝 {EXAM_TYPE_LABEL[type]}
             </span>
             {course && <span className="text-muted">{courseLabel(course, labelMode)}</span>}
           </div>
@@ -80,6 +123,12 @@ export function ExamItem({
           {exam.location ? `📍 ${exam.location}` : missing("ไม่ระบุสถานที่", "location")}
         </p>
       </div>
+
+      {overlapsWith.length > 0 && !past && (
+        <p className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">
+          ⚠ เวลาชนกับ {overlapsWith.join(", ")}
+        </p>
+      )}
 
       {exam.notes && (
         <p className="text-sm whitespace-pre-line break-words text-muted">{exam.notes}</p>

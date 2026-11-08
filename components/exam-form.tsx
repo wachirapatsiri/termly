@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { createExam, updateExam, type ExamFormState } from "@/app/exams/actions";
 import { toBangkokParts } from "@/lib/dates";
 import { EXAM_TYPES, EXAM_TYPE_LABEL } from "@/lib/exams";
 import type { CalendarEvent, Course } from "@/lib/types";
+import { ConfirmBox } from "@/components/confirm-box";
 
 const inputClass =
   "w-full rounded-card border border-line bg-white px-3 py-2 text-base outline-none focus:border-accent";
@@ -37,7 +38,11 @@ export function ExamForm({
 
   const start = exam?.starts_at ? toBangkokParts(exam.starts_at) : null;
   const end = exam?.ends_at ? toBangkokParts(exam.ends_at) : null;
-  const v = state.values ?? {
+  // "ไม่เพิ่ม" ในกล่องถามสอบซ้ำ → ซ่อนกล่อง + ล้างฟอร์ม (remount ด้วย key)
+  const [cancelled, setCancelled] = useState<ExamFormState | null>(null);
+  const [formKey, setFormKey] = useState(0);
+  const isCancelled = cancelled === state;
+  const v = (isCancelled ? undefined : state.values) ?? {
     exam_type: exam?.exam_type ?? "midterm",
     course_id: exam?.course_id ?? "",
     title: exam?.title ?? "",
@@ -49,7 +54,7 @@ export function ExamForm({
   };
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form key={formKey} action={formAction} className="space-y-3">
       {exam && <input type="hidden" name="id" value={exam.id} />}
 
       <div className="grid grid-cols-2 gap-3">
@@ -140,6 +145,17 @@ export function ExamForm({
           className={inputClass}
         />
       </label>
+
+      {state.duplicate && !isCancelled && (
+        <ConfirmBox
+          message={<>มี “{state.duplicate}” อยู่แล้ว — ยังจะเพิ่มอีกไหม?</>}
+          actions={[{ intent: "add_anyway", label: "เพิ่มต่อ" }]}
+          onCancel={() => {
+            setCancelled(state);
+            setFormKey((k) => k + 1);
+          }}
+        />
+      )}
 
       {state.error && (
         <p className="rounded-card border border-red-200 bg-red-50 p-3 text-sm text-red-700">

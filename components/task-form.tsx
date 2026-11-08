@@ -10,6 +10,7 @@ import {
 import { toBangkokParts } from "@/lib/dates";
 import { MAX_CATEGORY_LENGTH, NEW_CATEGORY } from "@/lib/categories";
 import type { Course, Task, TaskCategory } from "@/lib/types";
+import { ConfirmBox } from "@/components/confirm-box";
 
 const inputClass =
   "w-full rounded-card border border-line bg-white px-3 py-2 text-base outline-none focus:border-accent";
@@ -42,7 +43,11 @@ export function TaskForm({
 
   // ค่าเริ่มต้น: ถ้าบันทึกไม่ผ่านใช้ค่าที่เพิ่งกรอก, ถ้าแก้ไขใช้ค่าเดิมของงาน
   const due = task?.due_at ? toBangkokParts(task.due_at) : null;
-  const v = state.values ?? {
+  // "ไม่เพิ่ม" ในกล่องถามงานซ้ำ → ซ่อนกล่อง + ล้างฟอร์ม (remount ด้วย key)
+  const [cancelled, setCancelled] = useState<TaskFormState | null>(null);
+  const [formKey, setFormKey] = useState(0);
+  const isCancelled = cancelled === state;
+  const v = (isCancelled ? undefined : state.values) ?? {
     title: task?.title ?? "",
     due_date: due?.date ?? "",
     due_time: due && task?.due_has_time ? due.time : "",
@@ -62,7 +67,7 @@ export function TaskForm({
   }
 
   return (
-    <form action={formAction} className="space-y-3">
+    <form key={formKey} action={formAction} className="space-y-3">
       {task && <input type="hidden" name="id" value={task.id} />}
 
       <label className="block space-y-1">
@@ -169,6 +174,18 @@ export function TaskForm({
           className={inputClass}
         />
       </label>
+
+      {state.duplicate && !isCancelled && (
+        <ConfirmBox
+          message={<>มีงาน “{state.duplicate}” อยู่แล้ว — ยังจะเพิ่มอีกไหม?</>}
+          actions={[{ intent: "add_anyway", label: "เพิ่มต่อ" }]}
+          onCancel={() => {
+            setCancelled(state);
+            setFormKey((k) => k + 1);
+            setShowNew(false);
+          }}
+        />
+      )}
 
       {state.error && (
         <p className="rounded-card border border-red-200 bg-red-50 p-3 text-sm text-red-700">

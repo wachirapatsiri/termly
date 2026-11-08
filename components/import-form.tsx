@@ -12,8 +12,22 @@ import {
   type ExtractResponse,
 } from "@/lib/ai/schema";
 import { courseKey } from "@/lib/ai/normalize";
-import { EXAM_TYPES, EXAM_TYPE_LABEL, type ExamType } from "@/lib/exams";
-import { batchDuplicates, findDuplicate, type DupItem } from "@/lib/duplicates";
+import {
+  EXAM_TYPES,
+  EXAM_TYPE_LABEL,
+  buildExamTimes,
+  examsOverlap,
+  formatExamTime,
+  type ExamType,
+  type TimedExam,
+} from "@/lib/exams";
+import {
+  batchDuplicates,
+  findDuplicate,
+  findSimilarCourse,
+  isLikelyDuplicate,
+  type DupItem,
+} from "@/lib/duplicates";
 import type { Course, TaskCategory } from "@/lib/types";
 import { saveImportedItems, type ImportItem } from "@/app/import/actions";
 
@@ -28,8 +42,16 @@ type Row = ExtractedTask & {
   edited: boolean; // ผู้ใช้แก้ชื่อ/วันที่/เวลาเองแล้ว
 };
 
-// งาน/สอบที่บันทึกไว้แล้ว (ส่งมาจากหน้า /import) ใช้เตือนรายการซ้ำ
-export type ExistingItem = DupItem;
+// งาน/สอบที่บันทึกไว้แล้ว (ส่งมาจากหน้า /import) ใช้เตือนรายการซ้ำ + เวลาสอบชน
+export type ExistingItem = DupItem & Partial<TimedExam>;
+
+// เวลาสอบของการ์ด (null = ไม่ใช่สอบ หรือยังไม่รู้วัน/เวลา)
+function rowTimes(r: Row): TimedExam | null {
+  if (!isExamRow(r) || !r.due_date || !r.due_time) return null;
+  const end = r.end_time && r.end_time > r.due_time ? r.end_time : null;
+  const t = buildExamTimes(r.due_date, r.due_time, end);
+  return t.ok ? t : null;
+}
 
 const NEW_TYPE = "new";
 const isExamRow = (r: Row) => r.typeChoice.startsWith("exam:");
@@ -196,10 +218,28 @@ export function ImportForm({
   // เช็กซ้ำใหม่ทุกครั้งที่ผู้ใช้แก้ (ชื่อ/วัน/วิชา/ประเภทเปลี่ยน ผลก็เปลี่ยน)
   const dupItems = (rows ?? []).map(toDupItem);
   const batchDup = batchDuplicates(dupItems);
+  // เวลาสอบชน: กับสอบที่บันทึกไว้แล้ว + สอบอื่นในชุดนี้ (ไม่นับตัวที่ถือว่าซ้ำ เพราะเป็นสอบเดียวกัน)
+  const times = (rows ?? []).map(rowTimes);
+  const overlapsOf = (i: number): string[] => {
+    const me = times[i];
+    if (!me) return [];
+    const fromExisting = existing
+      .filter((e) => e.kind === "exam" && e.has_time !== undefined)
+      .filter((e) => !isLikelyDuplicate(dupItems[i], e))
+      .filter((e) => examsOverlap(me, e as TimedExam))
+      .map((e) => `${e.title} (${formatExamTime(e as TimedExam)})`);
+    const fromBatch = (rows ?? [])
+      .map((r, j) => ({ r, j }))
+      .filter(({ j }) => j !== i && times[j] && !isLikelyDuplicate(dupItems[i], dupItems[j]))
+      .filter(({ j }) => examsOverlap(me, times[j]!))
+      .map(({ r, j }) => `${r.title} (${formatExamTime(times[j]!)})`);
+    return [...fromExisting, ...fromBatch];
+  };
   const indexed = (rows ?? []).map((r, i) => ({
     r,
     dupExisting: findDuplicate(dupItems[i], existing),
     dupBatch: batchDup.has(i),
+    overlaps: overlapsOf(i),
   }));
   const exams = indexed.filter(({ r }) => isExamRow(r));
   const tasks = indexed.filter(({ r }) => !isExamRow(r));
@@ -207,7 +247,7 @@ export function ImportForm({
   const checkedTasks = tasks.filter(({ r }) => r.checked).length;
   const allChecked = indexed.length > 0 && indexed.every(({ r }) => r.checked);
 
-  const renderCard = ({ r, dupExisting, dupBatch }: (typeof indexed)[number]) => (
+  const renderCard = ({ r, dupExisting, dupBatch, overlaps }: (typeof indexed)[number]) => (
     <ExtractedCard
       key={r.key}
       row={r}
@@ -216,6 +256,7 @@ export function ImportForm({
       labelMode={labelMode}
       dupExisting={dupExisting}
       dupBatch={dupBatch}
+      overlaps={overlaps}
       onChange={(patch) => update(r.key, patch)}
       onRemove={() => remove(r.key)}
     />
@@ -371,6 +412,7 @@ function ExtractedCard({
   labelMode,
   dupExisting,
   dupBatch,
+  overlaps,
   onChange,
   onRemove,
 }: {
@@ -380,6 +422,7 @@ function ExtractedCard({
   labelMode: CourseLabelMode;
   dupExisting?: ExistingItem;
   dupBatch: boolean;
+  overlaps: string[]; // สอบที่เวลาชนกัน
   onChange: (patch: Partial<Row>) => void;
   onRemove: () => void;
 }) {
@@ -394,6 +437,14 @@ function ExtractedCard({
   const editDate = (patch: Partial<Row>) =>
     onChange({ ...patch, edited: true, warnings: [], confidence: "high" });
   const badEnd = Boolean(exam && row.due_time && row.end_time && row.end_time <= row.due_time);
+  // จะสร้างวิชาใหม่ แต่มีวิชาที่คล้ายกันอยู่แล้ว (รหัสเดียวกัน/ชื่อคล้าย)
+  const similarCourse =
+    row.courseChoice === "new"
+      ? findSimilarCourse(
+          { name: row.course_name ?? row.course_code ?? "", code: row.course_code },
+          courses,
+        )
+      : undefined;
 
   return (
     <li
@@ -588,6 +639,15 @@ function ExtractedCard({
           </p>
         )}
         {dupBatch && <p className="text-xs text-amber-800">⚠ ซ้ำกับรายการอื่นในชุดนี้</p>}
+        {overlaps.length > 0 && (
+          <p className="text-xs text-red-700">⚠ เวลาชนกับ {overlaps.join(", ")}</p>
+        )}
+        {similarCourse && (
+          <p className="text-xs text-amber-800">
+            ⚠ มีวิชา “{courseLabel(similarCourse, "both")}” อยู่แล้ว — ถ้าเป็นวิชาเดียวกัน
+            เลือกจากช่องวิชาแทนการเพิ่มใหม่
+          </p>
+        )}
         {low && !row.checked && (
           <p className="text-xs text-amber-800">ตรวจกับต้นฉบับแล้วติ๊กเพื่อยืนยัน</p>
         )}

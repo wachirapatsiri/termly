@@ -3,14 +3,17 @@
 import { refresh } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { toDueAt } from "@/lib/dates";
+import { toBangkokParts, toDueAt } from "@/lib/dates";
+import { findDuplicate } from "@/lib/duplicates";
 import { NEW_CATEGORY, resolveCategory } from "@/lib/categories";
 
 // ค่าที่ส่งกลับให้ฟอร์ม: error ภาษาไทย + ค่าที่กรอกไว้ (จะได้ไม่ต้องพิมพ์ใหม่)
+// duplicate = ชื่องานที่มีอยู่แล้วและน่าจะซ้ำ → ฟอร์มถามก่อนเพิ่ม
 export type TaskFormState = {
   ok?: boolean;
   error?: string;
   values?: Record<string, string>;
+  duplicate?: string;
 };
 
 const UUID_RE =
@@ -89,6 +92,26 @@ export async function createTask(
   if (!parsed.data) return { error: parsed.error, values: parsed.values };
 
   const supabase = await createClient();
+  // เช็กงานซ้ำก่อน (ผู้ใช้กด "เพิ่มต่อ" = intent add_anyway)
+  if (str(formData, "intent") !== "add_anyway") {
+    const { data: existing } = await supabase.from("tasks").select("title, due_at, course_id");
+    const dup = findDuplicate(
+      {
+        kind: "task",
+        title: parsed.data.title,
+        date: parsed.values.due_date || null,
+        course_id: parsed.data.course_id,
+      },
+      (existing ?? []).map((t) => ({
+        kind: "task" as const,
+        title: t.title,
+        date: t.due_at ? toBangkokParts(t.due_at).date : null,
+        course_id: t.course_id,
+      })),
+    );
+    if (dup) return { duplicate: dup.title, values: parsed.values };
+  }
+
   const cat = await resolveCategory(supabase, parsed.category);
   if (!cat.ok) return { error: cat.error, values: parsed.values };
   // user_id ไม่ต้องส่ง — ฐานข้อมูลเติม auth.uid() ให้ และ RLS ตรวจซ้ำอีกชั้น

@@ -8,7 +8,8 @@ const LINKS = [
 
 type NavPath = "/tasks" | "/exams" | "/courses" | "/import" | "/settings";
 
-// แถบเมนูด้านบนของหน้าที่ต้องล็อกอิน: งาน | สอบ | วิชา + ✨ นำเข้า (AI) + ⚙
+// แถบเมนูด้านบนของหน้าที่ต้องล็อกอิน: งาน | สอบ | วิชา + ✨ AI ช่วยเพิ่ม + ⚙
+// ปุ่ม AI เป็นทางเข้าเดียวของหน้า /import (วางข้อความ / รูปแคป / ซิลลาบัส)
 export function AppNav({ current }: { current: NavPath }) {
   const iconBtn = (active: boolean) =>
     `flex items-center gap-1 rounded-card border px-2.5 py-1.5 text-sm ${
@@ -36,13 +37,14 @@ export function AppNav({ current }: { current: NavPath }) {
         </div>
         <Link
           href="/import"
-          aria-label="นำเข้าจากซิลลาบัสด้วย AI"
+          aria-label="AI ช่วยเพิ่มงานและสอบ"
           aria-current={current === "/import" ? "page" : undefined}
           className={iconBtn(current === "/import")}
         >
           <span aria-hidden>✨</span>
-          {/* จอแคบมากซ่อนคำ เหลือแค่ไอคอน */}
-          <span className="hidden min-[400px]:inline">นำเข้า</span>
+          {/* จอมือถือทั่วไปเหลือ "AI" จอกว้างขึ้นแสดงเต็ม */}
+          <span aria-hidden className="min-[440px]:hidden">AI</span>
+          <span aria-hidden className="hidden min-[440px]:inline">AI ช่วยเพิ่ม</span>
         </Link>
         <Link
           href="/settings"
