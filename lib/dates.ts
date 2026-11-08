@@ -117,3 +117,17 @@ export function dueGroup(iso: string, now: Date = new Date()): DueGroup {
   if (days <= 7) return "week";
   return "later";
 }
+
+// ─── เวลาที่เหลือถึงเที่ยงคืนเวลาไทย (โควตา AI รายวันเริ่มนับใหม่) ───
+
+// เช่น "3 ชม. 12 นาที", "45 นาที", "1 นาที" (ไม่ต่ำกว่า 1 นาที)
+export function untilBangkokMidnight(now: Date = new Date()): string {
+  const today = toBangkokParts(now.toISOString()).date;
+  const next = new Date(`${today}T00:00:00${BANGKOK_OFFSET}`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  const mins = Math.max(1, Math.ceil((next.getTime() - now.getTime()) / 60_000));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m} นาที`;
+  return m === 0 ? `${h} ชม.` : `${h} ชม. ${m} นาที`;
+}

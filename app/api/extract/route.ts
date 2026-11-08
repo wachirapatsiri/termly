@@ -4,7 +4,7 @@
 // ไฟล์ไม่ถูกเก็บที่ไหน: ตรวจ → ส่ง AI → ทิ้ง
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { toBangkokParts } from "@/lib/dates";
+import { toBangkokParts, untilBangkokMidnight } from "@/lib/dates";
 import { mockExtract } from "@/lib/ai/claude";
 import { AiError } from "@/lib/ai/errors";
 import { extractTasks, isMockMode, mockReason } from "@/lib/ai/extract";
@@ -75,7 +75,10 @@ export async function POST(request: Request) {
       return fail("ตรวจสอบโควตาไม่สำเร็จ ลองใหม่อีกครั้ง", 500);
     }
     if ((count ?? 0) >= AI_DAILY_LIMIT) {
-      return fail(`ใช้ AI ครบ ${AI_DAILY_LIMIT} ครั้งของวันนี้แล้ว พรุ่งนี้ใช้ได้ใหม่`, 429);
+      return fail(
+        `ใช้ AI ครบ ${AI_DAILY_LIMIT} ครั้งของวันนี้แล้ว — ใช้ได้ใหม่ตอนเที่ยงคืน (00:00 น. เวลาไทย) อีก ${untilBangkokMidnight()}`,
+        429,
+      );
     }
   }
 
