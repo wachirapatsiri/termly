@@ -180,6 +180,7 @@ export function CourseItem({
         <div className="space-y-2 rounded-card border border-red-200 bg-red-50/50 p-3">
           <p className="text-sm">
             ลบวิชา &quot;{course.name}&quot;
+            {exams.length > 0 && <> — สอบของวิชานี้ {exams.length} รายการจะถูกลบด้วย</>}
             {totalCount > 0 && <> — มีงานในวิชานี้ {totalCount} ชิ้น จะทำอย่างไรกับงาน?</>}
           </p>
           {totalCount > 0 ? (

@@ -125,8 +125,8 @@ export async function updateCourse(
   return { ok: true };
 }
 
-// ลบวิชา: ถ้า delete_tasks = "true" ลบงานทั้งหมดของวิชานี้ด้วย
-// ไม่งั้นงานยังอยู่ แค่ course_id กลายเป็น null (ตั้งไว้ใน migration)
+// ลบวิชา: สอบของวิชานี้ถูกลบด้วยเสมอ (ผู้ใช้ตัดสินใจ 8 พ.ย. — สอบไม่มีความหมายถ้าไม่มีวิชา)
+// งาน: ถ้า delete_tasks = "true" ลบด้วย ไม่งั้นงานยังอยู่ แค่ course_id กลายเป็น null (ตั้งไว้ใน migration)
 export async function deleteCourse(formData: FormData) {
   const user = await requireUser();
   const id = str(formData, "id");
@@ -134,6 +134,18 @@ export async function deleteCourse(formData: FormData) {
   const deleteTasks = str(formData, "delete_tasks") === "true";
 
   const supabase = await createClient();
+  // ลบสอบก่อน — ถ้าลบไม่สำเร็จจะไม่ลบวิชา (สอบจะได้ไม่ค้างแบบไม่มีวิชา)
+  const { error: examsError } = await supabase
+    .from("events")
+    .delete()
+    .eq("course_id", id)
+    .eq("kind", "exam")
+    .eq("user_id", user.id);
+  if (examsError) {
+    console.error("deleteCourse exams", examsError);
+    refresh();
+    return;
+  }
   if (deleteTasks) {
     // ลบงานก่อน — ถ้าลบงานไม่สำเร็จจะไม่ลบวิชา (งานจะได้ไม่หลุดจากวิชาโดยไม่ตั้งใจ)
     const { error } = await supabase
