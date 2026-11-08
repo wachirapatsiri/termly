@@ -22,7 +22,7 @@ export async function extractWithGemini(
   files: Attachment[] = [],
 ): Promise<AiTask[]> {
   const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
+    apiKey: (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim(),
     httpOptions: { timeout: files.length ? 150_000 : 90_000 },
   });
   const parts: Part[] = [
