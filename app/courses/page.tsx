@@ -46,7 +46,9 @@ async function CoursesSection() {
       .order("created_at", { ascending: true }),
     supabase
       .from("events")
-      .select("id, course_id, title, exam_type, starts_at, ends_at, has_time, location")
+      .select(
+        "id, course_id, title, kind, exam_type, starts_at, ends_at, has_time, location, notes, created_at",
+      )
       .eq("kind", "exam")
       .order("starts_at", { ascending: true, nullsFirst: true }),
     getCourseLabelMode(),
@@ -89,10 +91,7 @@ async function CoursesSection() {
 
   // สอบของแต่ละวิชา + เวลาชน (เช็กกับสอบทุกวิชา เพราะชนข้ามวิชาได้)
   const courseById = new Map(courses.map((c) => [c.id, c]));
-  const exams = (examsRes.data ?? []) as Pick<
-    CalendarEvent,
-    "id" | "course_id" | "title" | "exam_type" | "starts_at" | "ends_at" | "has_time" | "location"
-  >[];
+  const exams = (examsRes.data ?? []) as CalendarEvent[];
   const overlaps = findOverlaps(exams);
   const examsByCourse = new Map<string, CourseExam[]>();
   exams.forEach((e, i) => {
@@ -130,6 +129,7 @@ async function CoursesSection() {
               <CourseItem
                 key={c.id}
                 course={c}
+                courses={courses}
                 pendingTasks={byCourse.get(c.id)?.pending ?? []}
                 totalCount={byCourse.get(c.id)?.total ?? 0}
                 exams={examsByCourse.get(c.id) ?? []}

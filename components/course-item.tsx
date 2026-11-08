@@ -8,6 +8,7 @@ import { formatDue } from "@/lib/dates";
 import { EXAM_TYPE_LABEL, formatExamTime, type ExamType } from "@/lib/exams";
 import type { CalendarEvent, Course } from "@/lib/types";
 import { CourseForm } from "@/components/course-form";
+import { ExamForm } from "@/components/exam-form";
 import { EXAM_TYPE_TONE } from "@/lib/exam-display";
 
 // งานค้างของวิชา (ข้อมูลเท่าที่การ์ดวิชาต้องใช้)
@@ -20,22 +21,21 @@ export type CourseTask = {
 };
 
 // สอบของวิชา (ข้อมูลเท่าที่การ์ดวิชาต้องใช้)
-export type CourseExam = Pick<
-  CalendarEvent,
-  "id" | "title" | "exam_type" | "starts_at" | "ends_at" | "has_time" | "location"
-> & {
+export type CourseExam = CalendarEvent & {
   past: boolean;
   overlapsWith: string[]; // สอบที่เวลาชนกัน (คำนวณฝั่งเซิร์ฟเวอร์)
 };
 
 export function CourseItem({
   course,
+  courses,
   pendingTasks,
   totalCount,
   exams,
   similarTo,
 }: {
   course: Course;
+  courses: Course[]; // ไว้ให้ฟอร์มแก้สอบเลือกวิชาได้
   pendingTasks: CourseTask[]; // งานที่ยังไม่เสร็จในวิชานี้ (เรียงตามวันส่งแล้ว)
   totalCount: number; // งานทั้งหมดในวิชานี้ (รวมที่เสร็จแล้ว)
   exams: CourseExam[]; // สอบของวิชานี้ (เรียงตามวันแล้ว)
@@ -174,7 +174,7 @@ export function CourseItem({
       )}
 
       {/* สอบแสดงตลอด ไม่ต้องกด (กดกางเฉพาะงานค้าง) */}
-      <CourseExams course={course} exams={exams} />
+      <CourseExams course={course} courses={courses} exams={exams} />
 
       {mode === "confirmDelete" ? (
         <div className="space-y-2 rounded-card border border-red-200 bg-red-50/50 p-3">
@@ -217,7 +217,30 @@ export function CourseItem({
 }
 
 // ส่วน "สอบ" ในการ์ดวิชา: กลางภาค/ปลายภาคเป็นหลัก บรรทัดละชนิด + สอบอื่น ๆ แยกด้านล่าง
-function CourseExams({ course, exams }: { course: Course; exams: CourseExam[] }) {
+function CourseExams({
+  course,
+  courses,
+  exams,
+}: {
+  course: Course;
+  courses: Course[];
+  exams: CourseExam[];
+}) {
+  // ฟอร์มที่เปิดอยู่: id สอบที่กำลังแก้ หรือ "new:<ชนิด>" = กำลังเพิ่มสอบชนิดนั้น
+  const [editing, setEditing] = useState<string | null>(null);
+  const close = useCallback(() => setEditing(null), []);
+  const formFor = (key: string, exam?: CourseExam, type?: ExamType) =>
+    editing === key && (
+      <div className="rounded-card border border-accent/40 bg-white p-3">
+        <ExamForm
+          exam={exam}
+          courses={courses}
+          defaults={{ exam_type: type, course_id: course.id }}
+          onSuccess={close}
+          onCancel={close}
+        />
+      </div>
+    );
   // ติ๊ก "ไม่มีสอบ" แล้วเปลี่ยนบนจอทันที (บันทึกไม่ผ่าน → กลับค่าเดิม + ขึ้นข้อความ)
   const [noExam, setNoExam] = useOptimistic(
     { midterm: !!course.no_midterm, final: !!course.no_final },
@@ -249,30 +272,47 @@ function CourseExams({ course, exams }: { course: Course; exams: CourseExam[] })
           const list = ofType(t);
           const tone = EXAM_TYPE_TONE[t];
           return (
-            <li key={t} className="flex items-start gap-2">
-              <span className={`shrink-0 rounded border px-1.5 py-0.5 text-xs ${tone.badge}`}>
-                {EXAM_TYPE_LABEL[t].replace("สอบ", "")}
-              </span>
-              <div className="min-w-0 flex-1">
-                {list.length > 0 ? (
-                  list.map((e) => <ExamLine key={e.id} exam={e} />)
-                ) : (
-                  // ยังไม่มีข้อมูล → ไม่เตือน แค่ให้ติ๊กได้ว่าไม่มีสอบ
-                  <div className="flex items-center justify-between gap-2 text-sm text-muted">
-                    <span>{noExam[t] ? `ไม่มี${EXAM_TYPE_LABEL[t]}` : "ยังไม่มีข้อมูล"}</span>
-                    <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={noExam[t]}
-                        disabled={pending}
-                        onChange={() => toggle(t)}
-                        className="h-4 w-4 accent-accent"
-                      />
-                      ไม่มีสอบ
-                    </label>
-                  </div>
-                )}
+            <li key={t} className="space-y-2">
+              <div className="flex items-start gap-2">
+                <span className={`shrink-0 rounded border px-1.5 py-0.5 text-xs ${tone.badge}`}>
+                  {EXAM_TYPE_LABEL[t].replace("สอบ", "")}
+                </span>
+                <div className="min-w-0 flex-1 space-y-1">
+                  {list.length > 0 ? (
+                    list.map((e) => (
+                      <ExamLine key={e.id} exam={e} onEdit={() => setEditing(e.id)} />
+                    ))
+                  ) : (
+                    // ยังไม่มีข้อมูล → ไม่เตือน แค่ให้ติ๊กได้ว่าไม่มีสอบ
+                    <div className="flex items-center justify-between gap-2 text-sm text-muted">
+                      <span>
+                        {noExam[t] ? `ไม่มี${EXAM_TYPE_LABEL[t]}` : "ยังไม่มีข้อมูล"}
+                        {!noExam[t] && (
+                          <button
+                            type="button"
+                            onClick={() => setEditing(`new:${t}`)}
+                            className="ml-2 text-accent"
+                          >
+                            + เพิ่ม
+                          </button>
+                        )}
+                      </span>
+                      <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={noExam[t]}
+                          disabled={pending}
+                          onChange={() => toggle(t)}
+                          className="h-4 w-4 accent-accent"
+                        />
+                        ไม่มีสอบ
+                      </label>
+                    </div>
+                  )}
+                </div>
               </div>
+              {formFor(`new:${t}`, undefined, t)}
+              {list.map((e) => <div key={e.id}>{formFor(e.id, e)}</div>)}
             </li>
           );
         })}
@@ -285,11 +325,28 @@ function CourseExams({ course, exams }: { course: Course; exams: CourseExam[] })
             </span>
             <div className="min-w-0 flex-1 space-y-1">
               {others.map((e) => (
-                <ExamLine key={e.id} exam={e} showTitle />
+                <ExamLine key={e.id} exam={e} showTitle onEdit={() => setEditing(e.id)} />
               ))}
             </div>
           </li>
         )}
+        {others.map((e) => (
+          <li key={`form-${e.id}`} className="empty:hidden">
+            {formFor(e.id, e)}
+          </li>
+        ))}
+        <li className="space-y-2">
+          {editing !== "new:other" && (
+            <button
+              type="button"
+              onClick={() => setEditing("new:other")}
+              className="text-xs text-accent"
+            >
+              + เพิ่มสอบอื่น ๆ (Quiz ใหญ่, สอบย่อย)
+            </button>
+          )}
+          {formFor("new:other", undefined, "other")}
+        </li>
       </ul>
       {error && (
         <p role="alert" className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">
@@ -300,12 +357,28 @@ function CourseExams({ course, exams }: { course: Course; exams: CourseExam[] })
   );
 }
 
-function ExamLine({ exam, showTitle }: { exam: CourseExam; showTitle?: boolean }) {
+function ExamLine({
+  exam,
+  showTitle,
+  onEdit,
+}: {
+  exam: CourseExam;
+  showTitle?: boolean;
+  onEdit: () => void;
+}) {
   const time = formatExamTime(exam);
   return (
     <div className={`space-y-0.5 text-sm ${exam.past ? "text-muted" : ""}`}>
       {showTitle && <p className="break-words">{exam.title}</p>}
       <p>
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`แก้ไข ${exam.title}`}
+          className="float-right ml-2 text-xs text-accent"
+        >
+          แก้ไข
+        </button>
         {exam.starts_at ? formatDue(exam.starts_at, false) : (
           <span className="text-amber-700">⚠ ยังไม่ประกาศวันสอบ</span>
         )}

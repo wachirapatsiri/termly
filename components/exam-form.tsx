@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { createExam, updateExam, type ExamFormState } from "@/app/exams/actions";
 import { toBangkokParts } from "@/lib/dates";
-import { EXAM_TYPES, EXAM_TYPE_LABEL } from "@/lib/exams";
+import { EXAM_TYPES, EXAM_TYPE_LABEL, type ExamType } from "@/lib/exams";
 import type { CalendarEvent, Course } from "@/lib/types";
 import { ConfirmBox } from "@/components/confirm-box";
 
@@ -18,12 +18,15 @@ export function ExamForm({
   exam,
   courses,
   focus,
+  defaults,
   onSuccess,
   onCancel,
 }: {
   exam?: CalendarEvent;
   courses: Course[];
   focus?: ExamField;
+  // ค่าตั้งต้นตอนเพิ่มใหม่ (เช่น กด "+ เพิ่ม" จากการ์ดวิชา → เลือกวิชาและชนิดไว้ให้)
+  defaults?: { exam_type?: ExamType; course_id?: string };
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
@@ -43,8 +46,8 @@ export function ExamForm({
   const [formKey, setFormKey] = useState(0);
   const isCancelled = cancelled === state;
   const v = (isCancelled ? undefined : state.values) ?? {
-    exam_type: exam?.exam_type ?? "midterm",
-    course_id: exam?.course_id ?? "",
+    exam_type: exam?.exam_type ?? defaults?.exam_type ?? "midterm",
+    course_id: exam?.course_id ?? defaults?.course_id ?? "",
     title: exam?.title ?? "",
     date: start?.date ?? "",
     start_time: start && exam?.has_time ? start.time : "",
