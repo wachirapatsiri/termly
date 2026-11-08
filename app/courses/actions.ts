@@ -157,19 +157,35 @@ export async function deleteCourse(formData: FormData) {
 }
 
 // ติ๊ก/เลิกติ๊ก "วิชานี้ไม่มีสอบกลางภาค / ปลายภาค" (คอลัมน์จาก migration 0003)
-export async function setCourseNoExam(formData: FormData) {
+// คืนข้อความ error ให้การ์ดแสดง (ไม่เงียบ) — ถ้ายังไม่ได้รัน migration 0003 จะบอกให้รัน
+export async function setCourseNoExam(
+  id: string,
+  type: "midterm" | "final",
+  value: boolean,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireUser();
-  const id = str(formData, "id");
-  const type = str(formData, "type");
-  if (!UUID_RE.test(id) || (type !== "midterm" && type !== "final")) return;
-  const value = str(formData, "value") === "true";
+  if (typeof id !== "string" || !UUID_RE.test(id) || (type !== "midterm" && type !== "final")) {
+    return { ok: false, error: "ไม่พบวิชานี้" };
+  }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("courses")
-    .update(type === "midterm" ? { no_midterm: value } : { no_final: value })
+    .update(type === "midterm" ? { no_midterm: value === true } : { no_final: value === true })
     .eq("id", id)
-    .eq("user_id", user.id);
-  if (error) console.error("setCourseNoExam", error);
+    .eq("user_id", user.id)
+    .select("id");
+  if (error || !data?.length) {
+    if (error) console.error("setCourseNoExam", error);
+    // PGRST204 / 42703 = ไม่มีคอลัมน์นี้ในฐานข้อมูล
+    const missingColumn = error && (error.code === "PGRST204" || error.code === "42703");
+    return {
+      ok: false,
+      error: missingColumn
+        ? "ฐานข้อมูลยังไม่มีช่อง \"ไม่มีสอบ\" — รัน migration 0003 ใน Supabase ก่อน"
+        : "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง",
+    };
+  }
   refresh();
+  return { ok: true };
 }

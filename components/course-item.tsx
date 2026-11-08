@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useOptimistic, useState } from "react";
+import { useCallback, useOptimistic, useState, useTransition } from "react";
 import { deleteCourse, setCourseNoExam } from "@/app/courses/actions";
 import { deleteTask, setTaskDone } from "@/app/tasks/actions";
 import { formatDue } from "@/lib/dates";
@@ -95,7 +95,7 @@ export function CourseItem({
             open ? "border-accent text-accent" : "border-line text-muted"
           }`}
         >
-          งาน {visibleTasks.length} · สอบ {exams.length} {open ? "▴" : "▾"}
+          งานค้าง {visibleTasks.length} {open ? "▴" : "▾"}
         </button>
       </div>
 
@@ -170,9 +170,11 @@ export function CourseItem({
             เพิ่ม/แก้งานของวิชานี้ในหน้างาน →
           </Link>
 
-          <CourseExams course={course} exams={exams} />
         </div>
       )}
+
+      {/* สอบแสดงตลอด ไม่ต้องกด (กดกางเฉพาะงานค้าง) */}
+      <CourseExams course={course} exams={exams} />
 
       {mode === "confirmDelete" ? (
         <div className="space-y-2 rounded-card border border-red-200 bg-red-50/50 p-3">
@@ -214,77 +216,86 @@ export function CourseItem({
   );
 }
 
-// ส่วน "สอบ" ในการ์ดวิชา: กลางภาค/ปลายภาคเป็นหลัก + สอบอื่น ๆ แยกด้านล่าง
+// ส่วน "สอบ" ในการ์ดวิชา: กลางภาค/ปลายภาคเป็นหลัก บรรทัดละชนิด + สอบอื่น ๆ แยกด้านล่าง
 function CourseExams({ course, exams }: { course: Course; exams: CourseExam[] }) {
-  // ติ๊ก "ไม่มีสอบ" แล้วเปลี่ยนบนจอทันที
+  // ติ๊ก "ไม่มีสอบ" แล้วเปลี่ยนบนจอทันที (บันทึกไม่ผ่าน → กลับค่าเดิม + ขึ้นข้อความ)
   const [noExam, setNoExam] = useOptimistic(
     { midterm: !!course.no_midterm, final: !!course.no_final },
     (cur, patch: Partial<Record<"midterm" | "final", boolean>>) => ({ ...cur, ...patch }),
   );
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const ofType = (t: ExamType) => exams.filter((e) => (e.exam_type ?? "other") === t);
   const others = ofType("other");
 
-  const toggle = (type: "midterm" | "final", value: boolean) => (
-    <form
-      action={async (formData) => {
-        setNoExam({ [type]: value });
-        await setCourseNoExam(formData);
-      }}
-    >
-      <input type="hidden" name="id" value={course.id} />
-      <input type="hidden" name="type" value={type} />
-      <input type="hidden" name="value" value={String(value)} />
-      {/* value = ค่าที่จะตั้งเมื่อกด: true = ยังไม่ติ๊ก (กดเพื่อติ๊ก) */}
-      <button
-        type="submit"
-        aria-pressed={!value}
-        className={`text-xs ${value ? "text-muted" : "text-accent"}`}
-      >
-        {value ? "☐" : "☑"} ไม่มีสอบ
-      </button>
-    </form>
-  );
+  const toggle = (type: "midterm" | "final") => {
+    const value = !noExam[type];
+    setError(null);
+    startTransition(async () => {
+      setNoExam({ [type]: value });
+      try {
+        const res = await setCourseNoExam(course.id, type, value);
+        if (!res.ok) setError(res.error);
+      } catch {
+        setError("บันทึกไม่สำเร็จ ลองรีเฟรชหน้าแล้วลองใหม่");
+      }
+    });
+  };
 
   return (
     <div className="space-y-2 border-t border-line pt-3">
-      <h3 className="text-sm font-medium text-muted">สอบ</h3>
       <ul className="space-y-2">
         {(["midterm", "final"] as const).map((t) => {
           const list = ofType(t);
           const tone = EXAM_TYPE_TONE[t];
           return (
-            <li key={t} className="space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className={`rounded border px-1.5 py-0.5 text-xs ${tone.badge}`}>
-                  {EXAM_TYPE_LABEL[t]}
-                </span>
-                {/* ยังไม่มีข้อมูล → ไม่ต้องเตือนอะไร แค่ให้ติ๊กได้ว่าไม่มีสอบ */}
-                {list.length === 0 && toggle(t, !noExam[t])}
+            <li key={t} className="flex items-start gap-2">
+              <span className={`shrink-0 rounded border px-1.5 py-0.5 text-xs ${tone.badge}`}>
+                {EXAM_TYPE_LABEL[t].replace("สอบ", "")}
+              </span>
+              <div className="min-w-0 flex-1">
+                {list.length > 0 ? (
+                  list.map((e) => <ExamLine key={e.id} exam={e} />)
+                ) : (
+                  // ยังไม่มีข้อมูล → ไม่เตือน แค่ให้ติ๊กได้ว่าไม่มีสอบ
+                  <div className="flex items-center justify-between gap-2 text-sm text-muted">
+                    <span>{noExam[t] ? `ไม่มี${EXAM_TYPE_LABEL[t]}` : "ยังไม่มีข้อมูล"}</span>
+                    <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={noExam[t]}
+                        disabled={pending}
+                        onChange={() => toggle(t)}
+                        className="h-4 w-4 accent-accent"
+                      />
+                      ไม่มีสอบ
+                    </label>
+                  </div>
+                )}
               </div>
-              {list.length > 0 ? (
-                list.map((e) => <ExamLine key={e.id} exam={e} />)
-              ) : noExam[t] ? (
-                <p className="text-sm text-muted">วิชานี้ไม่มี{EXAM_TYPE_LABEL[t]}</p>
-              ) : (
-                <p className="text-sm text-muted">ยังไม่มีข้อมูล</p>
-              )}
             </li>
           );
         })}
         {others.length > 0 && (
-          <li className="space-y-1">
-            <span className={`rounded border px-1.5 py-0.5 text-xs ${EXAM_TYPE_TONE.other.badge}`}>
-              สอบอื่น ๆ
+          <li className="flex items-start gap-2">
+            <span
+              className={`shrink-0 rounded border px-1.5 py-0.5 text-xs ${EXAM_TYPE_TONE.other.badge}`}
+            >
+              อื่น ๆ
             </span>
-            {others.map((e) => (
-              <ExamLine key={e.id} exam={e} showTitle />
-            ))}
+            <div className="min-w-0 flex-1 space-y-1">
+              {others.map((e) => (
+                <ExamLine key={e.id} exam={e} showTitle />
+              ))}
+            </div>
           </li>
         )}
       </ul>
-      <Link href="/exams" className="block text-sm text-accent">
-        เพิ่ม/แก้สอบในหน้าสอบ →
-      </Link>
+      {error && (
+        <p role="alert" className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
