@@ -16,13 +16,33 @@ export const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
 const RESPONSE_SCHEMA: Record<string, unknown> = { ...z.toJSONSchema(AiResultSchema) };
 delete RESPONSE_SCHEMA.$schema;
 
+// key ของ Gemini: GEMINI_API_KEY (หรือ GOOGLE_API_KEY ที่ SDK ของ Google รู้จักเหมือนกัน)
+// ตัดช่องว่าง/เครื่องหมายคำพูดที่ติดมาตอนคัดลอกทิ้ง
+export function geminiApiKey(): string | undefined {
+  const raw = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  return raw?.trim().replace(/^["']+|["']+$/g, "") || undefined;
+}
+
+// รหัสสาเหตุจาก Google เช่น "API_KEY_INVALID", "NOT_FOUND" (ไม่มีข้อมูลลับ) — ต่อท้ายข้อความ error ให้เช็กปัญหาได้จากหน้าเว็บ
+export function googleErrorCode(err: ApiError): string {
+  try {
+    const body = JSON.parse(err.message) as {
+      error?: { status?: string; details?: { reason?: string }[] };
+    };
+    const reason = body.error?.details?.find((d) => d.reason)?.reason;
+    return `${err.status} ${reason ?? body.error?.status ?? ""}`.trim();
+  } catch {
+    return String(err.status);
+  }
+}
+
 export async function extractWithGemini(
   text: string,
   todayIso: string,
   files: Attachment[] = [],
 ): Promise<AiTask[]> {
   const ai = new GoogleGenAI({
-    apiKey: (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim(),
+    apiKey: geminiApiKey(),
     httpOptions: { timeout: files.length ? 150_000 : 90_000 },
   });
   const parts: Part[] = [
@@ -51,6 +71,18 @@ export async function extractWithGemini(
   } catch (err) {
     if (err instanceof AiError) throw err;
     if (err instanceof ApiError) {
+      const code = googleErrorCode(err);
+      if (/API_KEY_INVALID|API_KEY_SERVICE_BLOCKED|PERMISSION_DENIED/.test(code) || err.status === 401) {
+        console.error("extractWithGemini: API key", code);
+        throw new AiError(
+          `key ของ Gemini ใช้ไม่ได้ — เช็กว่าคัดลอก GEMINI_API_KEY มาครบ (ขึ้นต้น AIza ไม่มีช่องว่าง/เครื่องหมายคำพูด) (รหัส: ${code})`,
+          false,
+        );
+      }
+      if (err.status === 404) {
+        console.error("extractWithGemini: model", code, err.message);
+        throw new AiError(`ไม่พบรุ่น AI "${process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL}" ลองตั้ง GEMINI_MODEL ใหม่ (รหัส: ${code})`, false);
+      }
       if (err.status === 429) {
         // โควตาฟรีมีเพดานต่อนาทีและต่อวัน
         throw new AiError("โควตา AI ฟรีเต็มชั่วคราว รอสัก 1 นาทีแล้วลองใหม่ (ถ้ายังไม่ได้ ลองพรุ่งนี้)", true);
@@ -58,16 +90,16 @@ export async function extractWithGemini(
       if (err.status === 400 && files.length) {
         console.error("extractWithGemini: file rejected", err.message);
         throw new AiError(
-          "AI เปิดไฟล์นี้ไม่ได้ (ไฟล์อาจเสีย ล็อกรหัสผ่าน หรือมีหน้าเยอะเกินไป) — ลองแคปหน้าจอเฉพาะส่วนที่มีกำหนดส่งแทน",
+          `AI เปิดไฟล์นี้ไม่ได้ (ไฟล์อาจเสีย ล็อกรหัสผ่าน หรือมีหน้าเยอะเกินไป) — ลองแคปหน้าจอเฉพาะส่วนที่มีกำหนดส่งแทน (รหัส: ${code})`,
           false,
         );
       }
-      if (err.status === 401 || err.status === 403) {
-        console.error("extractWithGemini: API key ไม่ถูกต้อง", err.status);
-        throw new AiError("ระบบ AI ยังตั้งค่าไม่เรียบร้อย", false);
+      if (err.status === 403) {
+        console.error("extractWithGemini: forbidden", code);
+        throw new AiError(`ระบบ AI ยังตั้งค่าไม่เรียบร้อย (รหัส: ${code})`, false);
       }
       console.error("extractWithGemini", err.status, err.message);
-      throw new AiError("AI มีปัญหาชั่วคราว ลองใหม่อีกครั้ง", true);
+      throw new AiError(`AI มีปัญหาชั่วคราว ลองใหม่อีกครั้ง (รหัส: ${code})`, true);
     }
     console.error("extractWithGemini", err);
     throw new AiError("เชื่อมต่อ AI ไม่ได้ ลองใหม่อีกครั้ง", true);

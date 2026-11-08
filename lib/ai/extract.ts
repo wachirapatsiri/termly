@@ -3,7 +3,7 @@
 //   AI_PROVIDER=gemini               ต้องมี GEMINI_API_KEY (โควตาฟรีจาก Google AI Studio)
 //   AI_MODE=mock หรือไม่มี key ของตัวที่เลือก = โหมดจำลอง (ไม่เสียเงิน ไม่นับลิมิต)
 import { extractWithClaude } from "./claude.ts";
-import { extractWithGemini } from "./gemini.ts";
+import { extractWithGemini, geminiApiKey } from "./gemini.ts";
 import type { Attachment } from "./files.ts";
 import type { AiTask } from "./schema.ts";
 
@@ -11,11 +11,6 @@ export type AiProvider = "claude" | "gemini";
 
 export function aiProvider(): AiProvider {
   return process.env.AI_PROVIDER?.trim().toLowerCase().replace(/^["']|["']$/g, "") === "gemini" ? "gemini" : "claude";
-}
-
-// key ของ Gemini: GEMINI_API_KEY (หรือ GOOGLE_API_KEY ที่ SDK ของ Google รู้จักเหมือนกัน)
-export function geminiApiKey(): string | undefined {
-  return (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim() || undefined;
 }
 
 export function isMockMode(): boolean {
