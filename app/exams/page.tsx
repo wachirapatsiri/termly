@@ -16,7 +16,8 @@ import {
 import type { CalendarEvent, Course } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { ExamForm } from "@/components/exam-form";
-import { EXAM_TYPE_TONE, ExamItem, examLabel } from "@/components/exam-item";
+import { ExamItem } from "@/components/exam-item";
+import { EXAM_TYPE_TONE, examLabel } from "@/lib/exam-display";
 
 export default function ExamsPage({ searchParams }: PageProps<"/exams">) {
   return (

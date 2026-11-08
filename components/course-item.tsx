@@ -8,7 +8,7 @@ import { formatDue } from "@/lib/dates";
 import { EXAM_TYPE_LABEL, formatExamTime, type ExamType } from "@/lib/exams";
 import type { CalendarEvent, Course } from "@/lib/types";
 import { CourseForm } from "@/components/course-form";
-import { EXAM_TYPE_TONE } from "@/components/exam-item";
+import { EXAM_TYPE_TONE } from "@/lib/exam-display";
 
 // งานค้างของวิชา (ข้อมูลเท่าที่การ์ดวิชาต้องใช้)
 export type CourseTask = {

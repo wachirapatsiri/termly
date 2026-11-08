@@ -10,7 +10,7 @@ import type { CalendarEvent, Course, Task } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { CourseForm } from "@/components/course-form";
 import { CourseItem, type CourseExam, type CourseTask } from "@/components/course-item";
-import { examLabel } from "@/components/exam-item";
+import { examLabel } from "@/lib/exam-display";
 
 export default function CoursesPage() {
   return (
