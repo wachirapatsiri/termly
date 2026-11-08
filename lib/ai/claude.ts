@@ -6,22 +6,12 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { AiResultSchema, type AiTask } from "./schema.ts";
 import { SYSTEM_PROMPT, buildUserMessage } from "./prompt.ts";
 import type { Attachment } from "./files.ts";
+import { AiError } from "./errors.ts";
 
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
-// โหมดจำลอง: ไม่มี key หรือสั่ง AI_MODE=mock → คืนข้อมูลตัวอย่าง ไม่เสียเงิน
-export function isMockMode() {
-  return process.env.AI_MODE === "mock" || !process.env.ANTHROPIC_API_KEY;
-}
-
-export class AiError extends Error {
-  readonly retryable: boolean;
-  // message = ข้อความภาษาไทยสำหรับผู้ใช้
-  constructor(message: string, retryable: boolean) {
-    super(message);
-    this.retryable = retryable;
-  }
-}
+// AiError อยู่ใน errors.ts (ใช้ร่วมกับ gemini.ts) — re-export ไว้ให้โค้ดเดิม
+export { AiError };
 
 // แปลงไฟล์แนบเป็น content block ของ Claude (วางก่อนข้อความตามคำแนะนำของ API)
 function attachmentBlocks(files: Attachment[]): Anthropic.Beta.BetaContentBlockParam[] {

@@ -1,20 +1,24 @@
 // ทดสอบกับ AI จริง ด้วยข้อความตัวอย่างใน tests/fixtures/ (3 แบบแต่งเอง + 2 แบบจำลองจากเอกสารจริงของผู้ใช้ ตัดข้อมูลส่วนตัวออก + PDF/รูปที่สร้างจากข้อความเหล่านั้น) — npm run test:ai
-// ⚠ เสียเงินจริง (Sonnet 5.5 ประมาณ 0.5 บาท/ไฟล์) ต้องมี ANTHROPIC_API_KEY ใน .env.local
+// ⚠ Claude เสียเงินจริง (Sonnet 5.5 ประมาณ 0.5 บาท/ไฟล์) ต้องมี ANTHROPIC_API_KEY ใน .env.local — หรือใช้ Gemini ฟรี: AI_PROVIDER=gemini + GEMINI_API_KEY
 // สมมติว่า "วันนี้" = ศุกร์ 6 พ.ย. 2569 เพื่อให้ผลคงที่
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { extractWithClaude, isMockMode } from "../lib/ai/claude.ts";
+import { aiProvider, extractTasks, isMockMode } from "../lib/ai/extract.ts";
 import { normalizeTasks } from "../lib/ai/normalize.ts";
 import { checkUploads } from "../lib/ai/files.ts";
 import type { ExtractedTask } from "../lib/ai/schema.ts";
 
 const TODAY = "2026-11-06";
-const skip = isMockMode() ? "ไม่มี ANTHROPIC_API_KEY (หรือ AI_MODE=mock) — ข้ามการทดสอบ AI จริง" : false;
+// AI_PROVIDER=gemini → ทดสอบ Gemini (ฟรี) แทน Claude ด้วยชุดเดียวกัน
+const skip = isMockMode()
+  ? `ไม่มี key ของ ${aiProvider()} (หรือ AI_MODE=mock) — ข้ามการทดสอบ AI จริง`
+  : false;
+if (!skip) console.log(`ทดสอบกับ: ${aiProvider()}`);
 
 async function run(file: string): Promise<ExtractedTask[]> {
   const text = readFileSync(new URL(`./fixtures/${file}`, import.meta.url), "utf8");
-  const tasks = normalizeTasks(await extractWithClaude(text, TODAY), [], TODAY);
+  const tasks = normalizeTasks(await extractTasks(text, TODAY), [], TODAY);
   console.log(`\n── ${file} ──`);
   for (const t of tasks) {
     console.log(
@@ -102,7 +106,7 @@ async function runFile(file: string, text = ""): Promise<ExtractedTask[]> {
   const bytes = new Uint8Array(readFileSync(new URL(`./fixtures/${file}`, import.meta.url)));
   const check = checkUploads([{ name: file, bytes }]);
   assert.ok(check.ok, "ไฟล์ทดสอบต้องผ่านการตรวจ");
-  const tasks = normalizeTasks(await extractWithClaude(text, TODAY, check.attachments), [], TODAY);
+  const tasks = normalizeTasks(await extractTasks(text, TODAY, check.attachments), [], TODAY);
   console.log(`\n── ${file} ──`);
   for (const t of tasks) console.log(`  [${t.confidence.padEnd(6)}] ${t.kind.padEnd(12)} ${t.due_date ?? "—"} ${t.due_time ?? ""} ${t.title}`);
   return tasks;

@@ -5,7 +5,9 @@
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { toBangkokParts } from "@/lib/dates";
-import { AiError, extractWithClaude, isMockMode, mockExtract } from "@/lib/ai/claude";
+import { mockExtract } from "@/lib/ai/claude";
+import { AiError } from "@/lib/ai/errors";
+import { extractTasks, isMockMode } from "@/lib/ai/extract";
 import { normalizeTasks } from "@/lib/ai/normalize";
 import { findDemoSets } from "@/lib/ai/demo-samples";
 import { AI_DAILY_LIMIT, MAX_TEXT_LENGTH, MAX_UPLOAD_BYTES } from "@/lib/ai/limits";
@@ -90,7 +92,7 @@ export async function POST(request: Request) {
       mockSources = demos.map((d) => d.label);
       raw = demos.length ? demos.flatMap((d) => d.tasks) : mockExtract(today);
     } else {
-      raw = await extractWithClaude(text, today, files);
+      raw = await extractTasks(text, today, files); // Claude หรือ Gemini ตาม env AI_PROVIDER
     }
     success = true;
   } catch (err) {
