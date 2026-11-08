@@ -6,17 +6,26 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { MAX_CATEGORY_LENGTH } from "@/lib/categories";
 import { COURSE_LABEL_COOKIE, isCourseLabelMode } from "@/lib/course-label";
+import { YEAR_MODE_COOKIE, isYearMode } from "@/lib/year-mode";
+
+const PREF_COOKIE = {
+  path: "/",
+  maxAge: 60 * 60 * 24 * 365, // จำไว้ 1 ปี
+  sameSite: "lax",
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+} as const;
 
 export async function setCourseLabelMode(formData: FormData) {
   const mode = formData.get("mode");
   if (!isCourseLabelMode(mode)) return;
-  (await cookies()).set(COURSE_LABEL_COOKIE, mode, {
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365, // จำไว้ 1 ปี
-    sameSite: "lax",
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-  });
+  (await cookies()).set(COURSE_LABEL_COOKIE, mode, PREF_COOKIE);
+}
+
+export async function setYearMode(formData: FormData) {
+  const mode = formData.get("mode");
+  if (!isYearMode(mode)) return;
+  (await cookies()).set(YEAR_MODE_COOKIE, mode, PREF_COOKIE);
 }
 
 // ─── จัดการประเภทงาน (ตาราง task_categories) ───

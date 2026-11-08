@@ -8,6 +8,7 @@ import { findSimilarCourse } from "@/lib/duplicates";
 import { getCourseLabelMode } from "@/lib/preferences";
 import type { CalendarEvent, Course, Task } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
+import { WithYearMode } from "@/components/with-year-mode";
 import { CourseForm } from "@/components/course-form";
 import { CourseItem, type CourseExam, type CourseTask } from "@/components/course-item";
 import { examLabel } from "@/lib/exam-display";
@@ -19,7 +20,9 @@ export default function CoursesPage() {
       <h1 className="text-2xl font-semibold tracking-tight">วิชาของฉัน</h1>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
-        <CoursesSection />
+        <WithYearMode>
+          <CoursesSection />
+        </WithYearMode>
       </Suspense>
     </main>
   );

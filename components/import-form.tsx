@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
+import { useYearMode } from "@/components/year-mode";
 import { formatDue, toDueAt } from "@/lib/dates";
 import { MAX_IMAGES, MAX_TEXT_LENGTH, MAX_UPLOAD_BYTES } from "@/lib/ai/limits";
 import { prepareImage } from "@/lib/image-resize";
@@ -629,6 +630,7 @@ function ExtractedCard({
   onChange: (patch: Partial<Row>) => void;
   onRemove: () => void;
 }) {
+  const yearMode = useYearMode();
   const [editing, setEditing] = useState(false);
   const low = row.confidence === "low";
   const exam = isExamRow(row);
@@ -750,7 +752,7 @@ function ExtractedCard({
           {exam ? (
             <span className="block space-y-0.5 text-sm">
               <span className="block">
-                {dayIso ? formatDue(dayIso, false) : <Missing>ไม่ระบุวันสอบ</Missing>}
+                {dayIso ? formatDue(dayIso, false, yearMode) : <Missing>ไม่ระบุวันสอบ</Missing>}
                 {row.confidence === "medium" && <span className="text-muted"> · ควรตรวจ</span>}
               </span>
               {dayIso && (
@@ -768,7 +770,7 @@ function ExtractedCard({
             </span>
           ) : (
             <span className="block text-sm">
-              {dueIso ? formatDue(dueIso, Boolean(row.due_time)) : "ยังไม่กำหนดวันส่ง"}
+              {dueIso ? formatDue(dueIso, Boolean(row.due_time), yearMode) : "ยังไม่กำหนดวันส่ง"}
               {row.confidence === "medium" && <span className="text-muted"> · ควรตรวจ</span>}
             </span>
           )}

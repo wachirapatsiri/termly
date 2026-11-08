@@ -2,10 +2,11 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getCourseLabelMode } from "@/lib/preferences";
+import { getCourseLabelMode, getYearMode } from "@/lib/preferences";
 import { AppNav } from "@/components/app-nav";
 import { CategoryManager } from "@/components/category-manager";
 import { CourseLabelSetting } from "@/components/course-label-setting";
+import { YearModeSetting } from "@/components/year-mode-setting";
 import { SignOutButton } from "@/components/sign-out-button";
 
 export default function SettingsPage() {
@@ -26,8 +27,9 @@ async function SettingsSection() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
-  const [mode, sampleRes, categoriesRes, taskCatsRes] = await Promise.all([
+  const [mode, yearMode, sampleRes, categoriesRes, taskCatsRes] = await Promise.all([
     getCourseLabelMode(),
+    getYearMode(),
     // ใช้วิชาที่มีรหัสเป็นตัวอย่างในพรีวิว
     supabase.from("courses").select("name, code").not("code", "is", null).limit(1),
     supabase
@@ -52,6 +54,10 @@ async function SettingsSection() {
   return (
     <div className="space-y-8">
       <CourseLabelSetting current={mode} sample={sample} />
+
+      <div className="border-t border-line pt-6">
+        <YearModeSetting current={yearMode} sampleIso={new Date().toISOString()} />
+      </div>
 
       <div className="border-t border-line pt-6">
         <CategoryManager categories={categories} />

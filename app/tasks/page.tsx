@@ -9,6 +9,7 @@ import { DUE_GROUP_LABEL, dueGroup, type DueGroup } from "@/lib/dates";
 import { EXAM_TYPE_LABEL, UPCOMING_EXAM_DAYS, upcomingExams } from "@/lib/exams";
 import type { CalendarEvent, Course, Task, TaskCategory } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
+import { WithYearMode } from "@/components/with-year-mode";
 import { Countdown } from "@/components/exam-item";
 import { TaskForm } from "@/components/task-form";
 import { TaskItem } from "@/components/task-item";
@@ -29,7 +30,9 @@ export default function TasksPage({ searchParams }: PageProps<"/tasks">) {
       </div>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
-        <TasksSection searchParams={searchParams} />
+        <WithYearMode>
+          <TasksSection searchParams={searchParams} />
+        </WithYearMode>
       </Suspense>
     </main>
   );

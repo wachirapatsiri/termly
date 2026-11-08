@@ -2,6 +2,7 @@
 
 import { useCallback, useOptimistic, useState } from "react";
 import { deleteExam } from "@/app/exams/actions";
+import { useYearMode } from "@/components/year-mode";
 import { formatDue } from "@/lib/dates";
 import { EXAM_TYPE_LABEL, countdownLabel, formatExamTime } from "@/lib/exams";
 import { EXAM_TYPE_TONE } from "@/lib/exam-display";
@@ -25,6 +26,7 @@ export function ExamItem({
   daysLeft: number | null; // คำนวณฝั่งเซิร์ฟเวอร์ (null = ยังไม่รู้วัน)
   overlapsWith?: string[]; // ชื่อสอบที่เวลาชนกัน (คำนวณฝั่งเซิร์ฟเวอร์)
 }) {
+  const yearMode = useYearMode();
   const [editing, setEditing] = useState<{ focus?: ExamField } | null>(null);
   const close = useCallback(() => setEditing(null), []);
   const [removed, setOptimisticRemoved] = useOptimistic(false);
@@ -78,7 +80,7 @@ export function ExamItem({
 
       <div className="space-y-1 text-sm">
         <p>
-          {exam.starts_at ? formatDue(exam.starts_at, false) : missing("ไม่ระบุวันสอบ", "date")}
+          {exam.starts_at ? formatDue(exam.starts_at, false, yearMode) : missing("ไม่ระบุวันสอบ", "date")}
         </p>
         {exam.starts_at && (
           <p className="text-muted">{time ?? missing("ไม่ระบุเวลา", "start_time")}</p>

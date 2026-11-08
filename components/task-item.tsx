@@ -2,6 +2,7 @@
 
 import { useCallback, useOptimistic, useState } from "react";
 import { deleteTask, setTaskDone } from "@/app/tasks/actions";
+import { useYearMode } from "@/components/year-mode";
 import { formatDue } from "@/lib/dates";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import type { Course, Task, TaskCategory } from "@/lib/types";
@@ -152,6 +153,7 @@ function TaskInfo({
   done: boolean;
   labelMode: CourseLabelMode;
 }) {
+  const yearMode = useYearMode();
   return (
     <div className="min-w-0 flex-1 space-y-1">
       <p className={`font-medium break-words ${done ? "text-muted line-through" : ""}`}>
@@ -166,7 +168,7 @@ function TaskInfo({
         )}
         {task.due_at ? (
           <span className={overdue && !done ? "text-red-600" : "text-muted"}>
-            {formatDue(task.due_at, task.due_has_time)}
+            {formatDue(task.due_at, task.due_has_time, yearMode)}
             {overdue && !done && " · เลยกำหนด"}
           </span>
         ) : (

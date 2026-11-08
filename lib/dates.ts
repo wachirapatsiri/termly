@@ -1,5 +1,6 @@
 // จัดการวันที่: เก็บเป็น ค.ศ. (timestamptz) แสดงผลเป็น พ.ศ. โซนเวลา Asia/Bangkok
 // ประเทศไทยไม่มี daylight saving → เวลาไทย = UTC+7 ตลอดปี
+import type { YearMode } from "./year-mode.ts";
 
 export const TIME_ZONE = "Asia/Bangkok";
 const BANGKOK_OFFSET = "+07:00";
@@ -57,13 +58,18 @@ export function toBangkokParts(iso: string): { date: string; time: string } {
   };
 }
 
-const thaiDate = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
+const DATE_PARTS: Intl.DateTimeFormatOptions = {
   timeZone: TIME_ZONE,
   weekday: "short",
   day: "numeric",
   month: "short",
   year: "numeric",
-});
+};
+// ชื่อวัน/เดือนเป็นไทยทั้งคู่ ต่างกันแค่ปี: buddhist = พ.ศ., gregory = ค.ศ.
+const thaiDate: Record<YearMode, Intl.DateTimeFormat> = {
+  be: new Intl.DateTimeFormat("th-TH-u-ca-buddhist", DATE_PARTS),
+  ce: new Intl.DateTimeFormat("th-TH-u-ca-gregory", DATE_PARTS),
+};
 const thaiTime = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
   timeZone: TIME_ZONE,
   hour: "2-digit",
@@ -72,9 +78,10 @@ const thaiTime = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
 });
 
 // แสดงวันส่งแบบไทย เช่น "พุธ 11 พ.ย. 2569" หรือ "พุธ 11 พ.ย. 2569 · 14:30 น."
-export function formatDue(iso: string, hasTime: boolean): string {
+// yearMode "ce" = "พุธ 11 พ.ย. 2026" (ตั้งค่าที่หน้า ⚙ — ฝั่ง client ใช้ useYearMode())
+export function formatDue(iso: string, hasTime: boolean, yearMode: YearMode = "be"): string {
   const d = new Date(iso);
-  const date = thaiDate.format(d);
+  const date = thaiDate[yearMode].format(d);
   return hasTime ? `${date} · ${thaiTime.format(d)} น.` : date;
 }
 

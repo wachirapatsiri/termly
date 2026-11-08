@@ -7,6 +7,7 @@ import { toBangkokParts } from "@/lib/dates";
 import { isExamType } from "@/lib/exams";
 import type { Course, TaskCategory } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
+import { WithYearMode } from "@/components/with-year-mode";
 import { ImportForm, type ExistingItem } from "@/components/import-form";
 
 export default function ImportPage() {
@@ -22,7 +23,9 @@ export default function ImportPage() {
       </div>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
-        <ImportSection />
+        <WithYearMode>
+          <ImportSection />
+        </WithYearMode>
       </Suspense>
     </main>
   );
