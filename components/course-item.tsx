@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useOptimistic, useState, useTransition } from "react";
 import { deleteCourse, setCourseNoExam } from "@/app/courses/actions";
 import { deleteTask, setTaskDone } from "@/app/tasks/actions";
+import { useYearMode } from "@/components/year-mode";
 import { formatDue } from "@/lib/dates";
 import { EXAM_TYPE_LABEL, formatExamTime, type ExamType } from "@/lib/exams";
 import type { CalendarEvent, Course } from "@/lib/types";
@@ -41,6 +42,7 @@ export function CourseItem({
   exams: CourseExam[]; // สอบของวิชานี้ (เรียงตามวันแล้ว)
   similarTo?: Course; // วิชาที่น่าจะซ้ำกัน (รหัสเดียวกัน/ชื่อคล้าย)
 }) {
+  const yearMode = useYearMode();
   const [mode, setMode] = useState<"view" | "edit" | "confirmDelete">("view");
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setMode("view"), []);
@@ -135,7 +137,7 @@ export function CourseItem({
                     <p className="text-sm break-words">{t.title}</p>
                     {t.due_at ? (
                       <p className={`text-xs ${t.overdue ? "text-red-600" : "text-muted"}`}>
-                        {formatDue(t.due_at, t.due_has_time)}
+                        {formatDue(t.due_at, t.due_has_time, yearMode)}
                         {t.overdue && " · เลยกำหนด"}
                       </p>
                     ) : (
@@ -367,6 +369,7 @@ function ExamLine({
   showTitle?: boolean;
   onEdit: () => void;
 }) {
+  const yearMode = useYearMode();
   const time = formatExamTime(exam);
   return (
     <div className={`space-y-0.5 text-sm ${exam.past ? "text-muted" : ""}`}>
@@ -380,7 +383,7 @@ function ExamLine({
         >
           แก้ไข
         </button>
-        {exam.starts_at ? formatDue(exam.starts_at, false) : (
+        {exam.starts_at ? formatDue(exam.starts_at, false, yearMode) : (
           <span className="text-amber-700">⚠ ยังไม่ประกาศวันสอบ</span>
         )}
         {time && <span className="text-muted"> · {time}</span>}

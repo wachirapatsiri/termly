@@ -15,6 +15,7 @@ import {
 } from "@/lib/exams";
 import type { CalendarEvent, Course } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
+import { WithYearMode } from "@/components/with-year-mode";
 import { ExamForm } from "@/components/exam-form";
 import { ExamItem } from "@/components/exam-item";
 import { EXAM_TYPE_TONE, examLabel } from "@/lib/exam-display";
@@ -26,7 +27,9 @@ export default function ExamsPage({ searchParams }: PageProps<"/exams">) {
       <h1 className="text-2xl font-semibold tracking-tight">ตารางสอบ</h1>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
-        <ExamsSection searchParams={searchParams} />
+        <WithYearMode>
+          <ExamsSection searchParams={searchParams} />
+        </WithYearMode>
       </Suspense>
     </main>
   );

@@ -5,25 +5,34 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { AiResultSchema, type AiTask } from "./schema.ts";
 import { SYSTEM_PROMPT, buildUserMessage } from "./prompt.ts";
+import type { Attachment } from "./files.ts";
+import { AiError } from "./errors.ts";
 
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
-// โหมดจำลอง: ไม่มี key หรือสั่ง AI_MODE=mock → คืนข้อมูลตัวอย่าง ไม่เสียเงิน
-export function isMockMode() {
-  return process.env.AI_MODE === "mock" || !process.env.ANTHROPIC_API_KEY;
+// AiError อยู่ใน errors.ts (ใช้ร่วมกับ gemini.ts) — re-export ไว้ให้โค้ดเดิม
+export { AiError };
+
+// แปลงไฟล์แนบเป็น content block ของ Claude (วางก่อนข้อความตามคำแนะนำของ API)
+function attachmentBlocks(files: Attachment[]): Anthropic.Beta.BetaContentBlockParam[] {
+  return files.map((f) =>
+    f.media_type === "application/pdf"
+      ? { type: "document", source: { type: "base64", media_type: f.media_type, data: f.data } }
+      : { type: "image", source: { type: "base64", media_type: f.media_type, data: f.data } },
+  );
 }
 
-export class AiError extends Error {
-  readonly retryable: boolean;
-  // message = ข้อความภาษาไทยสำหรับผู้ใช้
-  constructor(message: string, retryable: boolean) {
-    super(message);
-    this.retryable = retryable;
-  }
-}
-
-export async function extractWithClaude(text: string, todayIso: string): Promise<AiTask[]> {
-  const client = new Anthropic({ timeout: 90_000, maxRetries: 1 });
+export async function extractWithClaude(
+  text: string,
+  todayIso: string,
+  files: Attachment[] = [],
+): Promise<AiTask[]> {
+  // PDF/รูปใช้เวลาอ่านนานกว่าข้อความ
+  const client = new Anthropic({ timeout: files.length ? 150_000 : 90_000, maxRetries: 1 });
+  const content: Anthropic.Beta.BetaContentBlockParam[] = [
+    ...attachmentBlocks(files),
+    { type: "text", text: buildUserMessage(text, todayIso, files.length) },
+  ];
 
   try {
     const response = await client.beta.messages.parse({
@@ -35,7 +44,7 @@ export async function extractWithClaude(text: string, todayIso: string): Promise
       system: [
         { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
       ],
-      messages: [{ role: "user", content: buildUserMessage(text, todayIso) }],
+      messages: [{ role: "user", content }],
       output_config: {
         effort: "medium", // งานดึงข้อมูล ไม่ต้องคิดหนักมาก → ประหยัด token
         format: betaZodOutputFormat(AiResultSchema),
@@ -46,7 +55,12 @@ export async function extractWithClaude(text: string, todayIso: string): Promise
       throw new AiError("AI ไม่สามารถอ่านเอกสารนี้ได้ ลองตัดเฉพาะส่วนกำหนดส่งงานมาวาง", false);
     }
     if (response.stop_reason === "max_tokens") {
-      throw new AiError("เอกสารยาวเกินไป ลองแบ่งวางทีละส่วน", false);
+      throw new AiError(
+        files.length
+          ? "เอกสารยาวเกินไป ลองส่งเฉพาะหน้าที่มีกำหนดส่งงานหรือตารางสอบ"
+          : "เอกสารยาวเกินไป ลองแบ่งวางทีละส่วน",
+        false,
+      );
     }
     if (!response.parsed_output) {
       throw new AiError("AI ตอบกลับผิดรูปแบบ ลองใหม่อีกครั้ง", true);
@@ -60,6 +74,14 @@ export async function extractWithClaude(text: string, todayIso: string): Promise
     if (err instanceof Anthropic.AuthenticationError) {
       console.error("extractWithClaude: API key ไม่ถูกต้อง");
       throw new AiError("ระบบ AI ยังตั้งค่าไม่เรียบร้อย", false);
+    }
+    if (err instanceof Anthropic.BadRequestError && files.length) {
+      // เช่น PDF เสีย/ล็อกรหัสผ่าน/หน้าเยอะเกิน หรือรูปเสีย
+      console.error("extractWithClaude: file rejected", err.message);
+      throw new AiError(
+        "AI เปิดไฟล์นี้ไม่ได้ (ไฟล์อาจเสีย ล็อกรหัสผ่าน หรือมีหน้าเยอะเกินไป) — ลองแคปหน้าจอเฉพาะส่วนที่มีกำหนดส่งแทน",
+        false,
+      );
     }
     if (err instanceof Anthropic.APIConnectionError) {
       throw new AiError("เชื่อมต่อ AI ไม่ได้ ลองใหม่อีกครั้ง", true);

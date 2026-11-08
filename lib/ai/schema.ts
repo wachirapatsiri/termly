@@ -110,5 +110,13 @@ export type ExtractedTask = {
 
 export type ExtractResponse =
   // mock_sources = ชื่อเอกสารตัวอย่างที่โหมดจำลองจับได้ (ว่าง = ใช้ชุดตัวอย่างทั่วไป)
-  | { ok: true; tasks: ExtractedTask[]; mock: boolean; mock_sources?: string[] }
+  // mock_files = โหมดจำลองได้รับไฟล์แนบ แต่ยังอ่านไฟล์จริงไม่ได้
+  | {
+      ok: true;
+      tasks: ExtractedTask[];
+      mock: boolean;
+      mock_sources?: string[];
+      mock_files?: boolean;
+      mock_reason?: string; // ทำไมเป็นโหมดจำลอง (ช่วยเช็กการตั้งค่า env)
+    }
   | { ok: false; error: string };
