@@ -11,6 +11,9 @@ import type { Attachment } from "./files.ts";
 
 // "gemini-flash-latest" = รุ่น Flash ล่าสุดที่ Google ชี้ให้ (มีโควตาฟรี) — เปลี่ยนได้ด้วย env GEMINI_MODEL
 export const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
+// รุ่นสำรองเมื่อรุ่นหลักคนใช้เยอะ (Google ตอบ 503) — ตั้งเองได้ด้วย GEMINI_FALLBACK_MODEL (ใส่ "none" = ไม่ใช้)
+export const DEFAULT_GEMINI_FALLBACK_MODEL = "gemini-flash-lite-latest";
+const BUSY = new Set([500, 503, 504]); // เซิร์ฟเวอร์ Google ไม่ว่าง/ขัดข้องชั่วคราว
 
 // แบบฟอร์มคำตอบ: แปลง Zod เป็น JSON Schema (ตัด $schema ที่ Gemini ไม่ใช้)
 const RESPONSE_SCHEMA: Record<string, unknown> = { ...z.toJSONSchema(AiResultSchema) };
@@ -43,18 +46,23 @@ export async function extractWithGemini(
 ): Promise<AiTask[]> {
   const ai = new GoogleGenAI({
     apiKey: geminiApiKey(),
-    httpOptions: { timeout: files.length ? 150_000 : 90_000 },
+    // 503 "model overloaded" เกิดบ่อยกับโควตาฟรี → ให้ SDK ลองซ้ำเองอีก 2 ครั้ง (รอ 1s, 2s)
+    httpOptions: {
+      timeout: files.length ? 150_000 : 90_000,
+      retryOptions: { attempts: 3, initialDelay: 1, maxDelay: 4 },
+    },
   });
   const parts: Part[] = [
     ...files.map((f) => ({ inlineData: { mimeType: f.media_type, data: f.data } })),
     { text: buildUserMessage(text, todayIso, files.length) },
   ];
 
-  let raw: string | undefined;
-  let finish: string | undefined;
-  try {
-    const response = await ai.models.generateContent({
-      model: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+  const primary = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL;
+  const fallbackEnv = process.env.GEMINI_FALLBACK_MODEL?.trim();
+  const fallback = fallbackEnv === "none" ? null : fallbackEnv || DEFAULT_GEMINI_FALLBACK_MODEL;
+  const call = (model: string) =>
+    ai.models.generateContent({
+      model,
       contents: [{ role: "user", parts }],
       config: {
         systemInstruction: SYSTEM_PROMPT,
@@ -63,6 +71,21 @@ export async function extractWithGemini(
         maxOutputTokens: 16000,
       },
     });
+
+  let raw: string | undefined;
+  let finish: string | undefined;
+  try {
+    let response;
+    try {
+      response = await call(primary);
+    } catch (err) {
+      // รุ่นหลักยังไม่ว่างหลังลองซ้ำแล้ว → ลองรุ่นสำรองครั้งเดียว (ถ้ารุ่นสำรองก็ไม่ได้ แจ้ง error ของรุ่นหลัก)
+      if (!(err instanceof ApiError && BUSY.has(err.status) && fallback && fallback !== primary)) throw err;
+      console.warn("extractWithGemini: primary busy, trying fallback", fallback, googleErrorCode(err));
+      response = await call(fallback).catch(() => {
+        throw err;
+      });
+    }
     finish = response.candidates?.[0]?.finishReason;
     if (response.promptFeedback?.blockReason) {
       throw new AiError("AI ไม่สามารถอ่านเอกสารนี้ได้ ลองตัดเฉพาะส่วนกำหนดส่งงานมาวาง", false);
@@ -82,6 +105,10 @@ export async function extractWithGemini(
       if (err.status === 404) {
         console.error("extractWithGemini: model", code, err.message);
         throw new AiError(`ไม่พบรุ่น AI "${process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL}" ลองตั้ง GEMINI_MODEL ใหม่ (รหัส: ${code})`, false);
+      }
+      if (BUSY.has(err.status)) {
+        console.error("extractWithGemini: busy", code);
+        throw new AiError(`AI ของ Google คนใช้เยอะตอนนี้ รอสัก 1–2 นาทีแล้วลองใหม่ (รหัส: ${code})`, true);
       }
       if (err.status === 429) {
         // โควตาฟรีมีเพดานต่อนาทีและต่อวัน
