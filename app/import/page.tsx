@@ -6,6 +6,8 @@ import { getCourseLabelMode } from "@/lib/preferences";
 import { toBangkokParts } from "@/lib/dates";
 import { isExamType } from "@/lib/exams";
 import type { Course, TaskCategory } from "@/lib/types";
+import { isMockMode } from "@/lib/ai/extract";
+import { bangkokDayStartIso, summarizeUsage } from "@/lib/ai/usage";
 import { AppNav } from "@/components/app-nav";
 import { WithYearMode } from "@/components/with-year-mode";
 import { ImportForm, type ExistingItem } from "@/components/import-form";
@@ -36,7 +38,9 @@ async function ImportSection() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
-  const [coursesRes, categoriesRes, tasksRes, examsRes, labelMode] = await Promise.all([
+  const today = toBangkokParts(new Date().toISOString()).date;
+  const mock = isMockMode();
+  const [coursesRes, categoriesRes, tasksRes, examsRes, labelMode, usageRes] = await Promise.all([
     supabase.from("courses").select("id, name, code"),
     supabase
       .from("task_categories")
@@ -50,7 +54,12 @@ async function ImportSection() {
       .select("title, starts_at, ends_at, has_time, course_id, exam_type")
       .eq("kind", "exam"),
     getCourseLabelMode(),
+    // "วันนี้ใช้ AI ไปแล้ว X/10" — โหมดจำลองไม่นับ จึงไม่ต้องอ่าน
+    mock
+      ? null
+      : supabase.from("ai_usage").select("success").gte("created_at", bangkokDayStartIso(today)),
   ]);
+  const usage = usageRes && !usageRes.error ? summarizeUsage(usageRes.data ?? []) : null;
   const courses: Course[] = coursesRes.data ?? [];
   const categories: TaskCategory[] = categoriesRes.data ?? [];
   const day = (iso: string | null) => (iso ? toBangkokParts(iso).date : null);
@@ -79,6 +88,8 @@ async function ImportSection() {
       categories={categories}
       existing={existing}
       labelMode={labelMode}
+      mock={mock}
+      initialUsage={usage}
     />
   );
 }

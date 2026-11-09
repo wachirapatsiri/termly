@@ -2,6 +2,7 @@
 // ใช้ทั้งเป็น "แบบฟอร์ม" ที่ส่งให้ Claude (structured output) และตรวจซ้ำฝั่งเรา
 import { z } from "zod";
 import { EXAM_TYPE_LABEL, type ExamType } from "../exams.ts";
+import type { AiUsage } from "./usage.ts";
 
 export const CONFIDENCE = ["high", "medium", "low"] as const;
 export type Confidence = (typeof CONFIDENCE)[number];
@@ -118,5 +119,7 @@ export type ExtractResponse =
       mock_sources?: string[];
       mock_files?: boolean;
       mock_reason?: string; // ทำไมเป็นโหมดจำลอง (ช่วยเช็กการตั้งค่า env)
+      usage?: AiUsage; // ใช้ AI วันนี้ไปแล้วเท่าไร (ไม่มี = โหมดจำลอง)
+      redacted?: { emails: number; phones: number }; // ข้อมูลส่วนตัวที่ตัดออกก่อนส่ง AI
     }
-  | { ok: false; error: string };
+  | { ok: false; error: string; usage?: AiUsage };

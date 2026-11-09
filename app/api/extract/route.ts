@@ -11,11 +11,13 @@ import { extractTasks, isMockMode, mockReason } from "@/lib/ai/extract";
 import { normalizeTasks } from "@/lib/ai/normalize";
 import { findDemoSets } from "@/lib/ai/demo-samples";
 import { AI_DAILY_LIMIT, MAX_TEXT_LENGTH, MAX_UPLOAD_BYTES } from "@/lib/ai/limits";
+import { bangkokDayStartIso, summarizeUsage, usageBlock, type AiUsage } from "@/lib/ai/usage";
+import { redactPersonal } from "@/lib/ai/redact";
 import { checkUploads, type Attachment, type UploadInput } from "@/lib/ai/files";
 import type { AiTask, ExtractResponse } from "@/lib/ai/schema";
 
-function fail(error: string, status: number) {
-  return Response.json({ ok: false, error } satisfies ExtractResponse, { status });
+function fail(error: string, status: number, usage?: AiUsage) {
+  return Response.json({ ok: false, error, usage } satisfies ExtractResponse, { status });
 }
 
 export async function POST(request: Request) {
@@ -64,21 +66,26 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const mock = isMockMode();
 
-  // ลิมิต AI ต่อวัน (นับตามวันไทย) — โหมดจำลองไม่เสียเงิน จึงไม่นับ
+  // ลิมิต AI ต่อวัน (นับตามวันไทย) — นับเฉพาะครั้งที่สำเร็จ (ผู้ใช้เลือก 9 พ.ย.)
+  // + เพดานรวมทุกครั้งกันสแปม; โหมดจำลองไม่เสียเงิน จึงไม่นับ
+  let usage: AiUsage | undefined;
   if (!mock) {
-    const { count, error } = await supabase
+    const { data, error } = await supabase
       .from("ai_usage")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", new Date(`${today}T00:00:00+07:00`).toISOString());
+      .select("success")
+      .gte("created_at", bangkokDayStartIso(today));
     if (error) {
-      console.error("extract: count ai_usage", error);
+      console.error("extract: read ai_usage", error);
       return fail("ตรวจสอบโควตาไม่สำเร็จ ลองใหม่อีกครั้ง", 500);
     }
-    if ((count ?? 0) >= AI_DAILY_LIMIT) {
-      return fail(
-        `ใช้ AI ครบ ${AI_DAILY_LIMIT} ครั้งของวันนี้แล้ว — ใช้ได้ใหม่ตอนเที่ยงคืน (00:00 น. เวลาไทย) อีก ${untilBangkokMidnight()}`,
-        429,
-      );
+    usage = summarizeUsage(data ?? []);
+    const block = usageBlock(usage);
+    const reset = `ใช้ได้ใหม่ตอนเที่ยงคืน (00:00 น. เวลาไทย) อีก ${untilBangkokMidnight()}`;
+    if (block === "quota") {
+      return fail(`ใช้ AI ครบ ${AI_DAILY_LIMIT} ครั้งของวันนี้แล้ว — ${reset}`, 429, usage);
+    }
+    if (block === "attempts") {
+      return fail(`วันนี้ลองใช้ AI ไม่สำเร็จหลายครั้งเกินไป — ${reset}`, 429, usage);
     }
   }
 
@@ -87,6 +94,7 @@ export async function POST(request: Request) {
   let raw: AiTask[] = [];
   let mockSources: string[] = [];
   let success = false;
+  let redacted = { emails: 0, phones: 0 };
   try {
     if (mock) {
       // โหมดจำลอง: ถ้าข้อความตรงกับเอกสารตัวอย่างที่เตรียมไว้ ใช้คำตอบของเอกสารนั้น
@@ -95,13 +103,17 @@ export async function POST(request: Request) {
       mockSources = demos.map((d) => d.label);
       raw = demos.length ? demos.flatMap((d) => d.tasks) : mockExtract(today);
     } else {
-      raw = await extractTasks(text, today, files); // Claude หรือ Gemini ตาม env AI_PROVIDER
+      // ตัดอีเมล/เบอร์โทรออกก่อนส่ง (ไฟล์ตัดไม่ได้) — งาน/วันส่งไม่ต้องใช้ข้อมูลพวกนี้
+      const clean = redactPersonal(text);
+      redacted = { emails: clean.emails, phones: clean.phones };
+      raw = await extractTasks(clean.text, today, files); // Claude หรือ Gemini ตาม env AI_PROVIDER
     }
     success = true;
   } catch (err) {
     const message = err instanceof AiError ? err.message : "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง";
     if (!(err instanceof AiError)) console.error("extract", err);
-    return fail(message, 502);
+    // ครั้งที่ล้มเหลวไม่เสียโควตา แต่นับเข้าเพดานรวม
+    return fail(message, 502, usage && { ...usage, attempts: usage.attempts + 1 });
   } finally {
     if (!mock) {
       // user_id เติม auth.uid() ให้เองในฐานข้อมูล
@@ -121,5 +133,7 @@ export async function POST(request: Request) {
     mock_sources: mockSources,
     mock_files: mock && files.length > 0,
     mock_reason: mockReason() ?? undefined,
+    usage: usage && { ...usage, used: usage.used + 1, attempts: usage.attempts + 1 },
+    redacted,
   } satisfies ExtractResponse);
 }
