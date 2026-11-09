@@ -80,3 +80,9 @@
 2. เปิดไฟล์ `supabase/migrations/0006_feedback_and_delete.sql` คัดลอกทั้งหมดไปวาง → กด **Run** → ต้องขึ้น "Success. No rows returned"
 3. ตรวจ: **Table Editor** ต้องมีตารางใหม่ `feedback` (ไม่มีป้าย "Unrestricted") และ **Database → Functions** มี `delete_my_data`, `delete_my_account`
 4. ทดสอบบนเว็บ: ⚙ → "ส่งความเห็น" → ตอบ 1 ข้อ → ส่ง → **Table Editor** → `feedback` มีแถวใหม่; ทดสอบลบด้วย**บัญชีทดลอง** (ไม่ใช่บัญชีหลัก): ⚙ → ข้อมูลของฉัน → ลบข้อมูลทั้งหมด → พิมพ์ "ลบ" → หน้างาน/วิชาว่าง ประเภทงานกลับเป็น 7 แบบตั้งต้น
+
+## 12. ข้อ "อยากได้ฟีเจอร์ Pro ไหน" ในฟอร์มความเห็น (เซสชัน 13)
+**ต้องรันก่อน merge PR #20** — ถ้ายังไม่รัน กดส่งความเห็นจะขึ้น "ส่งไม่สำเร็จ"
+1. Supabase Dashboard → **SQL Editor** → **New query**
+2. เปิดไฟล์ `supabase/migrations/0007_feedback_pro_features.sql` คัดลอกทั้งหมดไปวาง → กด **Run** → ต้องขึ้น "Success. No rows returned" (รันซ้ำได้ ไม่พัง)
+3. ตรวจ: **Table Editor** → `feedback` มีคอลัมน์ `pro_features` และ `pro_note`

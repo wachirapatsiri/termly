@@ -3,7 +3,8 @@
 เช็กลิสต์ทำตามลำดับ — ทุกข้อทำใน Dashboard ไม่ต้องแก้โค้ด
 
 ## 1. ก่อน merge
-- [ ] รัน migration `0006` (ดู `docs/setup-supabase.md` ข้อ 11)
+- [x] รัน migration `0006` (ดู `docs/setup-supabase.md` ข้อ 11)
+- [ ] รัน migration `0007` (ข้อ 12)
 - [ ] ลองบน Preview: ส่งความเห็น 1 ครั้ง, ลองลบข้อมูล/ลบบัญชีด้วย**บัญชีทดลอง**
 - [ ] Vercel → Settings → Environment Variables: `AI_PROVIDER`, `GEMINI_API_KEY`, `GEMINI_MODEL` ติ๊ก **Production** ด้วย (ตอนนี้ตั้งแค่ Preview) → merge แล้ว Vercel deploy เอง
 
