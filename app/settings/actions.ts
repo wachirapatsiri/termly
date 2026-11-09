@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { refresh } from "next/cache";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { MAX_CATEGORY_LENGTH } from "@/lib/categories";
@@ -9,6 +10,7 @@ import { COURSE_LABEL_COOKIE, isCourseLabelMode } from "@/lib/course-label";
 import { YEAR_MODE_COOKIE, isYearMode } from "@/lib/year-mode";
 import { getUserSettings, type UserSettings } from "@/lib/preferences";
 import { THEME_COOKIE, isThemeMode } from "@/lib/theme";
+import { DELETE_CONFIRM_WORD } from "@/lib/account";
 
 const PREF_COOKIE = {
   path: "/",
@@ -147,4 +149,59 @@ export async function deleteCategory(id: string): Promise<CategoryResult> {
   }
   refresh();
   return { ok: true };
+}
+
+// ─── ลบข้อมูล / ลบบัญชี (migration 0006) ───
+
+export type DeleteResult = { ok: true } | { ok: false; error: string };
+
+async function clearPrefCookies() {
+  const jar = await cookies();
+  for (const name of [COURSE_LABEL_COOKIE, YEAR_MODE_COOKIE, THEME_COOKIE]) jar.delete(name);
+}
+
+function deleteError(error: { code?: string; message?: string }): DeleteResult {
+  // PGRST202 / 42883 = ไม่พบฟังก์ชัน (ยังไม่ได้รัน migration 0006)
+  const missing = error.code === "PGRST202" || error.code === "42883";
+  return {
+    ok: false,
+    error: missing
+      ? "ระบบลบข้อมูลยังไม่พร้อม (ยังไม่ได้รัน migration 0006)"
+      : "ลบไม่สำเร็จ ลองใหม่อีกครั้ง",
+  };
+}
+
+// ลบงาน/สอบ/วิชา/ประเภท/การตั้งค่าทั้งหมด แต่ยังล็อกอินบัญชีเดิมได้
+export async function deleteMyData(confirmWord: string): Promise<DeleteResult> {
+  if (confirmWord.trim() !== DELETE_CONFIRM_WORD) return { ok: false, error: `พิมพ์คำว่า "${DELETE_CONFIRM_WORD}" เพื่อยืนยัน` };
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "กรุณาเข้าสู่ระบบก่อน" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_my_data");
+  if (error) {
+    console.error("deleteMyData", error);
+    return deleteError(error);
+  }
+  await clearPrefCookies();
+  refresh();
+  return { ok: true };
+}
+
+// ลบบัญชีถาวร (ข้อมูลทั้งหมดหายตาม) แล้วออกจากระบบ
+export async function deleteMyAccount(confirmWord: string): Promise<DeleteResult> {
+  if (confirmWord.trim() !== DELETE_CONFIRM_WORD) return { ok: false, error: `พิมพ์คำว่า "${DELETE_CONFIRM_WORD}" เพื่อยืนยัน` };
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "กรุณาเข้าสู่ระบบก่อน" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("delete_my_account");
+  if (error) {
+    console.error("deleteMyAccount", error);
+    return deleteError(error);
+  }
+  // บัญชีหายแล้ว → ล้าง session ในเครื่องนี้ (ไม่ต้องเรียกเซิร์ฟเวอร์ Supabase)
+  await supabase.auth.signOut({ scope: "local" });
+  await clearPrefCookies();
+  redirect("/login?deleted=1");
 }

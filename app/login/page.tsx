@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { GoogleLoginButton } from "@/components/google-login-button";
@@ -16,6 +17,13 @@ export default function LoginPage({ searchParams }: PageProps<"/login">) {
       <Suspense fallback={<GoogleLoginButton />}>
         <LoginForm searchParams={searchParams} />
       </Suspense>
+
+      <p className="text-center text-xs text-muted">
+        ดูว่าเก็บข้อมูลอะไรบ้าง:{" "}
+        <Link href="/privacy" className="underline">
+          ข้อมูลและความเป็นส่วนตัว
+        </Link>
+      </p>
     </main>
   );
 }
@@ -28,9 +36,14 @@ async function LoginForm({
   // ล็อกอินอยู่แล้ว → กลับหน้าแรก
   if (await getCurrentUser()) redirect("/");
 
-  const { error } = await searchParams;
+  const { error, deleted } = await searchParams;
   return (
     <div className="space-y-4">
+      {deleted && (
+        <p role="status" className="rounded-card border border-line bg-surface p-3 text-sm">
+          ✅ ลบบัญชีและข้อมูลทั้งหมดเรียบร้อยแล้ว — ขอบคุณที่ลองใช้ Termly
+        </p>
+      )}
       {error && (
         <p className="rounded-card border border-danger-line bg-danger-soft p-3 text-sm text-danger">
           เข้าสู่ระบบไม่สำเร็จ ลองใหม่อีกครั้ง

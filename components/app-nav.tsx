@@ -6,7 +6,7 @@ const LINKS = [
   { href: "/courses", label: "วิชา" },
 ] as const;
 
-type NavPath = "/tasks" | "/exams" | "/courses" | "/import" | "/settings";
+type NavPath = "/tasks" | "/exams" | "/courses" | "/import" | "/settings" | "/feedback";
 
 // แถบเมนูด้านบนของหน้าที่ต้องล็อกอิน: งาน | สอบ | วิชา + ✨ AI ช่วยเพิ่ม + ⚙
 // ปุ่ม AI เป็นทางเข้าเดียวของหน้า /import (วางข้อความ / รูปแคป / ซิลลาบัส)
