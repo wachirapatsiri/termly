@@ -10,6 +10,8 @@ import { YearModeSetting } from "@/components/year-mode-setting";
 import { ThemeSetting } from "@/components/theme-setting";
 import { SignOutButton } from "@/components/sign-out-button";
 import { InstallApp } from "@/components/install-app";
+import { DeleteAccount } from "@/components/delete-account";
+import Link from "next/link";
 import { CalendarExport, type ExportCourse } from "@/components/calendar-export";
 import { courseLabel } from "@/lib/course-label";
 import { NO_COURSE } from "@/lib/ics";
@@ -60,6 +62,24 @@ async function SettingsSection() {
     // มือถือ: เรียงลงมา คั่นด้วยเส้น · จอคอม: การ์ด 2 คอลัมน์ (เรียงลงทีละคอลัมน์ ลำดับเหมือนมือถือ)
     <div className="space-y-6 lg:columns-2 lg:gap-6 lg:space-y-0">
       <Block first>
+        <Link
+          href="/feedback"
+          className="flex items-center gap-3 rounded-card border border-info-line bg-info-soft px-4 py-3 text-sm transition active:scale-95"
+        >
+          <span aria-hidden className="text-lg">
+            💬
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="font-medium">ส่งความเห็น / แจ้งปัญหา</span>
+            <span className="block text-muted">ช่วงทดลอง — ทุกความเห็นช่วยได้มาก</span>
+          </span>
+          <span aria-hidden className="text-info">
+            →
+          </span>
+        </Link>
+      </Block>
+
+      <Block>
         <ThemeSetting current={theme} />
       </Block>
 
@@ -94,6 +114,10 @@ async function SettingsSection() {
           <p className="text-sm text-muted">เข้าสู่ระบบเป็น {user.email}</p>
           <SignOutButton />
         </section>
+      </Block>
+
+      <Block>
+        <DeleteAccount />
       </Block>
     </div>
   );

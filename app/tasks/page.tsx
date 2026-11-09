@@ -18,6 +18,7 @@ import { TaskItem } from "@/components/task-item";
 import { WeekView, type WeekExam } from "@/components/week-view";
 import { TaskSummaryTiles } from "@/components/task-summary";
 import { EmptyState } from "@/components/empty-state";
+import { FeedbackNudge } from "@/components/feedback-nudge";
 import { summarizeTasks } from "@/lib/summary";
 import { examLabel } from "@/lib/exam-display";
 import {
@@ -38,6 +39,10 @@ export default function TasksPage({ searchParams }: PageProps<"/tasks">) {
           📅 ส่งออกไปปฏิทิน
         </Link>
       </div>
+
+      <Suspense fallback={null}>
+        <FeedbackNudge />
+      </Suspense>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
         <WithYearMode>

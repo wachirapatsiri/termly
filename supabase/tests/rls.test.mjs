@@ -94,6 +94,41 @@ await rejects('user_settings: theme แปลก', ()=>as(B,`update user_setting
 await ok('courses: color ค่าตั้งต้น null + ตั้ง 0–7 ได้', async()=>{ const r=await as(B,`insert into courses(name) values('สีวิชา') returning id,color`); eq(r[0].color,null,'default'); eq((await as(B,`update courses set color=7 where id='${r[0].id}' returning color`))[0].color,7,'upd'); });
 await rejects('courses: color เกิน 7', ()=>as(B,`update courses set color=8 where name='สีวิชา'`));
 await ok('courses: คนอื่นเปลี่ยนสีวิชาไม่ได้ (0 แถว)', async()=>{ eq((await as(C3,`update courses set color=1 where name='สีวิชา' returning id`)).length,0,'upd'); });
+// ── 0006: ความเห็น + ลบข้อมูล/บัญชี ──
+const D='44444444-4444-4444-4444-444444444444';
+await db.exec(`insert into auth.users values ('${D}')`);
+await ok('feedback: ส่งได้ (user_id เติมเอง)', async()=>{ const r=await as(D,`insert into feedback(rating,price,message) values(4,'79','ดีมาก') returning user_id`); eq(r[0].user_id,D,'uid'); });
+await ok('feedback: ส่งซ้ำได้ + เห็นของตัวเอง', async()=>{ await as(D,`insert into feedback(ai_accuracy,ai_note) values('some_fixes','วันที่ผิด 1 อัน')`); eq((await as(D,`select id from feedback`)).length,2,'n'); });
+await ok('feedback: คนอื่นมองไม่เห็น', async()=>{ eq((await as(B,`select id from feedback`)).length,0,'B'); });
+await rejects('feedback: ว่างทุกข้อ', ()=>as(D,`insert into feedback(message) values('   ')`));
+await rejects('feedback: คะแนนเกิน 5', ()=>as(D,`insert into feedback(rating) values(6)`));
+await rejects('feedback: ราคาแปลก', ()=>as(D,`insert into feedback(price) values('1000')`));
+await rejects('feedback: ปลอม user_id', ()=>as(D,`insert into feedback(user_id,rating) values('${B}',1)`));
+await rejects('feedback: แก้ไม่ได้', ()=>as(D,`update feedback set rating=1`));
+await rejects('feedback: ลบไม่ได้', ()=>as(D,`delete from feedback`));
+await rejects('feedback: anon ส่งไม่ได้', ()=>as(null,`insert into feedback(rating) values(5)`));
+await rejects('delete_my_data: anon เรียกไม่ได้', ()=>as(null,`select public.delete_my_data()`));
+await ok('delete_my_data: ลบของตัวเองหมด ของคนอื่นยังอยู่', async()=>{
+  await as(D,`insert into courses(name) values('จะลบ')`); await as(D,`insert into tasks(title) values('จะลบ')`);
+  await as(D,`insert into events(title,kind) values('จะลบ','exam')`); await as(D,`insert into ai_usage(input_type,success) values('pdf',true)`);
+  await as(D,`insert into task_categories(name) values('ประเภทเอง')`);
+  await as(D,`insert into user_settings(theme) values('dark') on conflict (user_id) do update set theme='dark'`);
+  const bBefore=(await as(B,`select id from tasks`)).length + (await as(B,`select id from courses`)).length;
+  await as(D,`select public.delete_my_data()`);
+  for (const t of ['tasks','events','courses','user_settings']) eq((await as(D,`select 1 from ${t}`)).length,0,t);
+  const cats=(await as(D,`select name from task_categories order by position`)).map(r=>r.name);
+  eq(cats.length,7,'ประเภทตั้งต้นกลับมา'); eq(cats.includes('ประเภทเอง'),false,'ประเภทเองหาย');
+  eq((await as(D,`select id from ai_usage`)).length>0,true,'ai_usage ยังอยู่');
+  eq((await as(D,`select id from feedback`)).length,2,'feedback ยังอยู่');
+  eq((await as(B,`select id from tasks`)).length + (await as(B,`select id from courses`)).length,bBefore,'ของ B ไม่หาย');
+});
+await ok('delete_my_account: ลบบัญชี → feedback เหลือแบบไม่ระบุตัวตน', async()=>{
+  await as(D,`select public.delete_my_account()`);
+  const r=await db.query(`select count(*)::int n from auth.users where id='${D}'`); eq(r.rows[0].n,0,'user');
+  const f=await db.query(`select user_id from feedback`); eq(f.rows.length,2,'feedback'); eq(f.rows.every(x=>x.user_id===null),true,'null');
+  const c=await db.query(`select count(*)::int n from task_categories where user_id='${D}'`); eq(c.rows[0].n,0,'cascade');
+  eq((await db.query(`select count(*)::int n from auth.users where id='${B}'`)).rows[0].n,1,'B ยังอยู่');
+});
 console.log(`\n${pass} ผ่าน, ${fail} ไม่ผ่าน`);
 if (fail) process.exit(1);
 })();
