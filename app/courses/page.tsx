@@ -15,7 +15,7 @@ import { examLabel } from "@/lib/exam-display";
 
 export default function CoursesPage() {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6">
+    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
       <AppNav current="/courses" />
       <h1 className="text-2xl font-semibold tracking-tight">วิชาของฉัน</h1>
 
@@ -112,8 +112,9 @@ async function CoursesSection() {
   });
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-3 rounded-card border border-line bg-white p-4">
+    // จอคอม: ซ้าย = ฟอร์มเพิ่มวิชา (ติดอยู่กับที่), ขวา = การ์ดวิชา 2 คอลัมน์
+    <div className="space-y-8 lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-10 lg:space-y-0">
+      <section className="space-y-3 rounded-card border border-line bg-white p-4 lg:sticky lg:top-6">
         <h2 className="font-medium">เพิ่มวิชาใหม่</h2>
         <CourseForm />
       </section>
@@ -127,7 +128,7 @@ async function CoursesSection() {
             ยังไม่มีวิชา — เพิ่มวิชาที่ลงเรียนเทอมนี้ไว้ก่อน จะได้เลือกตอนเพิ่มงานได้
           </p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3 lg:space-y-0">
             {courses.map((c) => (
               <CourseItem
                 key={c.id}

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MAX_CATEGORY_LENGTH } from "@/lib/categories";
 import { COURSE_LABEL_COOKIE, isCourseLabelMode } from "@/lib/course-label";
 import { YEAR_MODE_COOKIE, isYearMode } from "@/lib/year-mode";
+import { getUserSettings, type UserSettings } from "@/lib/preferences";
 
 const PREF_COOKIE = {
   path: "/",
@@ -16,16 +17,40 @@ const PREF_COOKIE = {
   secure: process.env.NODE_ENV === "production",
 } as const;
 
+// บันทึกการตั้งค่าลงตาราง user_settings (จำข้ามเครื่อง) + cookie สำรอง
+// (ถ้ายังไม่ได้รัน migration 0004 หรือบันทึกไม่ผ่าน ก็ยังใช้ cookie ในเครื่องนี้ได้)
+async function saveSettings(patch: Partial<UserSettings>) {
+  // อ่านค่าปัจจุบันก่อน: ครั้งแรกที่สร้างแถว จะได้ไม่ทับค่าอีกช่องที่เคยตั้งไว้ใน cookie
+  const next = { ...(await getUserSettings()), ...patch };
+  const jar = await cookies();
+  jar.set(COURSE_LABEL_COOKIE, next.courseLabel, PREF_COOKIE);
+  jar.set(YEAR_MODE_COOKIE, next.yearMode, PREF_COOKIE);
+
+  const user = await getCurrentUser();
+  if (!user) return;
+  const supabase = await createClient();
+  // user_id ฐานข้อมูลเติมให้ (auth.uid()); มีแถวอยู่แล้ว = แก้แถวเดิม
+  const { error } = await supabase.from("user_settings").upsert(
+    {
+      course_label: next.courseLabel,
+      year_mode: next.yearMode,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" },
+  );
+  if (error) console.error("save user_settings", error);
+}
+
 export async function setCourseLabelMode(formData: FormData) {
   const mode = formData.get("mode");
   if (!isCourseLabelMode(mode)) return;
-  (await cookies()).set(COURSE_LABEL_COOKIE, mode, PREF_COOKIE);
+  await saveSettings({ courseLabel: mode });
 }
 
 export async function setYearMode(formData: FormData) {
   const mode = formData.get("mode");
   if (!isYearMode(mode)) return;
-  (await cookies()).set(YEAR_MODE_COOKIE, mode, PREF_COOKIE);
+  await saveSettings({ yearMode: mode });
 }
 
 // ─── จัดการประเภทงาน (ตาราง task_categories) ───
