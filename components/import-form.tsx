@@ -6,6 +6,7 @@ import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import { useYearMode } from "@/components/year-mode";
 import { formatDue, toDueAt } from "@/lib/dates";
 import { MAX_IMAGES, MAX_TEXT_LENGTH, MAX_UPLOAD_BYTES } from "@/lib/ai/limits";
+import { usageBlock, type AiUsage } from "@/lib/ai/usage";
 import { prepareImage } from "@/lib/image-resize";
 import {
   KIND_CATEGORY,
@@ -139,13 +140,20 @@ export function ImportForm({
   categories,
   existing,
   labelMode,
+  mock: mockMode,
+  initialUsage,
 }: {
   courses: Course[];
   categories: TaskCategory[];
   existing: ExistingItem[];
   labelMode: CourseLabelMode;
+  mock: boolean; // โหมดจำลอง = ไม่นับโควตา
+  initialUsage: AiUsage | null; // null = โหมดจำลอง หรืออ่านไม่สำเร็จ
 }) {
   const [text, setText] = useState("");
+  const [usage, setUsage] = useState(initialUsage);
+  const [redacted, setRedacted] = useState({ emails: 0, phones: 0 });
+  const outOfQuota = !!usage && usageBlock(usage) !== null;
   const [files, setFiles] = useState<Picked[]>([]);
   const [preparing, setPreparing] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -272,7 +280,7 @@ export function ImportForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if ((!text.trim() && !files.length) || pending || preparing) return;
+    if ((!text.trim() && !files.length) || pending || preparing || outOfQuota) return;
     setPending(true);
     setError(null);
     setRows(null);
@@ -291,10 +299,12 @@ export function ImportForm({
       }
       const res = await fetch("/api/extract", { method: "POST", headers, body });
       const data = (await res.json().catch(() => null)) as ExtractResponse | null;
+      if (data?.usage) setUsage(data.usage);
       if (!data) setError("เซิร์ฟเวอร์ตอบกลับผิดพลาด ลองใหม่อีกครั้ง");
       else if (!data.ok) setError(data.error);
       else {
         setRows(toRows(data.tasks, existing));
+        setRedacted(data.redacted ?? { emails: 0, phones: 0 });
         setMock({
           on: data.mock,
           sources: data.mock_sources ?? [],
@@ -492,7 +502,7 @@ export function ImportForm({
           </span>
           <button
             type="submit"
-            disabled={pending || preparing || (!text.trim() && !files.length) || tooLong}
+            disabled={pending || preparing || (!text.trim() && !files.length) || tooLong || outOfQuota}
             className="rounded-card bg-accent px-4 py-2 text-sm text-white disabled:opacity-50"
           >
             {pending
@@ -500,6 +510,7 @@ export function ImportForm({
               : "ให้ AI ดึงงาน"}
           </button>
         </div>
+        <UsageLine usage={usage} mock={mockMode} />
         {pending && (
           <p role="status" className="text-sm text-muted">
             {elapsed < 20
@@ -546,6 +557,18 @@ export function ImportForm({
 
       {rows && (
         <section className="space-y-6">
+          {(redacted.emails > 0 || redacted.phones > 0) && (
+            <p className="text-xs text-muted">
+              🔒 ตัด
+              {[
+                redacted.emails > 0 && ` อีเมล ${redacted.emails}`,
+                redacted.phones > 0 && ` เบอร์โทร ${redacted.phones}`,
+              ]
+                .filter(Boolean)
+                .join(",")}{" "}
+              ออกจากข้อความก่อนส่งให้ AI แล้ว
+            </p>
+          )}
           {mock.on && (
             <div className="space-y-1 rounded-card border border-line bg-white px-3 py-2 text-sm text-muted">
               {mock.reason && <p className="text-xs">สาเหตุ: {mock.reason}</p>}
@@ -896,5 +919,23 @@ function ExtractedCard({
         )}
       </div>
     </li>
+  );
+}
+
+// "วันนี้ใช้ AI ไปแล้ว X/10 ครั้ง" ใต้ปุ่มส่ง — ครั้งที่ไม่สำเร็จไม่นับ (ผู้ใช้เลือก 9 พ.ย.)
+function UsageLine({ usage, mock }: { usage: AiUsage | null; mock: boolean }) {
+  if (mock) return <p className="text-xs text-muted">🧪 โหมดจำลอง — ไม่นับโควตา AI</p>;
+  if (!usage) return null;
+  const block = usageBlock(usage);
+  const left = Math.max(usage.limit - usage.used, 0);
+  return (
+    <p className={`text-xs ${block ? "text-red-700" : left <= 2 ? "text-amber-700" : "text-muted"}`}>
+      วันนี้ใช้ AI ไปแล้ว {usage.used}/{usage.limit} ครั้ง
+      {block === "quota"
+        ? " — ครบแล้ว ใช้ได้ใหม่หลังเที่ยงคืน"
+        : block === "attempts"
+          ? " — ลองไม่สำเร็จหลายครั้งเกินไป ใช้ได้ใหม่หลังเที่ยงคืน"
+          : ` (เหลือ ${left} · ครั้งที่ไม่สำเร็จไม่นับ)`}
+    </p>
   );
 }
