@@ -11,10 +11,15 @@ import { EXAM_TYPE_LABEL, UPCOMING_EXAM_DAYS, upcomingExams } from "@/lib/exams"
 import type { Course, Task, TaskCategory } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { WithYearMode } from "@/components/with-year-mode";
+import { CourseDot } from "@/components/course-dot";
 import { Countdown } from "@/components/exam-item";
 import { TaskForm } from "@/components/task-form";
 import { TaskItem } from "@/components/task-item";
 import { WeekView, type WeekExam } from "@/components/week-view";
+import { TaskSummaryTiles } from "@/components/task-summary";
+import { EmptyState } from "@/components/empty-state";
+import { summarizeTasks } from "@/lib/summary";
+import { examLabel } from "@/lib/exam-display";
 import {
   SelectModeButton,
   SelectionSpacer,
@@ -69,7 +74,7 @@ async function TasksSection({
       .order("created_at", { ascending: true }),
     supabase
       .from("courses")
-      .select("id, name, code")
+      .select("*")
       .order("code", { ascending: true, nullsFirst: false })
       .order("name"),
     supabase
@@ -94,7 +99,7 @@ async function TasksSection({
   if (tasksRes.error || coursesRes.error) {
     console.error("load tasks", tasksRes.error ?? coursesRes.error);
     return (
-      <p className="rounded-card border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+      <p className="rounded-card border border-danger-line bg-danger-soft p-3 text-sm text-danger">
         โหลดรายการงานไม่สำเร็จ ลองรีเฟรชหน้าอีกครั้ง
       </p>
     );
@@ -118,9 +123,28 @@ async function TasksSection({
   );
   const view = params.view === "week" ? "week" : "list";
 
+  // ตัวเลขสรุปบนหัวหน้า (ทั้งสองมุมมอง)
+  const summary = summarizeTasks(tasks, courseExams, now);
+  const nextCourse = summary.nextExam?.course_id
+    ? courseById.get(summary.nextExam.course_id)
+    : undefined;
+  const summaryTiles = (
+    <TaskSummaryTiles
+      summary={summary}
+      nextExamLabel={summary.nextExam ? examLabel(summary.nextExam, nextCourse, labelMode) : null}
+      nextExamCourse={nextCourse}
+      weekHref={tasksHref("week", filterCourse?.id)}
+      listHref={tasksHref("list", filterCourse?.id)}
+    />
+  );
+
+  // ยังไม่มีงานเลยสักชิ้น (ไม่กรองวิชา) → หน้าแนะนำว่าเริ่มยังไง แทนตัวเลขศูนย์
+  const firstTime = allTasks.length === 0;
+
   if (view === "week") {
     return (
       <div className="space-y-6">
+        {!firstTime && summaryTiles}
         <div className="space-y-6 lg:flex lg:items-center lg:gap-4 lg:space-y-0">
           <div className="lg:w-64 lg:shrink-0">
             <ViewToggle view={view} courseId={filterCourse?.id} />
@@ -187,9 +211,12 @@ async function TasksSection({
             <li key={e.id}>
               <Link
                 href="/exams"
-                className="flex items-center justify-between gap-3 rounded-card border border-line bg-white px-3 py-2 text-sm"
+                className="flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-3 py-2 text-sm"
               >
-                <span className="min-w-0 truncate">{label}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  {course && <CourseDot course={course} />}
+                  <span className="truncate">{label}</span>
+                </span>
                 <Countdown days={e.daysLeft} />
               </Link>
             </li>
@@ -202,6 +229,19 @@ async function TasksSection({
   return (
     <TaskSelectionProvider>
       <div className="space-y-8">
+        {firstTime ? (
+          <EmptyState
+            icon="📚"
+            title="เริ่มเพิ่มงานแรกกันเลย"
+            body="วางซิลลาบัสหรือประกาศงานให้ AI ช่วยแยกงานและวันส่งให้ หรือจะพิมพ์เพิ่มเองในฟอร์มก็ได้"
+            actions={[
+              { href: "/import", label: "✨ ให้ AI ช่วยเพิ่ม", primary: true },
+              { href: "/courses", label: "เพิ่มวิชาก่อน" },
+            ]}
+          />
+        ) : (
+          summaryTiles
+        )}
         <div className="space-y-8 lg:flex lg:items-center lg:gap-4 lg:space-y-0">
           <div className="lg:w-64 lg:shrink-0">
             <ViewToggle view={view} courseId={filterCourse?.id} />
@@ -222,7 +262,7 @@ async function TasksSection({
           <aside className="space-y-8 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1">
             {upcoming}
 
-            <section className="space-y-3 rounded-card border border-line bg-white p-4">
+            <section className="space-y-3 rounded-card border border-line bg-surface p-4">
               <h2 className="font-medium">เพิ่มงานใหม่</h2>
               {/* key: เปลี่ยนตัวกรอง → ฟอร์มเลือกวิชานั้นไว้ให้ล่วงหน้า */}
               <TaskForm
@@ -243,8 +283,14 @@ async function TasksSection({
                 {tasks.length > 0 && <SelectModeButton />}
               </div>
 
-              {pending.length === 0 && (
-                <p className="text-sm text-muted">ยังไม่มีงานค้าง 🎉</p>
+              {pending.length === 0 && !firstTime && (
+                <EmptyState
+                  compact
+                  icon="🎉"
+                  title={filterCourse ? "วิชานี้ไม่มีงานค้างแล้ว" : "ไม่มีงานค้างแล้ว เก่งมาก!"}
+                  body="พักได้เลย หรือเช็กตารางสอบไว้ล่วงหน้า"
+                  actions={[{ href: "/exams", label: "ดูตารางสอบ" }]}
+                />
               )}
 
               {/* งานที่ยังไม่มีวันส่งขึ้นก่อน เพราะต้องไปหาวันส่งมาใส่ */}
@@ -298,9 +344,9 @@ function TaskGroup({
 }) {
   const color =
     tone === "danger"
-      ? "text-red-600"
+      ? "text-danger"
       : tone === "warn"
-        ? "text-amber-700"
+        ? "text-warn"
         : "text-muted";
   return (
     <div className="space-y-2">
@@ -330,14 +376,14 @@ function ViewToggle({ view, courseId }: { view: TasksView; courseId?: string }) 
       href={tasksHref(v, courseId)}
       aria-current={view === v ? "page" : undefined}
       className={`flex-1 rounded-[calc(var(--radius-card)-2px)] px-3 py-1.5 text-center ${
-        view === v ? "bg-foreground text-white" : "text-muted"
+        view === v ? "bg-foreground text-background" : "text-muted"
       }`}
     >
       {label}
     </Link>
   );
   return (
-    <div className="flex rounded-card border border-line bg-white p-0.5 text-sm">
+    <div className="flex rounded-card border border-line bg-surface p-0.5 text-sm">
       {tab("list", "รายการ")}
       {tab("week", "รายสัปดาห์")}
     </div>
@@ -358,7 +404,7 @@ function CourseFilter({
 }) {
   const chip = (active: boolean) =>
     `shrink-0 rounded-full border px-3 py-1 text-sm ${
-      active ? "border-accent bg-accent text-white" : "border-line bg-white text-muted"
+      active ? "border-accent bg-accent text-white" : "border-line bg-surface text-muted"
     }`;
   return (
     <div className="-mx-6 flex min-w-0 gap-2 overflow-x-auto px-6 pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0">
@@ -369,8 +415,9 @@ function CourseFilter({
         <Link
           key={c.id}
           href={tasksHref(view, c.id)}
-          className={chip(activeId === c.id)}
+          className={`${chip(activeId === c.id)} inline-flex items-center gap-1.5`}
         >
+          <CourseDot course={c} className={`h-2 w-2 ${activeId === c.id ? "ring-2 ring-white/70" : ""}`} />
           {courseLabel(c, labelMode)}
         </Link>
       ))}

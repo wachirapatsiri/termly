@@ -12,7 +12,7 @@ import { MAX_CATEGORY_LENGTH } from "@/lib/categories";
 type Row = { id: string; name: string; taskCount: number };
 
 const inputClass =
-  "min-w-0 flex-1 rounded-card border border-line bg-white px-3 py-2 text-base outline-none focus:border-accent";
+  "min-w-0 flex-1 rounded-card border border-line bg-surface px-3 py-2 text-base outline-none focus:border-accent";
 
 // หน้าตั้งค่า: เพิ่ม / เปลี่ยนชื่อ / ลบ ประเภทงาน
 export function CategoryManager({ categories }: { categories: Row[] }) {
@@ -40,7 +40,7 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
         </p>
       </div>
 
-      <ul className="divide-y divide-line rounded-card border border-line bg-white">
+      <ul className="divide-y divide-line rounded-card border border-line bg-surface">
         {categories.map((c) =>
           editingId === c.id ? (
             <li key={c.id} className="flex gap-2 p-2">
@@ -100,7 +100,7 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
                       : `ลบประเภท "${c.name}" ?`;
                   if (confirm(msg)) run(() => deleteCategory(c.id));
                 }}
-                className="text-sm text-red-600 disabled:opacity-50"
+                className="text-sm text-danger disabled:opacity-50"
               >
                 ลบ
               </button>
@@ -137,7 +137,7 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
       </form>
 
       {error && (
-        <p role="alert" className="rounded-card border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p role="alert" className="rounded-card border border-danger-line bg-danger-soft p-3 text-sm text-danger">
           {error}
         </p>
       )}

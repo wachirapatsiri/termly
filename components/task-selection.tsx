@@ -83,7 +83,7 @@ export function TaskSelectionProvider({ children }: { children: React.ReactNode 
 
         {selecting && (
           // แถบปุ่มติดขอบล่างจอ (มือถือกดง่าย)
-          <div className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-white/95 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+          <div className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/95 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
             <div className="mx-auto flex max-w-md items-center gap-2 lg:max-w-6xl lg:px-4">
               <span className="flex-1 text-sm text-muted">
                 เลือกแล้ว {selected.size} งาน
@@ -100,7 +100,7 @@ export function TaskSelectionProvider({ children }: { children: React.ReactNode 
                 type="button"
                 disabled={!selected.size || pending}
                 onClick={() => run("delete")}
-                className={`${btn} border border-red-200 text-red-600`}
+                className={`${btn} border border-danger-line text-danger`}
               >
                 ลบ
               </button>

@@ -8,6 +8,7 @@ import { MAX_CATEGORY_LENGTH } from "@/lib/categories";
 import { COURSE_LABEL_COOKIE, isCourseLabelMode } from "@/lib/course-label";
 import { YEAR_MODE_COOKIE, isYearMode } from "@/lib/year-mode";
 import { getUserSettings, type UserSettings } from "@/lib/preferences";
+import { THEME_COOKIE, isThemeMode } from "@/lib/theme";
 
 const PREF_COOKIE = {
   path: "/",
@@ -25,6 +26,8 @@ async function saveSettings(patch: Partial<UserSettings>) {
   const jar = await cookies();
   jar.set(COURSE_LABEL_COOKIE, next.courseLabel, PREF_COOKIE);
   jar.set(YEAR_MODE_COOKIE, next.yearMode, PREF_COOKIE);
+  // ธีม: สคริปต์ใน <head> ต้องอ่านได้ → ไม่ httpOnly (ไม่ใช่ข้อมูลลับ)
+  jar.set(THEME_COOKIE, next.theme, { ...PREF_COOKIE, httpOnly: false });
 
   const user = await getCurrentUser();
   if (!user) return;
@@ -34,6 +37,7 @@ async function saveSettings(patch: Partial<UserSettings>) {
     {
       course_label: next.courseLabel,
       year_mode: next.yearMode,
+      theme: next.theme,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" },
@@ -51,6 +55,12 @@ export async function setYearMode(formData: FormData) {
   const mode = formData.get("mode");
   if (!isYearMode(mode)) return;
   await saveSettings({ yearMode: mode });
+}
+
+export async function setTheme(formData: FormData) {
+  const mode = formData.get("mode");
+  if (!isThemeMode(mode)) return;
+  await saveSettings({ theme: mode });
 }
 
 // ─── จัดการประเภทงาน (ตาราง task_categories) ───

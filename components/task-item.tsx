@@ -8,6 +8,8 @@ import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import type { Course, Task, TaskCategory } from "@/lib/types";
 import { TaskForm } from "@/components/task-form";
 import { useTaskSelection } from "@/components/task-selection";
+import { CourseDot } from "@/components/course-dot";
+import { courseColor } from "@/lib/course-color";
 
 export function TaskItem({
   task,
@@ -40,7 +42,7 @@ export function TaskItem({
 
   if (editing) {
     return (
-      <li className="rounded-card border border-accent/40 bg-white p-4">
+      <li className="rounded-card border border-accent/40 bg-surface p-4">
         <TaskForm
           task={task}
           courses={courses}
@@ -58,7 +60,7 @@ export function TaskItem({
     return (
       <li>
         <label
-          className={`flex cursor-pointer gap-3 rounded-card border bg-white p-4 ${
+          className={`flex cursor-pointer gap-3 rounded-card border bg-surface p-4 ${
             checked ? "border-accent bg-accent/5" : "border-line"
           }`}
         >
@@ -82,7 +84,13 @@ export function TaskItem({
   }
 
   return (
-    <li className="flex gap-3 rounded-card border border-line bg-white p-4">
+    <li
+      className={`flex gap-3 rounded-card border border-line bg-surface p-4 transition-opacity duration-300 motion-safe:animate-fade-in ${
+        course ? "border-l-4" : ""
+      } ${done ? "opacity-70" : ""}`}
+      // แถบซ้ายสีประจำวิชา
+      style={course ? { borderLeftColor: courseColor(course) } : undefined}
+    >
       {/* ติ๊กเสร็จ / ยกเลิกเสร็จ */}
       <form
         action={async (formData) => {
@@ -95,8 +103,8 @@ export function TaskItem({
         <button
           type="submit"
           aria-label={done ? "ทำเครื่องหมายว่ายังไม่เสร็จ" : "ทำเครื่องหมายว่าเสร็จแล้ว"}
-          className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border text-xs ${
-            done ? "border-accent bg-accent text-white" : "border-muted/60"
+          className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border text-xs transition-colors hover:border-accent active:scale-90 ${
+            done ? "border-accent bg-accent text-white motion-safe:animate-pop" : "border-muted/60"
           }`}
         >
           {done ? "✓" : ""}
@@ -127,7 +135,7 @@ export function TaskItem({
             }}
           >
             <input type="hidden" name="id" value={task.id} />
-            <button type="submit" className="text-red-600">
+            <button type="submit" className="text-danger">
               ลบ
             </button>
           </form>
@@ -156,7 +164,9 @@ function TaskInfo({
   const yearMode = useYearMode();
   return (
     <div className="min-w-0 flex-1 space-y-1">
-      <p className={`font-medium break-words ${done ? "text-muted line-through" : ""}`}>
+      <p
+        className={`font-medium break-words transition-colors ${done ? "text-muted line-through" : ""}`}
+      >
         {task.title}
       </p>
 
@@ -167,16 +177,21 @@ function TaskInfo({
           </span>
         )}
         {task.due_at ? (
-          <span className={overdue && !done ? "text-red-600" : "text-muted"}>
+          <span className={overdue && !done ? "text-danger" : "text-muted"}>
             {formatDue(task.due_at, task.due_has_time, yearMode)}
             {overdue && !done && " · เลยกำหนด"}
           </span>
         ) : (
-          <span className="rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800">
+          <span className="rounded border border-warn-line bg-warn-soft px-1.5 py-0.5 text-xs text-warn">
             ⚠ ยังไม่กำหนดวันส่ง
           </span>
         )}
-        {course && <span className="text-muted">· {courseLabel(course, labelMode)}</span>}
+        {course && (
+          <span className="inline-flex items-center gap-1.5 text-muted">
+            <CourseDot course={course} />
+            {courseLabel(course, labelMode)}
+          </span>
+        )}
       </div>
 
       {task.notes && (

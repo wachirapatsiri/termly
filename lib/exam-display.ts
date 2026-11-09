@@ -11,22 +11,22 @@ export const EXAM_TYPE_TONE: Record<
   { badge: string; dot: string; text: string; border: string }
 > = {
   midterm: {
-    badge: "border-blue-200 bg-blue-50 text-blue-700",
-    dot: "bg-blue-500",
-    text: "text-blue-800",
-    border: "border-l-blue-500",
+    badge: "border-info-line bg-info-soft text-info",
+    dot: "bg-info-solid",
+    text: "text-info",
+    border: "border-l-info-solid",
   },
   final: {
-    badge: "border-violet-200 bg-violet-50 text-violet-700",
-    dot: "bg-violet-500",
-    text: "text-violet-800",
-    border: "border-l-violet-500",
+    badge: "border-final-line bg-final-soft text-final",
+    dot: "bg-final-solid",
+    text: "text-final",
+    border: "border-l-final-solid",
   },
   other: {
     badge: "border-line bg-background text-muted",
-    dot: "bg-slate-400",
+    dot: "bg-muted/60",
     text: "text-foreground",
-    border: "border-l-slate-300",
+    border: "border-l-muted/40",
   },
 };
 

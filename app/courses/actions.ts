@@ -37,13 +37,24 @@ function str(formData: FormData, key: string) {
 function parseCourseForm(formData: FormData) {
   const name = str(formData, "name");
   const code = str(formData, "code");
-  const values = { name, code };
+  // สีประจำวิชา: "" = อัตโนมัติ (null), "0"–"7" = เลือกเอง (migration 0005)
+  const colorRaw = str(formData, "color");
+  const values = { name, code, color: colorRaw };
+  const color = /^[0-7]$/.test(colorRaw) ? Number(colorRaw) : null;
 
   if (!name) return { error: "กรุณาใส่ชื่อวิชา", values };
   if (name.length > 200) return { error: "ชื่อวิชายาวเกิน 200 ตัวอักษร", values };
   if (code.length > 50) return { error: "รหัสวิชายาวเกิน 50 ตัวอักษร", values };
 
-  return { data: { name, code: code || null }, values };
+  return { data: { name, code: code || null }, color, values };
+}
+
+// PGRST204 / 42703 = ฐานข้อมูลยังไม่มีคอลัมน์ color → บอกให้รัน migration แทนข้อความกว้าง ๆ
+function saveErrorText(error: { code?: string }, fallback: string) {
+  if (error.code === "PGRST204" || error.code === "42703") {
+    return "ฐานข้อมูลยังไม่มีช่อง \"สีประจำวิชา\" — รัน migration 0005 ใน Supabase ก่อน";
+  }
+  return fallback;
 }
 
 async function requireUser() {
@@ -85,10 +96,13 @@ export async function createCourse(
   }
 
   // user_id ไม่ต้องส่ง — ฐานข้อมูลเติม auth.uid() ให้ และ RLS ตรวจซ้ำอีกชั้น
-  const { error } = await supabase.from("courses").insert(parsed.data);
+  const { error } = await supabase
+    .from("courses")
+    // ส่ง color เฉพาะตอนเลือกเอง (ยังไม่ได้รัน migration 0005 ก็ยังเพิ่มวิชาได้)
+    .insert({ ...parsed.data, ...(parsed.color === null ? {} : { color: parsed.color }) });
   if (error) {
     console.error("createCourse", error);
-    return { error: "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง", values: parsed.values };
+    return { error: saveErrorText(error, "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง"), values: parsed.values };
   }
 
   refresh();
@@ -110,15 +124,20 @@ export async function updateCourse(
   }
 
   const supabase = await createClient();
+  // ฟอร์มส่งช่อง color มาเฉพาะตอนเปลี่ยนสี ("" = กลับเป็นอัตโนมัติ)
+  const update = formData.has("color") ? { ...parsed.data, color: parsed.color } : parsed.data;
   const { data, error } = await supabase
     .from("courses")
-    .update(parsed.data)
+    .update(update)
     .eq("id", id)
     .eq("user_id", user.id)
     .select("id");
   if (error || !data?.length) {
     if (error) console.error("updateCourse", error);
-    return { error: "แก้ไขไม่สำเร็จ ลองใหม่อีกครั้ง", values: parsed.values };
+    return {
+      error: error ? saveErrorText(error, "แก้ไขไม่สำเร็จ ลองใหม่อีกครั้ง") : "แก้ไขไม่สำเร็จ ลองใหม่อีกครั้ง",
+      values: parsed.values,
+    };
   }
 
   refresh();

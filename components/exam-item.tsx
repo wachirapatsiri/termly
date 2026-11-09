@@ -1,5 +1,6 @@
 "use client";
 
+import { CourseDot } from "@/components/course-dot";
 import { useCallback, useOptimistic, useState } from "react";
 import { deleteExam } from "@/app/exams/actions";
 import { useYearMode } from "@/components/year-mode";
@@ -35,7 +36,7 @@ export function ExamItem({
 
   if (editing) {
     return (
-      <li className="rounded-card border border-accent/40 bg-white p-4">
+      <li className="rounded-card border border-accent/40 bg-surface p-4">
         <ExamForm
           exam={exam}
           courses={courses}
@@ -55,7 +56,7 @@ export function ExamItem({
     <button
       type="button"
       onClick={() => setEditing({ focus })}
-      className="rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-xs text-amber-800"
+      className="rounded border border-warn-line bg-warn-soft px-1.5 py-0.5 text-xs text-warn"
     >
       ⚠ {label} · เติม
     </button>
@@ -63,7 +64,7 @@ export function ExamItem({
 
   return (
     <li
-      className={`space-y-2 rounded-card border border-l-4 border-line bg-white p-4 ${tone.border}`}
+      className={`space-y-2 rounded-card border border-l-4 border-line bg-surface p-4 motion-safe:animate-fade-in ${tone.border}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
@@ -71,7 +72,12 @@ export function ExamItem({
             <span className={`rounded border px-1.5 py-0.5 ${tone.badge}`}>
               📝 {EXAM_TYPE_LABEL[type]}
             </span>
-            {course && <span className="text-muted">{courseLabel(course, labelMode)}</span>}
+            {course && (
+              <span className="inline-flex items-center gap-1.5 text-muted">
+                <CourseDot course={course} />
+                {courseLabel(course, labelMode)}
+              </span>
+            )}
           </div>
           <p className={`font-medium break-words ${past ? "text-muted" : ""}`}>{exam.title}</p>
         </div>
@@ -91,7 +97,7 @@ export function ExamItem({
       </div>
 
       {overlapsWith.length > 0 && !past && (
-        <p className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">
+        <p className="rounded border border-danger-line bg-danger-soft px-2 py-1 text-xs text-danger">
           ⚠ เวลาชนกับ {overlapsWith.join(", ")}
         </p>
       )}
@@ -114,7 +120,7 @@ export function ExamItem({
           }}
         >
           <input type="hidden" name="id" value={exam.id} />
-          <button type="submit" className="text-red-600">
+          <button type="submit" className="text-danger">
             ลบ
           </button>
         </form>
@@ -127,7 +133,7 @@ export function ExamItem({
 export function Countdown({ days }: { days: number }) {
   const tone =
     days <= 3
-      ? "border-red-200 bg-red-50 text-red-700"
+      ? "border-danger-line bg-danger-soft text-danger"
       : days <= 14
         ? "border-accent/30 bg-accent/5 text-accent"
         : "border-line text-muted";

@@ -41,7 +41,7 @@ async function ImportSection() {
   const today = toBangkokParts(new Date().toISOString()).date;
   const mock = isMockMode();
   const [coursesRes, categoriesRes, tasksRes, examsRes, labelMode, usageRes] = await Promise.all([
-    supabase.from("courses").select("id, name, code"),
+    supabase.from("courses").select("*"),
     supabase
       .from("task_categories")
       .select("id, name")

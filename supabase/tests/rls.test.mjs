@@ -87,6 +87,13 @@ await rejects('user_settings: ปลอม user_id เป็นคนอื่�
 await ok('user_settings: คนอื่นมองไม่เห็น/แก้ไม่ได้', async()=>{ eq((await as(C3,`select * from user_settings`)).length,0,'sel'); eq((await as(C3,`update user_settings set year_mode='be' returning user_id`)).length,0,'upd'); });
 await rejects('user_settings: ลบไม่ได้', ()=>as(B,`delete from user_settings`));
 await rejects('user_settings: anon อ่านไม่ได้', ()=>as(null,`select * from user_settings`));
+// ── 0005: ธีม + สีวิชา ──
+await ok('user_settings: theme ค่าตั้งต้น system', async()=>{ eq((await as(B,`select theme from user_settings`))[0].theme,'system','theme'); });
+await ok('user_settings: เปลี่ยนเป็น dark ได้', async()=>{ eq((await as(B,`update user_settings set theme='dark' returning theme`))[0].theme,'dark','upd'); });
+await rejects('user_settings: theme แปลก', ()=>as(B,`update user_settings set theme='pink'`));
+await ok('courses: color ค่าตั้งต้น null + ตั้ง 0–7 ได้', async()=>{ const r=await as(B,`insert into courses(name) values('สีวิชา') returning id,color`); eq(r[0].color,null,'default'); eq((await as(B,`update courses set color=7 where id='${r[0].id}' returning color`))[0].color,7,'upd'); });
+await rejects('courses: color เกิน 7', ()=>as(B,`update courses set color=8 where name='สีวิชา'`));
+await ok('courses: คนอื่นเปลี่ยนสีวิชาไม่ได้ (0 แถว)', async()=>{ eq((await as(C3,`update courses set color=1 where name='สีวิชา' returning id`)).length,0,'upd'); });
 console.log(`\n${pass} ผ่าน, ${fail} ไม่ผ่าน`);
 if (fail) process.exit(1);
 })();

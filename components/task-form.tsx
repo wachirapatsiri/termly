@@ -13,7 +13,7 @@ import type { Course, Task, TaskCategory } from "@/lib/types";
 import { ConfirmBox, DefaultSubmit } from "@/components/confirm-box";
 
 const inputClass =
-  "w-full rounded-card border border-line bg-white px-3 py-2 text-base outline-none focus:border-accent";
+  "w-full rounded-card border border-line bg-surface px-3 py-2 text-base outline-none focus:border-accent";
 
 // ฟอร์มเดียวใช้ทั้ง "เพิ่มงาน" (ไม่มี task) และ "แก้ไขงาน" (มี task)
 export function TaskForm({
@@ -190,7 +190,7 @@ export function TaskForm({
       )}
 
       {state.error && (
-        <p className="rounded-card border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="rounded-card border border-danger-line bg-danger-soft p-3 text-sm text-danger">
           {state.error}
         </p>
       )}
