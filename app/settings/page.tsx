@@ -8,6 +8,7 @@ import { CategoryManager } from "@/components/category-manager";
 import { CourseLabelSetting } from "@/components/course-label-setting";
 import { YearModeSetting } from "@/components/year-mode-setting";
 import { SignOutButton } from "@/components/sign-out-button";
+import { InstallApp } from "@/components/install-app";
 
 export default function SettingsPage() {
   return (
@@ -61,6 +62,10 @@ async function SettingsSection() {
 
       <div className="border-t border-line pt-6">
         <CategoryManager categories={categories} />
+      </div>
+
+      <div className="border-t border-line pt-6">
+        <InstallApp />
       </div>
 
       <section className="space-y-3 border-t border-line pt-6">
