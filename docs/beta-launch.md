@@ -10,9 +10,16 @@
 ## 2. เปิดให้ทุกคนล็อกอินได้ (ไม่จำกัดคน)
 ตอนนี้ Google OAuth อยู่โหมด **Testing** = ล็อกอินได้เฉพาะอีเมลใน Test users
 1. https://console.cloud.google.com → เลือกโปรเจกต์ที่ใช้กับ Supabase
-2. **Google Auth Platform → Audience** (ชื่อเก่า: OAuth consent screen) → **Publish app** → Confirm
-3. สถานะเปลี่ยนเป็น **In production** — แอปขอแค่อีเมล/ชื่อ (ไม่ใช่ข้อมูลอ่อนไหว) จึง**ไม่ต้องรอ Google ตรวจ**
-4. ลองล็อกอินด้วย Gmail ที่ไม่เคยอยู่ใน Test users → ต้องเข้าได้
+2. **Google Auth Platform → Branding** กรอกให้ครบก่อน (ไม่ครบ = ปุ่ม Publish กดไม่ได้ ขึ้นว่า "Valid app name, support email, homepage url, and privacy policy url are required"):
+   - App name: `Termly` · User support email / Developer contact: Gmail ของเจ้าของ
+   - Application home page: `https://termly-zeta.vercel.app`
+   - Application privacy policy link: `https://termly-zeta.vercel.app/privacy` (merge เซสชัน 13 ก่อน หน้านี้ถึงจะเปิดได้)
+   - Authorized domains: `termly-zeta.vercel.app`
+   - **ไม่ต้องอัปโหลดโลโก้** — ใส่โลโก้ = Google บังคับตรวจแอป (รอหลายวัน)
+   - กด Save
+3. **Google Auth Platform → Audience** (ชื่อเก่า: OAuth consent screen) → **Publish app** → Confirm
+4. สถานะเปลี่ยนเป็น **In production** — แอปขอแค่อีเมล/ชื่อ (ไม่ใช่ข้อมูลอ่อนไหว) จึง**ไม่ต้องรอ Google ตรวจ**
+5. ลองล็อกอินด้วย Gmail ที่ไม่เคยอยู่ใน Test users → ต้องเข้าได้
 
 สิ่งที่ผู้ทดลองจะเห็น (บอกไว้ในโพสต์): หน้าเลือกบัญชีขึ้น "ไปยัง adbgiuinkqeaohdcfnmm.supabase.co" — ปกติ แก้ทีหลังได้ (ดู Optional ใน CLAUDE.md)
 
