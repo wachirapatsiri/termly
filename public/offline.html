@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#FAFAF8" />
+    <title>ไม่มีอินเทอร์เน็ต · Termly</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fafaf8;
+        color: #1f2328;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main {
+        max-width: 22rem;
+        padding: 1.5rem;
+        text-align: center;
+      }
+      img {
+        width: 64px;
+        height: 64px;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 1rem 0 0.5rem;
+      }
+      p {
+        color: #656d76;
+        line-height: 1.6;
+        margin: 0 0 1.5rem;
+      }
+      button {
+        border: 0;
+        border-radius: 0.5rem;
+        background: #3b5bdb;
+        color: #fff;
+        font: inherit;
+        font-weight: 500;
+        padding: 0.75rem 1.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon.svg" alt="" />
+      <h1>ตอนนี้ไม่มีอินเทอร์เน็ต</h1>
+      <p>Termly ต้องต่อเน็ตเพื่อโหลดงานและสอบล่าสุด<br />ต่อ Wi-Fi หรือเน็ตมือถือแล้วกดลองใหม่</p>
+      <button type="button" onclick="location.reload()">ลองใหม่</button>
+    </main>
+    <script>
+      // เน็ตกลับมาเมื่อไร → โหลดหน้าเดิมให้เอง
+      window.addEventListener("online", () => location.reload());
+    </script>
+  </body>
+</html>

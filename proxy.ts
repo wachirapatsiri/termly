@@ -8,6 +8,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // ข้ามไฟล์ static และรูป ไม่ต้องรีเฟรช session
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|offline.html|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

@@ -3,16 +3,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getCourseLabelMode } from "@/lib/preferences";
+import { getCourseLabelMode, getYearMode } from "@/lib/preferences";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
-import { DUE_GROUP_LABEL, dueGroup, type DueGroup } from "@/lib/dates";
+import { DUE_GROUP_LABEL, dueGroup, toDueAt, type DueGroup } from "@/lib/dates";
+import { weekStartOf } from "@/lib/weeks";
 import { EXAM_TYPE_LABEL, UPCOMING_EXAM_DAYS, upcomingExams } from "@/lib/exams";
-import type { CalendarEvent, Course, Task, TaskCategory } from "@/lib/types";
+import type { Course, Task, TaskCategory } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { WithYearMode } from "@/components/with-year-mode";
 import { Countdown } from "@/components/exam-item";
 import { TaskForm } from "@/components/task-form";
 import { TaskItem } from "@/components/task-item";
+import { WeekView, type WeekExam } from "@/components/week-view";
 import {
   SelectModeButton,
   SelectionSpacer,
@@ -50,8 +52,11 @@ async function TasksSection({
   // RLS ทำให้ได้เฉพาะแถวของผู้ใช้คนนี้อยู่แล้ว
   // สอบตั้งแต่เมื่อวาน (กันเรื่องโซนเวลา) แล้วค่อยกรองให้เหลือ 14 วันข้างหน้าด้วย upcomingExams()
   const now = new Date();
-  const since = new Date(now.getTime() - 86_400_000).toISOString();
-  const [tasksRes, coursesRes, categoriesRes, examsRes, params, labelMode] = await Promise.all([
+  // มุมมองรายสัปดาห์ต้องการสอบตั้งแต่วันจันทร์ของสัปดาห์นี้ → เอาค่าที่เก่ากว่า
+  const yesterday = new Date(now.getTime() - 86_400_000).toISOString();
+  const monday = toDueAt(weekStartOf(now.toISOString()), "00:00") ?? yesterday;
+  const since = monday < yesterday ? monday : yesterday;
+  const [tasksRes, coursesRes, categoriesRes, examsRes, params, labelMode, yearMode] = await Promise.all([
     supabase
       .from("tasks")
       .select(
@@ -71,12 +76,13 @@ async function TasksSection({
       .order("created_at"),
     supabase
       .from("events")
-      .select("id, course_id, title, exam_type, starts_at")
+      .select("id, course_id, title, exam_type, starts_at, ends_at, has_time, location")
       .eq("kind", "exam")
       .gte("starts_at", since)
       .order("starts_at"),
     searchParams,
     getCourseLabelMode(),
+    getYearMode(),
   ]);
 
   // ประเภท/สอบโหลดไม่ได้ (เช่น ยังไม่ได้รัน migration 0002) → หน้างานยังใช้ได้ แค่ไม่มีป้าย/แถบสอบ
@@ -104,13 +110,37 @@ async function TasksSection({
     ? allTasks.filter((t) => t.course_id === filterCourse.id)
     : allTasks;
 
-  const exams = upcomingExams(
-    ((examsRes.data ?? []) as Pick<
-      CalendarEvent,
-      "id" | "course_id" | "title" | "exam_type" | "starts_at"
-    >[]).filter((e) => !filterCourse || e.course_id === filterCourse.id),
-    now,
+  const courseExams = ((examsRes.data ?? []) as WeekExam[]).filter(
+    (e) => !filterCourse || e.course_id === filterCourse.id,
   );
+  const view = params.view === "week" ? "week" : "list";
+
+  if (view === "week") {
+    return (
+      <div className="space-y-6">
+        <ViewToggle view={view} courseId={filterCourse?.id} />
+        {courses.length > 0 && (
+          <CourseFilter
+            courses={courses}
+            activeId={filterCourse?.id}
+            labelMode={labelMode}
+            view={view}
+          />
+        )}
+        <WeekView
+          tasks={tasks}
+          exams={courseExams}
+          courses={courses}
+          categories={categories}
+          labelMode={labelMode}
+          yearMode={yearMode}
+          now={now}
+        />
+      </div>
+    );
+  }
+
+  const exams = upcomingExams(courseExams, now);
   const pending = tasks.filter((t) => !t.done);
   const noDue = pending.filter((t) => !t.due_at);
   const groups = new Map<DueGroup, Task[]>();
@@ -137,11 +167,13 @@ async function TasksSection({
   return (
     <TaskSelectionProvider>
       <div className="space-y-8">
+        <ViewToggle view={view} courseId={filterCourse?.id} />
         {courses.length > 0 && (
           <CourseFilter
             courses={courses}
             activeId={filterCourse?.id}
             labelMode={labelMode}
+            view={view}
           />
         )}
 
@@ -259,15 +291,49 @@ function TaskGroup({
   );
 }
 
+type TasksView = "list" | "week";
+
+// URL ของหน้างาน รักษาทั้งมุมมองและตัวกรองวิชา เช่น /tasks?view=week&course=<id>
+function tasksHref(view: TasksView, courseId?: string) {
+  const q = new URLSearchParams();
+  if (view === "week") q.set("view", "week");
+  if (courseId) q.set("course", courseId);
+  const s = q.toString();
+  return s ? `/tasks?${s}` : "/tasks";
+}
+
+// สลับ "รายการ | รายสัปดาห์"
+function ViewToggle({ view, courseId }: { view: TasksView; courseId?: string }) {
+  const tab = (v: TasksView, label: string) => (
+    <Link
+      href={tasksHref(v, courseId)}
+      aria-current={view === v ? "page" : undefined}
+      className={`flex-1 rounded-[calc(var(--radius-card)-2px)] px-3 py-1.5 text-center ${
+        view === v ? "bg-foreground text-white" : "text-muted"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+  return (
+    <div className="flex rounded-card border border-line bg-white p-0.5 text-sm">
+      {tab("list", "รายการ")}
+      {tab("week", "รายสัปดาห์")}
+    </div>
+  );
+}
+
 // ปุ่มกรองตามวิชา เลื่อนซ้าย-ขวาได้บนมือถือ
 function CourseFilter({
   courses,
   activeId,
   labelMode,
+  view,
 }: {
   courses: Course[];
   activeId?: string;
   labelMode: CourseLabelMode;
+  view: TasksView;
 }) {
   const chip = (active: boolean) =>
     `shrink-0 rounded-full border px-3 py-1 text-sm ${
@@ -275,13 +341,13 @@ function CourseFilter({
     }`;
   return (
     <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1">
-      <Link href="/tasks" className={chip(!activeId)}>
+      <Link href={tasksHref(view)} className={chip(!activeId)}>
         ทั้งหมด
       </Link>
       {courses.map((c) => (
         <Link
           key={c.id}
-          href={`/tasks?course=${c.id}`}
+          href={tasksHref(view, c.id)}
           className={chip(activeId === c.id)}
         >
           {courseLabel(c, labelMode)}
