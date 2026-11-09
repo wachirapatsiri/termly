@@ -79,7 +79,7 @@ export function CalendarExport({
               <label
                 key={c.id}
                 className={`flex cursor-pointer items-center gap-2 rounded-card border px-3 py-1.5 text-sm ${
-                  picked.has(c.id) ? "border-accent bg-white" : "border-line text-muted"
+                  picked.has(c.id) ? "border-accent bg-surface" : "border-line text-muted"
                 }`}
               >
                 <input
@@ -114,7 +114,7 @@ export function CalendarExport({
         </p>
       )}
 
-      <details className="rounded-card border border-line bg-white p-3 text-sm">
+      <details className="rounded-card border border-line bg-surface p-3 text-sm">
         <summary className="cursor-pointer font-medium">วิธีนำเข้า Google Calendar</summary>
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-muted">
           <li>ดาวน์โหลดไฟล์จากปุ่มด้านบน</li>
@@ -155,7 +155,7 @@ function Check({
 }) {
   return (
     <label
-      className={`flex cursor-pointer items-center gap-3 rounded-card border bg-white p-3 ${
+      className={`flex cursor-pointer items-center gap-3 rounded-card border bg-surface p-3 ${
         checked ? "border-accent" : "border-line"
       }`}
     >

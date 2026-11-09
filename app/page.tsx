@@ -55,7 +55,7 @@ export default function Home() {
             {STEPS.map((s, i) => (
               <li
                 key={s.title}
-                className="flex gap-3 rounded-card border border-line bg-white p-4"
+                className="flex gap-3 rounded-card border border-line bg-surface p-4"
               >
                 <span aria-hidden className="text-xl leading-7">
                   {s.icon}
@@ -98,7 +98,7 @@ async function UserSection() {
   }
 
   return (
-    <div className="space-y-4 rounded-card border border-line bg-white p-5">
+    <div className="space-y-4 rounded-card border border-line bg-surface p-5">
       <p className="text-sm text-muted">
         สวัสดี <span className="font-medium text-foreground">{user.name}</span>
       </p>

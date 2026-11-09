@@ -2,11 +2,12 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getCourseLabelMode, getYearMode } from "@/lib/preferences";
+import { getUserSettings } from "@/lib/preferences";
 import { AppNav } from "@/components/app-nav";
 import { CategoryManager } from "@/components/category-manager";
 import { CourseLabelSetting } from "@/components/course-label-setting";
 import { YearModeSetting } from "@/components/year-mode-setting";
+import { ThemeSetting } from "@/components/theme-setting";
 import { SignOutButton } from "@/components/sign-out-button";
 import { InstallApp } from "@/components/install-app";
 import { CalendarExport, type ExportCourse } from "@/components/calendar-export";
@@ -31,9 +32,8 @@ async function SettingsSection() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
-  const [mode, yearMode, sampleRes, categoriesRes, taskCatsRes, exportRes] = await Promise.all([
-    getCourseLabelMode(),
-    getYearMode(),
+  const [{ courseLabel: mode, yearMode, theme }, sampleRes, categoriesRes, taskCatsRes, exportRes] = await Promise.all([
+    getUserSettings(),
     // ใช้วิชาที่มีรหัสเป็นตัวอย่างในพรีวิว
     supabase.from("courses").select("name, code").not("code", "is", null).limit(1),
     supabase
@@ -60,6 +60,10 @@ async function SettingsSection() {
     // มือถือ: เรียงลงมา คั่นด้วยเส้น · จอคอม: การ์ด 2 คอลัมน์ (เรียงลงทีละคอลัมน์ ลำดับเหมือนมือถือ)
     <div className="space-y-6 lg:columns-2 lg:gap-6 lg:space-y-0">
       <Block first>
+        <ThemeSetting current={theme} />
+      </Block>
+
+      <Block>
         <CourseLabelSetting current={mode} sample={sample} />
       </Block>
 
@@ -99,7 +103,7 @@ async function SettingsSection() {
 function Block({ first, children }: { first?: boolean; children: React.ReactNode }) {
   return (
     <div
-      className={`${first ? "" : "border-t border-line pt-6"} lg:mb-6 lg:break-inside-avoid lg:rounded-card lg:border lg:border-line lg:bg-white lg:p-5`}
+      className={`${first ? "" : "border-t border-line pt-6"} lg:mb-6 lg:break-inside-avoid lg:rounded-card lg:border lg:border-line lg:bg-surface lg:p-5`}
     >
       {children}
     </div>
@@ -111,7 +115,7 @@ async function loadExportCounts(supabase: Awaited<ReturnType<typeof createClient
   const [coursesRes, tasksRes, examsRes] = await Promise.all([
     supabase
       .from("courses")
-      .select("id, name, code")
+      .select("*")
       .order("code", { ascending: true, nullsFirst: false })
       .order("name"),
     supabase.from("tasks").select("course_id, due_at, done"),

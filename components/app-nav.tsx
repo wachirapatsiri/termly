@@ -12,8 +12,8 @@ type NavPath = "/tasks" | "/exams" | "/courses" | "/import" | "/settings";
 // ปุ่ม AI เป็นทางเข้าเดียวของหน้า /import (วางข้อความ / รูปแคป / ซิลลาบัส)
 export function AppNav({ current }: { current: NavPath }) {
   const iconBtn = (active: boolean) =>
-    `flex items-center gap-1 rounded-card border px-2.5 py-1.5 text-sm ${
-      active ? "border-accent bg-accent text-white" : "border-line bg-white text-muted"
+    `flex items-center gap-1 rounded-card border px-2.5 py-1.5 text-sm transition active:scale-95 ${
+      active ? "border-accent bg-accent text-white" : "border-line bg-surface text-muted"
     }`;
   return (
     <nav className="flex items-center justify-between gap-2">
@@ -21,13 +21,13 @@ export function AppNav({ current }: { current: NavPath }) {
         Termly
       </Link>
       <div className="flex items-center gap-1.5">
-        <div className="flex rounded-card border border-line bg-white p-0.5 text-sm">
+        <div className="flex rounded-card border border-line bg-surface p-0.5 text-sm">
           {LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
               aria-current={l.href === current ? "page" : undefined}
-              className={`rounded-[calc(var(--radius-card)-2px)] px-3 py-1.5 ${
+              className={`rounded-[calc(var(--radius-card)-2px)] px-3 py-1.5 transition-colors active:scale-95 ${
                 l.href === current ? "bg-accent text-white" : "text-muted"
               }`}
             >

@@ -1,5 +1,7 @@
 "use client";
 
+import { CourseDot } from "@/components/course-dot";
+import { courseColor } from "@/lib/course-color";
 import Link from "next/link";
 import { useCallback, useOptimistic, useState, useTransition } from "react";
 import { deleteCourse, setCourseNoExam } from "@/app/courses/actions";
@@ -58,7 +60,7 @@ export function CourseItem({
 
   if (mode === "edit") {
     return (
-      <li className="rounded-card border border-accent/40 bg-white p-4">
+      <li className="rounded-card border border-accent/40 bg-surface p-4">
         <CourseForm course={course} onSuccess={close} onCancel={close} />
       </li>
     );
@@ -83,10 +85,18 @@ export function CourseItem({
   );
 
   return (
-    <li className="space-y-3 rounded-card border border-line bg-white p-4">
+    <li
+      className="space-y-3 rounded-card border border-l-4 border-line bg-surface p-4 motion-safe:animate-fade-in"
+      style={{ borderLeftColor: courseColor(course) }}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          {course.code && <p className="text-sm text-muted">{course.code}</p>}
+          {course.code && (
+            <p className="flex items-center gap-1.5 text-sm text-muted">
+              <CourseDot course={course} />
+              {course.code}
+            </p>
+          )}
           <p className="font-medium break-words">{course.name}</p>
         </div>
         <button
@@ -102,7 +112,7 @@ export function CourseItem({
       </div>
 
       {similarTo && (
-        <p className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+        <p className="rounded border border-warn-line bg-warn-soft px-2 py-1 text-xs text-warn">
           ⚠ อาจซ้ำกับวิชา {similarTo.code ? `${similarTo.code} ` : ""}
           {similarTo.name} — ถ้าเป็นวิชาเดียวกัน ลบอันที่ไม่ใช้ได้
         </p>
@@ -136,12 +146,12 @@ export function CourseItem({
                   <div className="min-w-0 flex-1">
                     <p className="text-sm break-words">{t.title}</p>
                     {t.due_at ? (
-                      <p className={`text-xs ${t.overdue ? "text-red-600" : "text-muted"}`}>
+                      <p className={`text-xs ${t.overdue ? "text-danger" : "text-muted"}`}>
                         {formatDue(t.due_at, t.due_has_time, yearMode)}
                         {t.overdue && " · เลยกำหนด"}
                       </p>
                     ) : (
-                      <p className="text-xs text-amber-700">⚠ ยังไม่กำหนดวันส่ง</p>
+                      <p className="text-xs text-warn">⚠ ยังไม่กำหนดวันส่ง</p>
                     )}
                   </div>
 
@@ -159,7 +169,7 @@ export function CourseItem({
                     <button
                       type="submit"
                       aria-label={`ลบงาน "${t.title}"`}
-                      className="px-1 text-lg leading-none text-muted hover:text-red-600"
+                      className="px-1 text-lg leading-none text-muted hover:text-danger"
                     >
                       ×
                     </button>
@@ -179,7 +189,7 @@ export function CourseItem({
       <CourseExams course={course} courses={courses} exams={exams} />
 
       {mode === "confirmDelete" ? (
-        <div className="space-y-2 rounded-card border border-red-200 bg-red-50/50 p-3">
+        <div className="space-y-2 rounded-card border border-danger-line bg-danger-soft/50 p-3">
           <p className="text-sm">
             ลบวิชา &quot;{course.name}&quot;
             {exams.length > 0 && <> — สอบของวิชานี้ {exams.length} รายการจะถูกลบด้วย</>}
@@ -187,11 +197,11 @@ export function CourseItem({
           </p>
           {totalCount > 0 ? (
             <>
-              {deleteButton(false, "ลบแค่วิชา (เก็บงานไว้)", "border border-line bg-white")}
-              {deleteButton(true, `ลบวิชาพร้อมงาน ${totalCount} ชิ้น`, "bg-red-600 text-white")}
+              {deleteButton(false, "ลบแค่วิชา (เก็บงานไว้)", "border border-line bg-surface")}
+              {deleteButton(true, `ลบวิชาพร้อมงาน ${totalCount} ชิ้น`, "bg-danger-solid text-white")}
             </>
           ) : (
-            deleteButton(false, "ลบวิชา", "bg-red-600 text-white")
+            deleteButton(false, "ลบวิชา", "bg-danger-solid text-white")
           )}
           <button
             type="button"
@@ -209,7 +219,7 @@ export function CourseItem({
           <button
             type="button"
             onClick={() => setMode("confirmDelete")}
-            className="text-red-600"
+            className="text-danger"
           >
             ลบวิชา
           </button>
@@ -234,7 +244,7 @@ function CourseExams({
   const close = useCallback(() => setEditing(null), []);
   const formFor = (key: string, exam?: CourseExam, type?: ExamType) =>
     editing === key && (
-      <div className="rounded-card border border-accent/40 bg-white p-3">
+      <div className="rounded-card border border-accent/40 bg-surface p-3">
         <ExamForm
           exam={exam}
           courses={courses}
@@ -352,7 +362,7 @@ function CourseExams({
         </li>
       </ul>
       {error && (
-        <p role="alert" className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">
+        <p role="alert" className="rounded border border-danger-line bg-danger-soft px-2 py-1 text-xs text-danger">
           {error}
         </p>
       )}
@@ -384,14 +394,14 @@ function ExamLine({
           แก้ไข
         </button>
         {exam.starts_at ? formatDue(exam.starts_at, false, yearMode) : (
-          <span className="text-amber-700">⚠ ยังไม่ประกาศวันสอบ</span>
+          <span className="text-warn">⚠ ยังไม่ประกาศวันสอบ</span>
         )}
         {time && <span className="text-muted"> · {time}</span>}
         {exam.past && " · สอบแล้ว"}
       </p>
       {exam.location && <p className="text-xs text-muted">📍 {exam.location}</p>}
       {exam.overlapsWith.length > 0 && !exam.past && (
-        <p className="text-xs text-red-700">⚠ เวลาชนกับ {exam.overlapsWith.join(", ")}</p>
+        <p className="text-xs text-danger">⚠ เวลาชนกับ {exam.overlapsWith.join(", ")}</p>
       )}
     </div>
   );

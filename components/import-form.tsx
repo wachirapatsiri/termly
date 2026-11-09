@@ -433,7 +433,7 @@ export function ImportForm({
               ? "พิมพ์อธิบายเพิ่มได้ (ไม่บังคับ) เช่น นี่คือวิชา 204383"
               : "วางข้อความ เช่น\n204383 Image Processing\nการบ้าน 2 Due: Fri, 3 Jul 2026 12:30\nสอบกลางภาค วันศุกร์ที่ 28 สิงหาคม พ.ศ. 2569 เวลา 8:00 – 11:00 น.\n\nหรือแนบ PDF / รูปแคปหน้าจอด้านล่าง"
           }
-          className={`w-full rounded-card border bg-white px-3 py-2 text-base outline-none focus:border-accent ${
+          className={`w-full rounded-card border bg-surface px-3 py-2 text-base outline-none focus:border-accent ${
             dragging ? "border-accent" : "border-line"
           }`}
         />
@@ -455,7 +455,7 @@ export function ImportForm({
               {files.map((f) => (
                 <li
                   key={f.id}
-                  className="flex items-center gap-3 rounded-card border border-line bg-white p-2 text-sm"
+                  className="flex items-center gap-3 rounded-card border border-line bg-surface p-2 text-sm"
                 >
                   {f.preview ? (
                     // eslint-disable-next-line @next/next/no-img-element -- รูปย่อจาก object URL ในเครื่อง
@@ -487,7 +487,7 @@ export function ImportForm({
               type="button"
               onClick={() => fileInput.current?.click()}
               disabled={pending || preparing || files.some((f) => f.kind === "pdf") || files.length >= MAX_IMAGES}
-              className="rounded-card border border-line bg-white px-3 py-1.5 text-sm disabled:opacity-50"
+              className="rounded-card border border-line bg-surface px-3 py-1.5 text-sm disabled:opacity-50"
             >
               {preparing ? "กำลังเตรียมรูป…" : files.length ? "📎 เพิ่มรูป" : "📎 แนบ PDF / รูป"}
             </button>
@@ -498,7 +498,7 @@ export function ImportForm({
         </div>
 
         <div className="flex items-center justify-between gap-3">
-          <span className={`text-xs ${tooLong ? "text-red-700" : "text-muted"}`}>
+          <span className={`text-xs ${tooLong ? "text-danger" : "text-muted"}`}>
             {text.length.toLocaleString("th-TH")} / {MAX_TEXT_LENGTH.toLocaleString("th-TH")}
           </span>
           <button
@@ -533,13 +533,13 @@ export function ImportForm({
       )}
 
       {error && (
-        <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="rounded-card border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">
           {error}
         </p>
       )}
 
       {saved && (
-        <div className="space-y-1 rounded-card border border-line bg-white px-4 py-3 text-sm">
+        <div className="space-y-1 rounded-card border border-line bg-surface px-4 py-3 text-sm">
           <p>
             ✓ บันทึก
             {[
@@ -582,7 +582,7 @@ export function ImportForm({
             </p>
           )}
           {mock.on && (
-            <div className="space-y-1 rounded-card border border-line bg-white px-3 py-2 text-sm text-muted">
+            <div className="space-y-1 rounded-card border border-line bg-surface px-3 py-2 text-sm text-muted">
               {mock.reason && <p className="text-xs">สาเหตุ: {mock.reason}</p>}
               {mock.files && (
                 <p>
@@ -642,7 +642,7 @@ export function ImportForm({
           )}
 
           {rows.length > 0 && (
-            <div className="sticky bottom-4 flex items-center justify-between gap-3 rounded-card border border-line bg-white px-4 py-3">
+            <div className="sticky bottom-4 flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3">
               <span className="text-sm text-muted">
                 เลือก {checkedExams > 0 && `${checkedExams} สอบ · `}
                 {checkedTasks} งาน
@@ -665,11 +665,11 @@ export function ImportForm({
 }
 
 function Missing({ children }: { children: React.ReactNode }) {
-  return <span className="text-amber-800">⚠ {children}</span>;
+  return <span className="text-warn">⚠ {children}</span>;
 }
 
 const editInput =
-  "w-full rounded-card border border-line bg-white px-2 py-1.5 text-base outline-none focus:border-accent";
+  "w-full rounded-card border border-line bg-surface px-2 py-1.5 text-base outline-none focus:border-accent";
 
 function ExtractedCard({
   row,
@@ -716,11 +716,11 @@ function ExtractedCard({
   return (
     <li
       className={`space-y-2 rounded-card border px-4 py-3 ${
-        low ? "border-amber-300 bg-amber-50" : "border-line bg-white"
+        low ? "border-warn-line bg-warn-soft" : "border-line bg-surface"
       } ${row.checked ? "" : "opacity-80"}`}
     >
       {editing && (
-        <div className="space-y-2 rounded-card border border-accent/40 bg-white p-3">
+        <div className="space-y-2 rounded-card border border-accent/40 bg-surface p-3">
           <label className="block space-y-1">
             <span className="text-xs text-muted">ชื่อ</span>
             <input
@@ -845,7 +845,7 @@ function ExtractedCard({
             value={row.typeChoice}
             onChange={(e) => onChange({ typeChoice: e.target.value })}
             aria-label="ประเภท"
-            className="w-full rounded-card border border-line bg-white px-2 py-1.5 text-sm"
+            className="w-full rounded-card border border-line bg-surface px-2 py-1.5 text-sm"
           >
             <optgroup label="สอบ">
               {EXAM_TYPES.map((t) => (
@@ -870,14 +870,14 @@ function ExtractedCard({
               maxLength={30}
               placeholder="ชื่อประเภท เช่น Workshop"
               aria-label="ชื่อประเภทใหม่"
-              className="w-full rounded-card border border-line bg-white px-2 py-1.5 text-base outline-none focus:border-accent"
+              className="w-full rounded-card border border-line bg-surface px-2 py-1.5 text-base outline-none focus:border-accent"
             />
           )}
           <select
             value={row.courseChoice}
             onChange={(e) => onChange({ courseChoice: e.target.value })}
             aria-label="วิชา"
-            className="w-full rounded-card border border-line bg-white px-2 py-1.5 text-sm"
+            className="w-full rounded-card border border-line bg-surface px-2 py-1.5 text-sm"
           >
             <option value="">ไม่ระบุวิชา</option>
             {canCreate && !row.course_id && (
@@ -895,28 +895,28 @@ function ExtractedCard({
         )}
         {row.note && <p className="text-xs text-muted">{row.note}</p>}
         {row.warnings.map((w) => (
-          <p key={w} className="text-xs text-amber-800">
+          <p key={w} className="text-xs text-warn">
             ⚠ {w}
           </p>
         ))}
-        {badEnd && <p className="text-xs text-amber-800">⚠ เวลาจบต้องหลังเวลาเริ่ม (จะไม่บันทึกเวลาจบ)</p>}
+        {badEnd && <p className="text-xs text-warn">⚠ เวลาจบต้องหลังเวลาเริ่ม (จะไม่บันทึกเวลาจบ)</p>}
         {dupExisting && (
-          <p className="text-xs text-amber-800">
+          <p className="text-xs text-warn">
             ⚠ อาจซ้ำกับ{dupExisting.kind === "exam" ? "สอบ" : "งาน"}ที่บันทึกไว้แล้ว: “{dupExisting.title}”
           </p>
         )}
-        {dupBatch && <p className="text-xs text-amber-800">⚠ ซ้ำกับรายการอื่นในชุดนี้</p>}
+        {dupBatch && <p className="text-xs text-warn">⚠ ซ้ำกับรายการอื่นในชุดนี้</p>}
         {overlaps.length > 0 && (
-          <p className="text-xs text-red-700">⚠ เวลาชนกับ {overlaps.join(", ")}</p>
+          <p className="text-xs text-danger">⚠ เวลาชนกับ {overlaps.join(", ")}</p>
         )}
         {similarCourse && (
-          <p className="text-xs text-amber-800">
+          <p className="text-xs text-warn">
             ⚠ มีวิชา “{courseLabel(similarCourse, "both")}” อยู่แล้ว — ถ้าเป็นวิชาเดียวกัน
             เลือกจากช่องวิชาแทนการเพิ่มใหม่
           </p>
         )}
         {low && !row.checked && (
-          <p className="text-xs text-amber-800">ตรวจกับต้นฉบับแล้วติ๊กเพื่อยืนยัน</p>
+          <p className="text-xs text-warn">ตรวจกับต้นฉบับแล้วติ๊กเพื่อยืนยัน</p>
         )}
         {row.edited && <p className="text-xs text-muted">✎ แก้ไขแล้ว</p>}
 
@@ -925,7 +925,7 @@ function ExtractedCard({
             <button type="button" onClick={() => setEditing(true)} className="text-accent">
               แก้ไข
             </button>
-            <button type="button" onClick={onRemove} className="text-red-600">
+            <button type="button" onClick={onRemove} className="text-danger">
               เอาออก
             </button>
           </div>
@@ -942,7 +942,7 @@ function UsageLine({ usage, mock }: { usage: AiUsage | null; mock: boolean }) {
   const block = usageBlock(usage);
   const left = Math.max(usage.limit - usage.used, 0);
   return (
-    <p className={`text-xs ${block ? "text-red-700" : left <= 2 ? "text-amber-700" : "text-muted"}`}>
+    <p className={`text-xs ${block ? "text-danger" : left <= 2 ? "text-warn" : "text-muted"}`}>
       วันนี้ใช้ AI ไปแล้ว {usage.used}/{usage.limit} ครั้ง
       {block === "quota"
         ? " — ครบแล้ว ใช้ได้ใหม่หลังเที่ยงคืน"

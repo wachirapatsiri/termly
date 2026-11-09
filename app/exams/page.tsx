@@ -19,6 +19,7 @@ import { WithYearMode } from "@/components/with-year-mode";
 import { ExamForm } from "@/components/exam-form";
 import { ExamItem } from "@/components/exam-item";
 import { EXAM_TYPE_TONE, examLabel } from "@/lib/exam-display";
+import { EmptyState } from "@/components/empty-state";
 
 export default function ExamsPage({ searchParams }: PageProps<"/exams">) {
   return (
@@ -69,7 +70,7 @@ async function ExamsSection({
       .order("created_at", { ascending: true }),
     supabase
       .from("courses")
-      .select("id, name, code")
+      .select("*")
       .order("code", { ascending: true, nullsFirst: false })
       .order("name"),
     getCourseLabelMode(),
@@ -79,7 +80,7 @@ async function ExamsSection({
   if (examsRes.error || coursesRes.error) {
     console.error("load exams", examsRes.error ?? coursesRes.error);
     return (
-      <p className="rounded-card border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+      <p className="rounded-card border border-danger-line bg-danger-soft p-3 text-sm text-danger">
         โหลดตารางสอบไม่สำเร็จ ลองรีเฟรชหน้าอีกครั้ง
       </p>
     );
@@ -127,13 +128,13 @@ async function ExamsSection({
 
   const chip = (active: boolean) =>
     `shrink-0 rounded-full border px-3 py-1 text-sm ${
-      active ? "border-accent bg-accent text-white" : "border-line bg-white text-muted"
+      active ? "border-accent bg-accent text-white" : "border-line bg-surface text-muted"
     }`;
   const overlapCount = overlaps.size;
 
   return (
     <div className="space-y-8">
-      <details className="rounded-card border border-line bg-white p-4 lg:max-w-xl">
+      <details className="rounded-card border border-line bg-surface p-4 lg:max-w-xl">
         <summary className="cursor-pointer font-medium">+ เพิ่มสอบเอง</summary>
         <div className="mt-3">
           <ExamForm courses={courses} />
@@ -141,16 +142,12 @@ async function ExamsSection({
       </details>
 
       {exams.length === 0 ? (
-        <div className="space-y-2 rounded-card border border-dashed border-line p-4 text-sm text-muted">
-          <p>ยังไม่มีตารางสอบ</p>
-          <p>
-            วางข้อความซิลลาบัสที่{" "}
-            <Link href="/import" className="text-accent">
-              ✨ AI ช่วยเพิ่ม
-            </Link>{" "}
-            แล้ว AI จะแยกวันสอบมาให้ หรือกด &quot;เพิ่มสอบเอง&quot; ด้านบน
-          </p>
-        </div>
+        <EmptyState
+          icon="📝"
+          title="ยังไม่มีตารางสอบ"
+          body={<>วางซิลลาบัสแล้ว AI จะแยกวันสอบมาให้ หรือกด &quot;+ เพิ่มสอบเอง&quot; ด้านบน</>}
+          actions={[{ href: "/import", label: "✨ ให้ AI ช่วยเพิ่ม", primary: true }]}
+        />
       ) : (
         <>
           {/* กดดูทีละชนิดได้ */}
@@ -166,7 +163,7 @@ async function ExamsSection({
           </div>
 
           {overlapCount > 0 && (
-            <p className="rounded-card border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-card border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">
               ⚠ มีสอบเวลาชนกัน {overlapCount} รายการ — ดูป้ายสีแดงในการ์ด
             </p>
           )}

@@ -12,8 +12,8 @@ export function ConfirmBox({
   cancelLabel?: string;
 }) {
   return (
-    <div role="alert" className="space-y-2 rounded-card border border-amber-300 bg-amber-50 p-3 text-sm">
-      <p className="text-amber-900">{message}</p>
+    <div role="alert" className="space-y-2 rounded-card border border-warn-line bg-warn-soft p-3 text-sm">
+      <p className="text-warn">{message}</p>
       <div className="flex flex-wrap gap-2">
         {actions.map((a) => (
           <button
@@ -22,7 +22,7 @@ export function ConfirmBox({
             name="intent"
             value={a.intent}
             className={`rounded-card px-3 py-2 ${
-              a.primary ? "bg-accent text-white" : "border border-line bg-white"
+              a.primary ? "bg-accent text-white" : "border border-line bg-surface"
             }`}
           >
             {a.label}

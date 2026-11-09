@@ -34,7 +34,7 @@ export function CourseLabelSetting({
         {COURSE_LABEL_OPTIONS.map((o) => (
           <label
             key={o.value}
-            className={`flex cursor-pointer items-center gap-3 rounded-card border bg-white p-3 ${
+            className={`flex cursor-pointer items-center gap-3 rounded-card border bg-surface p-3 ${
               mode === o.value ? "border-accent" : "border-line"
             }`}
           >

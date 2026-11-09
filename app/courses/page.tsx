@@ -12,6 +12,7 @@ import { WithYearMode } from "@/components/with-year-mode";
 import { CourseForm } from "@/components/course-form";
 import { CourseItem, type CourseExam, type CourseTask } from "@/components/course-item";
 import { examLabel } from "@/lib/exam-display";
+import { EmptyState } from "@/components/empty-state";
 
 export default function CoursesPage() {
   return (
@@ -61,7 +62,7 @@ async function CoursesSection() {
   if (coursesRes.error || tasksRes.error) {
     console.error("load courses", coursesRes.error ?? tasksRes.error);
     return (
-      <p className="rounded-card border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+      <p className="rounded-card border border-danger-line bg-danger-soft p-3 text-sm text-danger">
         โหลดรายการวิชาไม่สำเร็จ ลองรีเฟรชหน้าอีกครั้ง
       </p>
     );
@@ -114,7 +115,7 @@ async function CoursesSection() {
   return (
     // จอคอม: ซ้าย = ฟอร์มเพิ่มวิชา (ติดอยู่กับที่), ขวา = การ์ดวิชา 2 คอลัมน์
     <div className="space-y-8 lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-10 lg:space-y-0">
-      <section className="space-y-3 rounded-card border border-line bg-white p-4 lg:sticky lg:top-6">
+      <section className="space-y-3 rounded-card border border-line bg-surface p-4 lg:sticky lg:top-6">
         <h2 className="font-medium">เพิ่มวิชาใหม่</h2>
         <CourseForm />
       </section>
@@ -124,9 +125,12 @@ async function CoursesSection() {
           วิชาทั้งหมด <span className="text-muted">({courses.length})</span>
         </h2>
         {courses.length === 0 ? (
-          <p className="text-sm text-muted">
-            ยังไม่มีวิชา — เพิ่มวิชาที่ลงเรียนเทอมนี้ไว้ก่อน จะได้เลือกตอนเพิ่มงานได้
-          </p>
+          <EmptyState
+            icon="🎒"
+            title="ยังไม่มีวิชา"
+            body="เพิ่มวิชาที่ลงเรียนเทอมนี้ในฟอร์ม หรือวางซิลลาบัสให้ AI สร้างวิชาพร้อมงานให้เลย"
+            actions={[{ href: "/import", label: "✨ ให้ AI ช่วยเพิ่ม", primary: true }]}
+          />
         ) : (
           <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3 lg:space-y-0">
             {courses.map((c) => (

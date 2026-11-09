@@ -16,6 +16,7 @@ import {
   type WeekLoad,
 } from "@/lib/weeks";
 import { toBangkokParts } from "@/lib/dates";
+import { CourseDot } from "@/components/course-dot";
 import type { YearMode } from "@/lib/year-mode";
 import type { CalendarEvent, Course, Task, TaskCategory } from "@/lib/types";
 
@@ -27,9 +28,9 @@ export type WeekExam = Pick<
 // เขียนชื่อคลาสเต็ม ๆ ให้ Tailwind หาเจอ
 const LOAD_TONE: Record<WeekLoad, { badge: string; bar: string }> = {
   free: { badge: "border-line bg-background text-muted", bar: "bg-line" },
-  light: { badge: "border-blue-200 bg-blue-50 text-accent", bar: "bg-accent/50" },
-  medium: { badge: "border-amber-200 bg-amber-50 text-amber-800", bar: "bg-amber-400" },
-  heavy: { badge: "border-red-200 bg-red-50 text-red-700", bar: "bg-red-500" },
+  light: { badge: "border-info-line bg-info-soft text-accent", bar: "bg-accent/50" },
+  medium: { badge: "border-warn-line bg-warn-soft text-warn", bar: "bg-warn-solid" },
+  heavy: { badge: "border-danger-line bg-danger-soft text-danger", bar: "bg-danger-solid" },
 };
 
 export function WeekView({
@@ -63,7 +64,7 @@ export function WeekView({
   return (
     <div className="space-y-6">
       {/* ภาพรวม: แท่งต่อสัปดาห์ สูงตามจำนวนงาน กดแล้วเลื่อนไปสัปดาห์นั้น */}
-      <section className="space-y-3 rounded-card border border-line bg-white p-4" aria-label="ภาพรวมรายสัปดาห์">
+      <section className="space-y-3 rounded-card border border-line bg-surface p-4" aria-label="ภาพรวมรายสัปดาห์">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="font-medium">ภาพรวม</h2>
           <p className="text-xs text-muted">
@@ -105,7 +106,7 @@ export function WeekView({
       {(overdueBefore > 0 || noDue > 0) && (
         <div className="space-y-1 text-sm">
           {overdueBefore > 0 && (
-            <p className="text-red-600">
+            <p className="text-danger">
               เลยกำหนดจากสัปดาห์ก่อน {overdueBefore} งาน ·{" "}
               <Link href="/tasks" className="underline">
                 ดูในรายการ
@@ -113,7 +114,7 @@ export function WeekView({
             </p>
           )}
           {noDue > 0 && (
-            <p className="text-amber-700">
+            <p className="text-warn">
               ⚠ ยังไม่กำหนดวันส่ง {noDue} งาน (ไม่อยู่ในสัปดาห์ไหน) ·{" "}
               <Link href="/tasks" className="underline">
                 ไปเติมวันส่ง
@@ -163,7 +164,7 @@ function WeekCard({
   return (
     <li
       id={`w-${w.start}`}
-      className={`scroll-mt-4 rounded-card border bg-white ${
+      className={`scroll-mt-4 rounded-card border bg-surface motion-safe:animate-fade-in ${
         w.offset === 0 ? "border-accent" : "border-line"
       } ${empty ? "px-4 py-2.5" : "space-y-3 p-4"}`}
     >
@@ -223,7 +224,12 @@ function WeekCard({
             ].filter(Boolean);
             return (
               <li key={t.id} className="flex items-baseline gap-2 py-1.5 text-sm">
-                <span className={`w-11 shrink-0 ${overdue ? "text-red-600" : "text-muted"}`}>
+                {course ? (
+                  <CourseDot course={course} className="relative -top-px h-2 w-2" />
+                ) : (
+                  <span className="w-2 shrink-0" aria-hidden />
+                )}
+                <span className={`w-11 shrink-0 ${overdue ? "text-danger" : "text-muted"}`}>
                   {shortDay(t.due_at!)}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -234,11 +240,11 @@ function WeekCard({
                   {meta.length > 0 && (
                     <span className="block text-xs text-muted">
                       {meta.join(" · ")}
-                      {overdue && <span className="text-red-600"> · เลยกำหนด</span>}
+                      {overdue && <span className="text-danger"> · เลยกำหนด</span>}
                     </span>
                   )}
                   {meta.length === 0 && overdue && (
-                    <span className="block text-xs text-red-600">เลยกำหนด</span>
+                    <span className="block text-xs text-danger">เลยกำหนด</span>
                   )}
                 </span>
               </li>

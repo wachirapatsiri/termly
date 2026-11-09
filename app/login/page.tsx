@@ -32,7 +32,7 @@ async function LoginForm({
   return (
     <div className="space-y-4">
       {error && (
-        <p className="rounded-card border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="rounded-card border border-danger-line bg-danger-soft p-3 text-sm text-danger">
           เข้าสู่ระบบไม่สำเร็จ ลองใหม่อีกครั้ง
         </p>
       )}

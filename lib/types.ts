@@ -7,6 +7,8 @@ export type Course = {
   // ติ๊ก "ไม่มีสอบ" (migration 0003) — บางหน้าไม่ได้โหลดมา จึงเป็น optional
   no_midterm?: boolean;
   no_final?: boolean;
+  // สีประจำวิชา 0–7 (migration 0005) — null/ไม่มี = เลือกให้อัตโนมัติ (lib/course-color.ts)
+  color?: number | null;
 };
 
 export type TaskCategory = {
