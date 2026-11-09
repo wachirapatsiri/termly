@@ -14,11 +14,11 @@ import { ImportForm, type ExistingItem } from "@/components/import-form";
 
 export default function ImportPage() {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6">
+    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
       <AppNav current="/import" />
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">✨ เพิ่มงานและสอบด้วย AI</h1>
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted lg:max-w-2xl">
           วางข้อความ หรือแนบ PDF ซิลลาบัส / รูปแคปประกาศของอาจารย์ แล้ว AI จะช่วยหางาน วันส่ง
           และวันสอบ ให้ตรวจก่อนบันทึก
         </p>

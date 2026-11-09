@@ -59,3 +59,10 @@
 1. Supabase Dashboard → **SQL Editor** → **New query**
 2. เปิดไฟล์ `supabase/migrations/0003_course_no_exams.sql` คัดลอกทั้งหมดไปวาง → กด **Run** → ต้องขึ้น "Success. No rows returned"
 3. ตรวจ: **Table Editor** → `courses` ต้องมีคอลัมน์ใหม่ `no_midterm` และ `no_final` (ค่าเป็น false ทุกแถว)
+
+## 9. จำการตั้งค่าข้ามเครื่อง (เซสชัน 12)
+**ควรรันก่อน merge โค้ดเซสชัน 12 ขึ้น `main`** — ถ้ายังไม่รัน แอปยังใช้ได้ปกติ แต่การตั้งค่า (แสดงวิชาเป็นรหัส/ชื่อ, ปี พ.ศ./ค.ศ.) จะจำแค่ในเบราว์เซอร์นั้น ๆ เหมือนเดิม
+1. Supabase Dashboard → **SQL Editor** → **New query**
+2. เปิดไฟล์ `supabase/migrations/0004_user_settings.sql` คัดลอกทั้งหมดไปวาง → กด **Run** → ต้องขึ้น "Success. No rows returned"
+3. ตรวจ: **Table Editor** ต้องมีตารางใหม่ `user_settings` (ไม่มีป้าย "Unrestricted") ตอนแรกยังว่าง — จะมีแถวเมื่อผู้ใช้กดเปลี่ยนการตั้งค่าในหน้า ⚙ ครั้งแรก
+4. ทดสอบบนเว็บ: เปลี่ยน "แสดงปีเป็น" ในคอม → เปิดแอปในมือถือ (บัญชีเดียวกัน) → ต้องเป็นค่าเดียวกัน

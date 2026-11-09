@@ -15,7 +15,7 @@ import { NO_COURSE } from "@/lib/ics";
 
 export default function SettingsPage() {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6">
+    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
       <AppNav current="/settings" />
       <h1 className="text-2xl font-semibold tracking-tight">ตั้งค่า</h1>
 
@@ -57,18 +57,21 @@ async function SettingsSection() {
   }));
 
   return (
-    <div className="space-y-8">
-      <CourseLabelSetting current={mode} sample={sample} />
+    // มือถือ: เรียงลงมา คั่นด้วยเส้น · จอคอม: การ์ด 2 คอลัมน์ (เรียงลงทีละคอลัมน์ ลำดับเหมือนมือถือ)
+    <div className="space-y-6 lg:columns-2 lg:gap-6 lg:space-y-0">
+      <Block first>
+        <CourseLabelSetting current={mode} sample={sample} />
+      </Block>
 
-      <div className="border-t border-line pt-6">
+      <Block>
         <YearModeSetting current={yearMode} sampleIso={new Date().toISOString()} />
-      </div>
+      </Block>
 
-      <div className="border-t border-line pt-6">
+      <Block>
         <CategoryManager categories={categories} />
-      </div>
+      </Block>
 
-      <div className="border-t border-line pt-6">
+      <Block>
         <CalendarExport
           courses={exportRes.courses.map((c) => ({
             ...c,
@@ -76,16 +79,29 @@ async function SettingsSection() {
           }))}
           undated={exportRes.undated}
         />
-      </div>
+      </Block>
 
-      <div className="border-t border-line pt-6">
+      <Block>
         <InstallApp />
-      </div>
+      </Block>
 
-      <section className="space-y-3 border-t border-line pt-6">
-        <p className="text-sm text-muted">เข้าสู่ระบบเป็น {user.email}</p>
-        <SignOutButton />
-      </section>
+      <Block>
+        <section className="space-y-3">
+          <p className="text-sm text-muted">เข้าสู่ระบบเป็น {user.email}</p>
+          <SignOutButton />
+        </section>
+      </Block>
+    </div>
+  );
+}
+
+// กล่องแต่ละส่วนของหน้าตั้งค่า
+function Block({ first, children }: { first?: boolean; children: React.ReactNode }) {
+  return (
+    <div
+      className={`${first ? "" : "border-t border-line pt-6"} lg:mb-6 lg:break-inside-avoid lg:rounded-card lg:border lg:border-line lg:bg-white lg:p-5`}
+    >
+      {children}
     </div>
   );
 }

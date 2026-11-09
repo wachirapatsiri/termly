@@ -79,6 +79,14 @@ const C3='33333333-3333-3333-3333-333333333333';
 await ok('วิชาใหม่: no_midterm/no_final ค่าตั้งต้น false', async()=>{ const r=await as(B,`insert into courses(name) values('วิชา 0003') returning id,no_midterm,no_final`); cA3=r[0].id; eq([r[0].no_midterm,r[0].no_final],[false,false],'default'); });
 await ok('เจ้าของติ๊กไม่มีสอบกลางภาคได้', async()=>{ eq((await as(B,`update courses set no_midterm=true where id='${cA3}' returning no_midterm`))[0].no_midterm,true,'upd'); });
 await ok('คนอื่นติ๊กแทนไม่ได้ (0 แถว)', async()=>{ eq((await as(C3,`update courses set no_final=true where id='${cA3}' returning id`)).length,0,'upd'); });
+// ── 0004: การตั้งค่าผู้ใช้ ──
+await ok('user_settings: ค่าตั้งต้น code / be (user_id เติมเอง)', async()=>{ const r=await as(B,`insert into user_settings default values returning user_id,course_label,year_mode`); eq(r[0],{user_id:B,course_label:'code',year_mode:'be'},'row'); });
+await ok('user_settings: upsert เปลี่ยนเฉพาะช่องที่ส่ง', async()=>{ const r=await as(B,`insert into user_settings(year_mode) values('ce') on conflict (user_id) do update set year_mode=excluded.year_mode returning course_label,year_mode`); eq(r[0],{course_label:'code',year_mode:'ce'},'row'); });
+await rejects('user_settings: ค่าแปลก', ()=>as(B,`update user_settings set course_label='emoji'`));
+await rejects('user_settings: ปลอม user_id เป็นคนอื่น', ()=>as(C3,`insert into user_settings(user_id) values('${B}')`));
+await ok('user_settings: คนอื่นมองไม่เห็น/แก้ไม่ได้', async()=>{ eq((await as(C3,`select * from user_settings`)).length,0,'sel'); eq((await as(C3,`update user_settings set year_mode='be' returning user_id`)).length,0,'upd'); });
+await rejects('user_settings: ลบไม่ได้', ()=>as(B,`delete from user_settings`));
+await rejects('user_settings: anon อ่านไม่ได้', ()=>as(null,`select * from user_settings`));
 console.log(`\n${pass} ผ่าน, ${fail} ไม่ผ่าน`);
 if (fail) process.exit(1);
 })();

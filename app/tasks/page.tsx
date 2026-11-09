@@ -25,7 +25,7 @@ const GROUP_ORDER: DueGroup[] = ["overdue", "today", "tomorrow", "week", "later"
 
 export default function TasksPage({ searchParams }: PageProps<"/tasks">) {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6">
+    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
       <AppNav current="/tasks" />
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">งานของฉัน</h1>
@@ -121,15 +121,19 @@ async function TasksSection({
   if (view === "week") {
     return (
       <div className="space-y-6">
-        <ViewToggle view={view} courseId={filterCourse?.id} />
-        {courses.length > 0 && (
-          <CourseFilter
-            courses={courses}
-            activeId={filterCourse?.id}
-            labelMode={labelMode}
-            view={view}
-          />
-        )}
+        <div className="space-y-6 lg:flex lg:items-center lg:gap-4 lg:space-y-0">
+          <div className="lg:w-64 lg:shrink-0">
+            <ViewToggle view={view} courseId={filterCourse?.id} />
+          </div>
+          {courses.length > 0 && (
+            <CourseFilter
+              courses={courses}
+              activeId={filterCourse?.id}
+              labelMode={labelMode}
+              view={view}
+            />
+          )}
+        </div>
         <WeekView
           tasks={tasks}
           exams={courseExams}
@@ -167,100 +171,114 @@ async function TasksSection({
     />
   );
 
+  const upcoming = exams.length > 0 && (
+    <section className="space-y-2" aria-label="สอบที่ใกล้ถึง">
+      <h2 className="text-sm font-medium text-muted">
+        📝 สอบใน {UPCOMING_EXAM_DAYS} วันนี้
+      </h2>
+      <ul className="space-y-1.5">
+        {exams.map((e) => {
+          const course = e.course_id ? courseById.get(e.course_id) : undefined;
+          // มีวิชา → "สอบกลางภาค 204383" ไม่มี → ใช้ชื่อที่บันทึกไว้
+          const label = course
+            ? `${EXAM_TYPE_LABEL[e.exam_type ?? "other"]} ${courseLabel(course, labelMode)}`
+            : e.title;
+          return (
+            <li key={e.id}>
+              <Link
+                href="/exams"
+                className="flex items-center justify-between gap-3 rounded-card border border-line bg-white px-3 py-2 text-sm"
+              >
+                <span className="min-w-0 truncate">{label}</span>
+                <Countdown days={e.daysLeft} />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+
   return (
     <TaskSelectionProvider>
       <div className="space-y-8">
-        <ViewToggle view={view} courseId={filterCourse?.id} />
-        {courses.length > 0 && (
-          <CourseFilter
-            courses={courses}
-            activeId={filterCourse?.id}
-            labelMode={labelMode}
-            view={view}
-          />
-        )}
+        <div className="space-y-8 lg:flex lg:items-center lg:gap-4 lg:space-y-0">
+          <div className="lg:w-64 lg:shrink-0">
+            <ViewToggle view={view} courseId={filterCourse?.id} />
+          </div>
+          {courses.length > 0 && (
+            <CourseFilter
+              courses={courses}
+              activeId={filterCourse?.id}
+              labelMode={labelMode}
+              view={view}
+            />
+          )}
+        </div>
 
-        {exams.length > 0 && (
-          <section className="space-y-2" aria-label="สอบที่ใกล้ถึง">
-            <h2 className="text-sm font-medium text-muted">
-              📝 สอบใน {UPCOMING_EXAM_DAYS} วันนี้
-            </h2>
-            <ul className="space-y-1.5">
-              {exams.map((e) => {
-                const course = e.course_id ? courseById.get(e.course_id) : undefined;
-                // มีวิชา → "สอบกลางภาค 204383" ไม่มี → ใช้ชื่อที่บันทึกไว้
-                const label = course
-                  ? `${EXAM_TYPE_LABEL[e.exam_type ?? "other"]} ${courseLabel(course, labelMode)}`
-                  : e.title;
+        {/* มือถือ: เรียงลงมา (สอบ → ฟอร์ม → รายการ)
+            จอคอม (lg): 2 คอลัมน์ ซ้าย = รายการงาน, ขวา = สอบใกล้ถึง + ฟอร์มเพิ่มงาน (ติดอยู่กับที่ตอนเลื่อน) */}
+        <div className="space-y-8 lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start lg:gap-10 lg:space-y-0">
+          <aside className="space-y-8 lg:sticky lg:top-6 lg:col-start-2 lg:row-start-1">
+            {upcoming}
+
+            <section className="space-y-3 rounded-card border border-line bg-white p-4">
+              <h2 className="font-medium">เพิ่มงานใหม่</h2>
+              {/* key: เปลี่ยนตัวกรอง → ฟอร์มเลือกวิชานั้นไว้ให้ล่วงหน้า */}
+              <TaskForm
+                key={filterCourse?.id ?? "all"}
+                courses={courses}
+                categories={categories}
+                defaultCourseId={filterCourse?.id}
+              />
+            </section>
+          </aside>
+
+          <div className="space-y-8 lg:col-start-1 lg:row-start-1">
+            <section className="space-y-6">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="font-medium">
+                  ยังไม่เสร็จ <span className="text-muted">({pending.length})</span>
+                </h2>
+                {tasks.length > 0 && <SelectModeButton />}
+              </div>
+
+              {pending.length === 0 && (
+                <p className="text-sm text-muted">ยังไม่มีงานค้าง 🎉</p>
+              )}
+
+              {/* งานที่ยังไม่มีวันส่งขึ้นก่อน เพราะต้องไปหาวันส่งมาใส่ */}
+              {noDue.length > 0 && (
+                <TaskGroup label="⚠ ยังไม่กำหนดวันส่ง" count={noDue.length} tone="warn">
+                  {noDue.map(renderItem)}
+                </TaskGroup>
+              )}
+              {GROUP_ORDER.map((g) => {
+                const items = groups.get(g);
+                if (!items?.length) return null;
                 return (
-                  <li key={e.id}>
-                    <Link
-                      href="/exams"
-                      className="flex items-center justify-between gap-3 rounded-card border border-line bg-white px-3 py-2 text-sm"
-                    >
-                      <span className="min-w-0 truncate">{label}</span>
-                      <Countdown days={e.daysLeft} />
-                    </Link>
-                  </li>
+                  <TaskGroup
+                    key={g}
+                    label={DUE_GROUP_LABEL[g]}
+                    count={items.length}
+                    tone={g === "overdue" ? "danger" : "normal"}
+                  >
+                    {items.map(renderItem)}
+                  </TaskGroup>
                 );
               })}
-            </ul>
-          </section>
-        )}
+            </section>
 
-        <section className="space-y-3 rounded-card border border-line bg-white p-4">
-          <h2 className="font-medium">เพิ่มงานใหม่</h2>
-          {/* key: เปลี่ยนตัวกรอง → ฟอร์มเลือกวิชานั้นไว้ให้ล่วงหน้า */}
-          <TaskForm
-            key={filterCourse?.id ?? "all"}
-            courses={courses}
-            categories={categories}
-            defaultCourseId={filterCourse?.id}
-          />
-        </section>
-
-        <section className="space-y-6">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-medium">
-              ยังไม่เสร็จ <span className="text-muted">({pending.length})</span>
-            </h2>
-            {tasks.length > 0 && <SelectModeButton />}
+            {done.length > 0 && (
+              <details className="space-y-3">
+                <summary className="cursor-pointer font-medium">
+                  เสร็จแล้ว <span className="text-muted">({done.length})</span>
+                </summary>
+                <ul className="mt-3 space-y-2">{done.map(renderItem)}</ul>
+              </details>
+            )}
           </div>
-
-          {pending.length === 0 && (
-            <p className="text-sm text-muted">ยังไม่มีงานค้าง 🎉</p>
-          )}
-
-          {/* งานที่ยังไม่มีวันส่งขึ้นก่อน เพราะต้องไปหาวันส่งมาใส่ */}
-          {noDue.length > 0 && (
-            <TaskGroup label="⚠ ยังไม่กำหนดวันส่ง" count={noDue.length} tone="warn">
-              {noDue.map(renderItem)}
-            </TaskGroup>
-          )}
-          {GROUP_ORDER.map((g) => {
-            const items = groups.get(g);
-            if (!items?.length) return null;
-            return (
-              <TaskGroup
-                key={g}
-                label={DUE_GROUP_LABEL[g]}
-                count={items.length}
-                tone={g === "overdue" ? "danger" : "normal"}
-              >
-                {items.map(renderItem)}
-              </TaskGroup>
-            );
-          })}
-        </section>
-
-        {done.length > 0 && (
-          <details className="space-y-3">
-            <summary className="cursor-pointer font-medium">
-              เสร็จแล้ว <span className="text-muted">({done.length})</span>
-            </summary>
-            <ul className="mt-3 space-y-2">{done.map(renderItem)}</ul>
-          </details>
-        )}
+        </div>
         <SelectionSpacer />
       </div>
     </TaskSelectionProvider>
@@ -343,7 +361,7 @@ function CourseFilter({
       active ? "border-accent bg-accent text-white" : "border-line bg-white text-muted"
     }`;
   return (
-    <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1">
+    <div className="-mx-6 flex min-w-0 gap-2 overflow-x-auto px-6 pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0">
       <Link href={tasksHref(view)} className={chip(!activeId)}>
         ทั้งหมด
       </Link>

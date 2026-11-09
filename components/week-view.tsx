@@ -123,7 +123,8 @@ export function WeekView({
         </div>
       )}
 
-      <ol className="space-y-3">
+      {/* จอคอม: การ์ดสัปดาห์เรียงเป็นตาราง 2–3 คอลัมน์ */}
+      <ol className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0 xl:grid-cols-3">
         {weeks.map((w) => (
           <WeekCard
             key={w.start}

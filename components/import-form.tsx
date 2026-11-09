@@ -411,7 +411,8 @@ export function ImportForm({
   );
 
   return (
-    <div className="space-y-8">
+    // จอคอม (lg): ซ้าย = ช่องวางข้อความ/แนบไฟล์ (ติดอยู่กับที่), ขวา = ผลจาก AI ให้ตรวจก่อนบันทึก
+    <div className="space-y-8 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-10 lg:space-y-0">
       <form
         onSubmit={submit}
         onDragOver={(e) => {
@@ -420,7 +421,7 @@ export function ImportForm({
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        className="space-y-3"
+        className="space-y-3 lg:sticky lg:top-6"
       >
         <textarea
           value={text}
@@ -519,6 +520,17 @@ export function ImportForm({
           </p>
         )}
       </form>
+
+      <div className="space-y-8">
+      {!error && !saved && !rows && (
+        <div className="hidden rounded-card border border-dashed border-line p-6 text-sm text-muted lg:block">
+          <p className="font-medium text-foreground">ผลจาก AI จะขึ้นตรงนี้</p>
+          <p className="mt-1">
+            วางข้อความหรือแนบไฟล์ทางซ้าย แล้วกด &quot;ให้ AI ดึงงาน&quot; — จะได้รายการงานและวันสอบมาให้ตรวจ
+            แก้ แล้วติ๊กเลือกก่อนบันทึก
+          </p>
+        </div>
+      )}
 
       {error && (
         <p role="alert" className="rounded-card border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -647,6 +659,7 @@ export function ImportForm({
           )}
         </section>
       )}
+      </div>
     </div>
   );
 }

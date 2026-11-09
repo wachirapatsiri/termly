@@ -22,7 +22,7 @@ import { EXAM_TYPE_TONE, examLabel } from "@/lib/exam-display";
 
 export default function ExamsPage({ searchParams }: PageProps<"/exams">) {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6">
+    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
       <AppNav current="/exams" />
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">ตารางสอบ</h1>
@@ -133,7 +133,7 @@ async function ExamsSection({
 
   return (
     <div className="space-y-8">
-      <details className="rounded-card border border-line bg-white p-4">
+      <details className="rounded-card border border-line bg-white p-4 lg:max-w-xl">
         <summary className="cursor-pointer font-medium">+ เพิ่มสอบเอง</summary>
         <div className="mt-3">
           <ExamForm courses={courses} />
@@ -154,7 +154,7 @@ async function ExamsSection({
       ) : (
         <>
           {/* กดดูทีละชนิดได้ */}
-          <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1">
+          <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 lg:mx-0 lg:px-0">
             <Link href="/exams" className={chip(!filter)}>
               ทั้งหมด
             </Link>
@@ -171,6 +171,12 @@ async function ExamsSection({
             </p>
           )}
 
+          {/* จอคอม: กลางภาค / ปลายภาค / อื่น ๆ วางเคียงกัน 3 คอลัมน์ */}
+          <div
+            className={`space-y-8 lg:grid lg:items-start lg:gap-6 lg:space-y-0 ${
+              filter ? "lg:max-w-xl" : "lg:grid-cols-3"
+            }`}
+          >
           {EXAM_TYPES.filter((t) => !filter || filter === t).map((t) => {
             const items = active.filter((x) => typeOf(x.exam) === t);
             const tone = EXAM_TYPE_TONE[t];
@@ -188,13 +194,16 @@ async function ExamsSection({
               </section>
             );
           })}
+          </div>
 
           {past.length > 0 && (
             <details className="space-y-3">
               <summary className="cursor-pointer font-medium">
                 สอบไปแล้ว <span className="text-muted">({past.length})</span>
               </summary>
-              <ul className="mt-3 space-y-2">{past.map(renderItem)}</ul>
+              <ul className="mt-3 space-y-2 lg:grid lg:grid-cols-3 lg:items-start lg:gap-x-6 lg:gap-y-2 lg:space-y-0">
+                {past.map(renderItem)}
+              </ul>
             </details>
           )}
         </>
