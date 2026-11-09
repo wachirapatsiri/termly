@@ -24,7 +24,12 @@ export default function ExamsPage({ searchParams }: PageProps<"/exams">) {
   return (
     <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6">
       <AppNav current="/exams" />
-      <h1 className="text-2xl font-semibold tracking-tight">ตารางสอบ</h1>
+      <div className="flex items-baseline justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">ตารางสอบ</h1>
+        <Link href="/settings#calendar" className="shrink-0 text-sm text-accent">
+          📅 ส่งออกไปปฏิทิน
+        </Link>
+      </div>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
         <WithYearMode>

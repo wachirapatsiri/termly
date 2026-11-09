@@ -29,6 +29,9 @@ export default function TasksPage({ searchParams }: PageProps<"/tasks">) {
       <AppNav current="/tasks" />
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">งานของฉัน</h1>
+        <Link href="/settings#calendar" className="shrink-0 text-sm text-accent">
+          📅 ส่งออกไปปฏิทิน
+        </Link>
       </div>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>

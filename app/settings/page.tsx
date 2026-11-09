@@ -9,6 +9,9 @@ import { CourseLabelSetting } from "@/components/course-label-setting";
 import { YearModeSetting } from "@/components/year-mode-setting";
 import { SignOutButton } from "@/components/sign-out-button";
 import { InstallApp } from "@/components/install-app";
+import { CalendarExport, type ExportCourse } from "@/components/calendar-export";
+import { courseLabel } from "@/lib/course-label";
+import { NO_COURSE } from "@/lib/ics";
 
 export default function SettingsPage() {
   return (
@@ -28,7 +31,7 @@ async function SettingsSection() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
-  const [mode, yearMode, sampleRes, categoriesRes, taskCatsRes] = await Promise.all([
+  const [mode, yearMode, sampleRes, categoriesRes, taskCatsRes, exportRes] = await Promise.all([
     getCourseLabelMode(),
     getYearMode(),
     // ใช้วิชาที่มีรหัสเป็นตัวอย่างในพรีวิว
@@ -40,6 +43,7 @@ async function SettingsSection() {
       .order("created_at"),
     // นับว่าแต่ละประเภทมีกี่งาน (โชว์ตอนจะลบ)
     supabase.from("tasks").select("category_id").not("category_id", "is", null),
+    loadExportCounts(supabase),
   ]);
   const sample = sampleRes.data?.[0] ?? { name: "สถิติเบื้องต้น", code: "DS101" };
   if (categoriesRes.error) console.error("load categories", categoriesRes.error);
@@ -65,6 +69,16 @@ async function SettingsSection() {
       </div>
 
       <div className="border-t border-line pt-6">
+        <CalendarExport
+          courses={exportRes.courses.map((c) => ({
+            ...c,
+            label: c.id === NO_COURSE ? "ไม่มีวิชา" : courseLabel(c.course!, mode),
+          }))}
+          undated={exportRes.undated}
+        />
+      </div>
+
+      <div className="border-t border-line pt-6">
         <InstallApp />
       </div>
 
@@ -74,4 +88,47 @@ async function SettingsSection() {
       </section>
     </div>
   );
+}
+
+// นับงาน/สอบที่ส่งออกปฏิทินได้ (มีวันแล้ว) แยกตามวิชา — เรียงตามลำดับวิชา, "ไม่มีวิชา" ไว้ท้าย
+async function loadExportCounts(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const [coursesRes, tasksRes, examsRes] = await Promise.all([
+    supabase
+      .from("courses")
+      .select("id, name, code")
+      .order("code", { ascending: true, nullsFirst: false })
+      .order("name"),
+    supabase.from("tasks").select("course_id, due_at, done"),
+    supabase.from("events").select("course_id, starts_at").eq("kind", "exam"),
+  ]);
+  if (coursesRes.error || tasksRes.error || examsRes.error) {
+    console.error("load export counts", coursesRes.error ?? tasksRes.error ?? examsRes.error);
+  }
+
+  type Row = Omit<ExportCourse, "label"> & { course?: { name: string; code: string | null } };
+  const rows = new Map<string, Row>();
+  for (const c of coursesRes.data ?? []) {
+    rows.set(c.id, { id: c.id, course: c, pending: 0, done: 0, exams: 0 });
+  }
+  const rowOf = (courseId: string | null) => {
+    const id = courseId && rows.has(courseId) ? courseId : NO_COURSE;
+    if (!rows.has(id)) rows.set(id, { id, pending: 0, done: 0, exams: 0 });
+    return rows.get(id)!;
+  };
+
+  let undated = 0;
+  for (const t of tasksRes.data ?? []) {
+    if (!t.due_at) {
+      if (!t.done) undated++;
+      continue;
+    }
+    rowOf(t.course_id)[t.done ? "done" : "pending"]++;
+  }
+  for (const e of examsRes.data ?? []) {
+    if (!e.starts_at) undated++;
+    else rowOf(e.course_id).exams++;
+  }
+
+  const courses = [...rows.values()].filter((r) => r.pending + r.done + r.exams > 0);
+  return { courses, undated };
 }
