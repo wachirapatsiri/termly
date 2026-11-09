@@ -13,19 +13,25 @@ create table public.feedback (
   -- 2) AI อ่านถูกแค่ไหน
   ai_accuracy text check (ai_accuracy in ('mostly_right', 'some_fixes', 'many_wrong', 'not_tried')),
   ai_note text check (char_length(ai_note) <= 1000),
-  -- 3) ยอมจ่าย Pro เท่าไหร่ต่อเทอม (free = ใช้แค่แบบฟรีพอ)
+  -- 3) อยากได้ฟีเจอร์ Pro ไหน (เลือกได้หลายข้อ — ตรงกับ PRO_FEATURE_OPTIONS ใน lib/plans.ts)
+  pro_features text[] check (
+    pro_features <@ array['reminders', 'calendar_sync', 'grade_calc', 'recurring', 'more_ai']::text[]
+  ),
+  pro_note text check (char_length(pro_note) <= 1000),
+  -- 4) ยอมจ่าย Pro เท่าไหร่ต่อเทอม (free = ใช้แค่แบบฟรีพอ)
   price text check (price in ('49', '79', '99', 'free')),
   price_note text check (char_length(price_note) <= 1000),
-  -- 4) อยากให้มีล็อกอินด้วยอีเมล + รหัสผ่านไหม
+  -- 5) อยากให้มีล็อกอินด้วยอีเมล + รหัสผ่านไหม
   email_login text check (email_login in ('want', 'google_ok')),
   login_note text check (char_length(login_note) <= 1000),
-  -- 5) อยากให้เพิ่ม/แก้อะไร
+  -- 6) อยากให้เพิ่ม/แก้อะไร
   message text check (char_length(message) <= 2000),
   created_at timestamptz not null default now(),
   -- ต้องตอบอย่างน้อย 1 ข้อ
   check (
     coalesce(
       rating::text, ai_accuracy, price, email_login,
+      case when cardinality(pro_features) > 0 then 'x' end, nullif(btrim(pro_note), ''),
       nullif(btrim(message), ''), nullif(btrim(rating_note), ''), nullif(btrim(ai_note), ''),
       nullif(btrim(price_note), ''), nullif(btrim(login_note), '')
     ) is not null

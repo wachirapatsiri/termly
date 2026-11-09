@@ -2,7 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseFeedback } from "../lib/feedback.ts";
 
-const from = (o: Record<string, string>) => (k: string) => o[k] ?? null;
+const from = (o: Record<string, string | string[]>) => ({
+  get: (k: string) => (Array.isArray(o[k]) ? o[k][0] : (o[k] ?? null)),
+  getAll: (k: string) => (o[k] === undefined ? [] : Array.isArray(o[k]) ? o[k] : [o[k]]),
+});
 
 test("parseFeedback: ฟอร์มว่าง / ช่องว่างล้วน = empty", () => {
   assert.equal(parseFeedback(from({})).empty, true);
@@ -33,4 +36,11 @@ test("parseFeedback: ตอบแค่ความเห็นในช่อ�
   const { input, empty } = parseFeedback(from({ ai_note: "ก".repeat(5000) }));
   assert.equal(empty, false);
   assert.equal(input.ai_note?.length, 1000);
+});
+
+test("parseFeedback: ฟีเจอร์ Pro เลือกได้หลายข้อ ตัดค่าแปลก/ซ้ำ", () => {
+  const { input, empty } = parseFeedback(from({ pro_features: ["reminders", "hack", "grade_calc", "reminders"] }));
+  assert.deepEqual(input.pro_features, ["reminders", "grade_calc"]);
+  assert.equal(empty, false);
+  assert.equal(parseFeedback(from({ pro_features: ["hack"] })).input.pro_features, null);
 });

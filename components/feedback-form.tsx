@@ -10,6 +10,7 @@ import {
   PRICE_OPTIONS,
 } from "@/lib/feedback";
 import { PlanTable } from "@/components/plan-table";
+import { PRO_FEATURE_OPTIONS } from "@/lib/plans";
 
 const inputClass =
   "w-full rounded-card border border-line bg-surface px-3 py-2 text-base outline-none focus:border-accent";
@@ -44,6 +45,44 @@ function Choices({
             className="sr-only"
           />
           {o.label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+// ติ๊กได้หลายข้อ
+function MultiChoices({ name, options }: { name: string; options: readonly { value: string; label: string; icon: string }[] }) {
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const toggle = (v: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      return next;
+    });
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {options.map((o) => (
+        <label
+          key={o.value}
+          className={`flex cursor-pointer items-center gap-2 rounded-card border bg-surface px-3 py-2.5 text-sm transition active:scale-95 ${
+            picked.has(o.value) ? "border-accent text-accent" : "border-line"
+          }`}
+        >
+          <input
+            type="checkbox"
+            name={name}
+            value={o.value}
+            checked={picked.has(o.value)}
+            onChange={() => toggle(o.value)}
+            className="sr-only"
+          />
+          <span aria-hidden>{o.icon}</span>
+          <span className="min-w-0 flex-1">{o.label}</span>
+          <span aria-hidden className={picked.has(o.value) ? "" : "invisible"}>
+            ✓
+          </span>
         </label>
       ))}
     </div>
@@ -118,21 +157,27 @@ export function FeedbackForm() {
         <Note name="ai_note" placeholder="เช่น อ่านวันที่ผิด, ใช้กับไฟล์แบบไหน (ไม่บังคับ)" />
       </Question>
 
-      <Question n={3} title="ถ้ามี Termly Pro คุณยอมจ่ายเท่าไหร่ต่อเทอม">
+      <Question n={3} title="ถ้ามี Termly Pro อยากได้ฟีเจอร์ไหนที่สุด (เลือกได้หลายข้อ)">
         <p className="text-sm text-muted">
           ตอนนี้ยังไม่เก็บเงิน — ช่วงทดลองทุกคนใช้ได้ทุกอย่างฟรี (AI 10 ครั้ง/วัน) ตารางนี้คือแผนในอนาคต
+          ฟีเจอร์ที่คนเลือกเยอะจะได้ทำก่อน
         </p>
         <PlanTable />
+        <MultiChoices name="pro_features" options={PRO_FEATURE_OPTIONS} />
+        <Note name="pro_note" placeholder="ฟีเจอร์อื่นที่อยากได้ (ไม่บังคับ)" />
+      </Question>
+
+      <Question n={4} title="ถ้า Pro มีฟีเจอร์ตามตาราง คุณยอมจ่ายเท่าไหร่ต่อเทอม">
         <Choices name="price" options={PRICE_OPTIONS} cols="grid-cols-2 sm:grid-cols-4" />
         <Note name="price_note" placeholder="เช่น ถ้ามีฟีเจอร์ ... จะยอมจ่าย / แพงไปเพราะ ... (ไม่บังคับ)" />
       </Question>
 
-      <Question n={4} title="อยากให้มีล็อกอินด้วยอีเมล + รหัสผ่าน (นอกจาก Google) ไหม">
+      <Question n={5} title="อยากให้มีล็อกอินด้วยอีเมล + รหัสผ่าน (นอกจาก Google) ไหม">
         <Choices name="email_login" options={EMAIL_LOGIN_OPTIONS} cols="grid-cols-2" />
         <Note name="login_note" placeholder="เหตุผล (ไม่บังคับ)" />
       </Question>
 
-      <Question n={5} title="อยากให้เพิ่มหรือแก้อะไร">
+      <Question n={6} title="อยากให้เพิ่มหรือแก้อะไร">
         <textarea
           name="message"
           rows={4}

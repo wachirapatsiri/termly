@@ -46,7 +46,7 @@
 ```sql
 select f.created_at at time zone 'Asia/Bangkok' as เวลา, u.email,
        f.rating, f.rating_note, f.ai_accuracy, f.ai_note,
-       f.price, f.price_note, f.email_login, f.login_note, f.message
+       f.pro_features, f.pro_note, f.price, f.price_note, f.email_login, f.login_note, f.message
 from feedback f left join auth.users u on u.id = f.user_id
 order by f.created_at desc;
 ```
@@ -64,6 +64,16 @@ select 'AI', coalesce(ai_accuracy, '(ไม่ตอบ)'), count(*) from latest
 union all
 select 'ล็อกอินอีเมล', coalesce(email_login, '(ไม่ตอบ)'), count(*) from latest group by 2
 order by 1, 2;
+```
+
+**ฟีเจอร์ Pro ที่คนอยากได้** (ใช้จัดลำดับว่าทำอะไรก่อน)
+```sql
+with latest as (
+  select distinct on (user_id) * from feedback order by user_id, created_at desc
+)
+select f as ฟีเจอร์, count(*) as คน
+from latest, unnest(pro_features) as f
+group by f order by คน desc;
 ```
 
 **ใช้ซ้ำใน 2 สัปดาห์ไหม** (ตัววัดใน `docs/plan.md`: กลับมาใช้อีกในวันอื่นหลังวันแรก)
@@ -104,13 +114,21 @@ from ai_usage group by 1 order by 1 desc;
 3. Deployments → Redeploy — หน้า "ข้อมูลและความเป็นส่วนตัว" เปลี่ยนข้อความเรื่อง AI ให้เอง
 4. สลับกลับ = ตั้ง `AI_PROVIDER` = `gemini` แล้ว Redeploy
 
-## 6. แพ็กเกจที่วางไว้ (ยังไม่เก็บเงิน — ถามราคาในฟอร์ม)
+## 6. แพ็กเกจที่วางไว้ (ยังไม่เก็บเงิน — ถามในฟอร์ม)
+แนวคิด (ปรับ 9 พ.ย.): **ฟรี = จดงานได้ครบทั้งเทอม** (ให้ติดใช้ก่อน) · **Pro = "ไม่พลาด deadline ทั้งเทอม" + ได้ฟีเจอร์ใหม่ก่อน**
+เหตุผล: นักศึกษาใช้ AI หนักแค่ต้นเทอม → โควตา AI รายวันอย่างเดียวไม่ทำให้อยากจ่าย ต้องมีของที่ใช้ทุกวันตลอดเทอม
+
 | | ฟรี | Pro 49/79/99 บาท/เทอม |
 |---|---|---|
+| งาน สอบ วิชา รายสัปดาห์ .ics | ไม่จำกัด | ไม่จำกัด |
 | AI อ่านข้อความ | 5 ครั้ง/วัน | 10 ครั้ง/วัน |
 | AI อ่าน PDF/รูป | 5 ครั้ง/วัน | 20 ครั้ง/วัน |
-| อื่น ๆ (งาน สอบ วิชา รายสัปดาห์ .ics) | ไม่จำกัด | ไม่จำกัด |
-| ลิงก์ปฏิทินอัปเดตเอง, คำนวณเกรด | — | ✓ (ยังไม่ทำ) |
+| 🔔 แจ้งเตือนก่อนส่งงาน/สอบ | — | ✓ (ยังไม่ทำ) |
+| 📅 ปฏิทินอัปเดตเอง (webcal) | — | ✓ (ยังไม่ทำ) |
+| 🎯 คำนวณเกรดไฟนอล | — | ✓ (ยังไม่ทำ, เฟส 2) |
+| 🔁 งานส่งซ้ำทุกสัปดาห์ | — | ✓ (ยังไม่ทำ) |
+| 🚀 ฟีเจอร์ใหม่ | — | ได้ก่อน |
 
-ช่วงทดลอง: ทุกคน 10 ครั้ง/วันรวมกัน (`AI_DAILY_LIMIT`) · ตัวเลขอยู่ใน `lib/plans.ts`
-ต้นทุนถ้าเก็บเงินจริง ~2,800 บาท/เทอม (Vercel Pro ~700 บาท/เดือน, ไม่รวมค่า AI) → คุ้มทุนที่ ~58 คน (49 บ.) / ~36 คน (79 บ.) / ~29 คน (99 บ.)
+ฟอร์มข้อ 3 ถามว่าอยากได้ฟีเจอร์ Pro ไหน (ติ๊กหลายข้อ) → ทำตัวที่คนเลือกเยอะก่อน
+ช่วงทดลอง: ทุกคน 10 ครั้ง/วันรวมกัน (`AI_DAILY_LIMIT`) · ตัวเลข/รายการอยู่ใน `lib/plans.ts`
+ต้นทุนคนใช้ฟรี ~1 บาท/คน/เทอม (Claude Haiku ~0.03 บาท/ครั้ง × ~30 ครั้ง) · ถ้าเก็บเงินจริงต้องใช้ Vercel Pro ~2,800 บาท/เทอม → คุ้มทุนที่ ~58 คน (49 บ.) / ~36 คน (79 บ.) / ~29 คน (99 บ.)

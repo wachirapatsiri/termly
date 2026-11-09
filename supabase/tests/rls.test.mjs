@@ -102,6 +102,9 @@ await ok('feedback: ส่งซ้ำได้ + เห็นของตัว
 await ok('feedback: คนอื่นมองไม่เห็น', async()=>{ eq((await as(B,`select id from feedback`)).length,0,'B'); });
 await rejects('feedback: ว่างทุกข้อ', ()=>as(D,`insert into feedback(message) values('   ')`));
 await rejects('feedback: คะแนนเกิน 5', ()=>as(D,`insert into feedback(rating) values(6)`));
+await ok('feedback: เลือกฟีเจอร์ Pro หลายข้อได้', async()=>{ const r=await as(D,`insert into feedback(pro_features) values(array['reminders','grade_calc']) returning pro_features`); eq(r[0].pro_features,['reminders','grade_calc'],'arr'); });
+await rejects('feedback: ฟีเจอร์ Pro แปลก', ()=>as(D,`insert into feedback(pro_features) values(array['hack'])`));
+await rejects('feedback: เลือกฟีเจอร์ว่าง = ไม่ได้ตอบ', ()=>as(D,`insert into feedback(pro_features) values(array[]::text[])`));
 await rejects('feedback: ราคาแปลก', ()=>as(D,`insert into feedback(price) values('1000')`));
 await rejects('feedback: ปลอม user_id', ()=>as(D,`insert into feedback(user_id,rating) values('${B}',1)`));
 await rejects('feedback: แก้ไม่ได้', ()=>as(D,`update feedback set rating=1`));
@@ -119,13 +122,13 @@ await ok('delete_my_data: ลบของตัวเองหมด ของ�
   const cats=(await as(D,`select name from task_categories order by position`)).map(r=>r.name);
   eq(cats.length,7,'ประเภทตั้งต้นกลับมา'); eq(cats.includes('ประเภทเอง'),false,'ประเภทเองหาย');
   eq((await as(D,`select id from ai_usage`)).length>0,true,'ai_usage ยังอยู่');
-  eq((await as(D,`select id from feedback`)).length,2,'feedback ยังอยู่');
+  eq((await as(D,`select id from feedback`)).length,3,'feedback ยังอยู่');
   eq((await as(B,`select id from tasks`)).length + (await as(B,`select id from courses`)).length,bBefore,'ของ B ไม่หาย');
 });
 await ok('delete_my_account: ลบบัญชี → feedback เหลือแบบไม่ระบุตัวตน', async()=>{
   await as(D,`select public.delete_my_account()`);
   const r=await db.query(`select count(*)::int n from auth.users where id='${D}'`); eq(r.rows[0].n,0,'user');
-  const f=await db.query(`select user_id from feedback`); eq(f.rows.length,2,'feedback'); eq(f.rows.every(x=>x.user_id===null),true,'null');
+  const f=await db.query(`select user_id from feedback`); eq(f.rows.length,3,'feedback'); eq(f.rows.every(x=>x.user_id===null),true,'null');
   const c=await db.query(`select count(*)::int n from task_categories where user_id='${D}'`); eq(c.rows[0].n,0,'cascade');
   eq((await db.query(`select count(*)::int n from auth.users where id='${B}'`)).rows[0].n,1,'B ยังอยู่');
 });

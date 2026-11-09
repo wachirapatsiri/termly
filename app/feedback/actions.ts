@@ -12,7 +12,7 @@ export async function sendFeedback(_prev: FeedbackState, formData: FormData): Pr
   const user = await getCurrentUser();
   if (!user) return { error: "กรุณาเข้าสู่ระบบก่อน" };
 
-  const { input, empty } = parseFeedback((k) => formData.get(k));
+  const { input, empty } = parseFeedback(formData);
   if (empty) return { error: "ตอบอย่างน้อย 1 ข้อก่อนส่งนะ" };
 
   const supabase = await createClient();
