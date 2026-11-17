@@ -3,9 +3,10 @@
 import { useActionState, useEffect, useState } from "react";
 import { createExam, updateExam, type ExamFormState } from "@/app/exams/actions";
 import { toBangkokParts } from "@/lib/dates";
-import { EXAM_TYPES, EXAM_TYPE_LABEL, type ExamType } from "@/lib/exams";
+import { EXAM_TYPES, examTypeLabel, type ExamType } from "@/lib/exams";
 import type { CalendarEvent, Course } from "@/lib/types";
 import { ConfirmBox, DefaultSubmit } from "@/components/confirm-box";
+import { useLang, useT } from "@/components/lang";
 
 const inputClass =
   "w-full rounded-card border border-line bg-surface px-3 py-2 text-base outline-none focus:border-accent";
@@ -30,6 +31,8 @@ export function ExamForm({
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
+  const lang = useLang();
+  const tr = useT();
   const [state, formAction, pending] = useActionState<ExamFormState, FormData>(
     exam ? updateExam : createExam,
     {},
@@ -64,19 +67,19 @@ export function ExamForm({
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block space-y-1">
-          <span className="text-sm text-muted">ชนิดสอบ</span>
+          <span className="text-sm text-muted">{tr("exam.type")}</span>
           <select name="exam_type" defaultValue={v.exam_type} className={inputClass}>
             {EXAM_TYPES.map((t) => (
               <option key={t} value={t}>
-                {EXAM_TYPE_LABEL[t]}
+                {examTypeLabel(t, lang)}
               </option>
             ))}
           </select>
         </label>
         <label className="block space-y-1">
-          <span className="text-sm text-muted">วิชา</span>
+          <span className="text-sm text-muted">{tr("exam.course")}</span>
           <select name="course_id" defaultValue={v.course_id} className={inputClass}>
-            <option value="">— ไม่ระบุ —</option>
+            <option value="">{tr("exam.unspecified")}</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.code ? `${c.code} ${c.name}` : c.name}
@@ -87,18 +90,18 @@ export function ExamForm({
       </div>
 
       <label className="block space-y-1">
-        <span className="text-sm text-muted">ชื่อ (ไม่ใส่ก็ได้)</span>
+        <span className="text-sm text-muted">{tr("exam.name")}</span>
         <input
           name="title"
           maxLength={300}
           defaultValue={v.title}
-          placeholder="ตั้งให้อัตโนมัติ เช่น สอบกลางภาค 204383"
+          placeholder={tr("exam.namePlaceholder")}
           className={inputClass}
         />
       </label>
 
       <label className="block space-y-1">
-        <span className="text-sm text-muted">วันสอบ</span>
+        <span className="text-sm text-muted">{tr("exam.date")}</span>
         <input
           type="date"
           name="date"
@@ -109,7 +112,7 @@ export function ExamForm({
       </label>
       <div className="grid grid-cols-2 gap-3">
         <label className="block space-y-1">
-          <span className="text-sm text-muted">เวลาเริ่ม</span>
+          <span className="text-sm text-muted">{tr("exam.startTime")}</span>
           <input
             type="time"
             name="start_time"
@@ -119,42 +122,43 @@ export function ExamForm({
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm text-muted">เวลาจบ</span>
+          <span className="text-sm text-muted">{tr("exam.endTime")}</span>
           <input type="time" name="end_time" defaultValue={v.end_time} className={inputClass} />
         </label>
       </div>
       <p className="text-xs text-muted">
-        ยังไม่ประกาศวันหรือเวลา เว้นว่างไว้ได้ แล้วค่อยกลับมาเติม
+        {tr("exam.dateHint")}
       </p>
 
       <label className="block space-y-1">
-        <span className="text-sm text-muted">สถานที่</span>
+        <span className="text-sm text-muted">{tr("exam.location.label")}</span>
         <input
           name="location"
           maxLength={300}
           defaultValue={v.location}
           autoFocus={focus === "location"}
-          placeholder="เช่น ห้อง 301 ตึก SCB1"
+          placeholder={tr("exam.locationPlaceholder")}
           className={inputClass}
         />
       </label>
 
       <label className="block space-y-1">
-        <span className="text-sm text-muted">หมายเหตุ</span>
+        <span className="text-sm text-muted">{tr("exam.notes")}</span>
         <textarea
           name="notes"
           rows={2}
           maxLength={2000}
           defaultValue={v.notes}
-          placeholder="เช่น ขอบเขต บทที่ 1–5, ให้นำเครื่องคิดเลขได้"
+          placeholder={tr("exam.notesPlaceholder")}
           className={inputClass}
         />
       </label>
 
       {state.duplicate && !isCancelled && (
         <ConfirmBox
-          message={<>มี “{state.duplicate}” อยู่แล้ว — ยังจะเพิ่มอีกไหม?</>}
-          actions={[{ intent: "add_anyway", label: "เพิ่มต่อ" }]}
+          message={tr("exam.duplicate", { title: state.duplicate })}
+          actions={[{ intent: "add_anyway", label: tr("exam.addAnyway") }]}
+          cancelLabel={tr("exam.dontAdd")}
           onCancel={() => {
             setCancelled(state);
             setFormKey((k) => k + 1);
@@ -174,7 +178,7 @@ export function ExamForm({
           disabled={pending}
           className="flex-1 rounded-card bg-accent px-4 py-2.5 font-medium text-white disabled:opacity-60"
         >
-          {pending ? "กำลังบันทึก…" : exam ? "บันทึกการแก้ไข" : "เพิ่มสอบ"}
+          {pending ? tr("exam.saving") : exam ? tr("exam.saveEdit") : tr("exam.add")}
         </button>
         {onCancel && (
           <button
@@ -182,7 +186,7 @@ export function ExamForm({
             onClick={onCancel}
             className="rounded-card border border-line px-4 py-2.5"
           >
-            ยกเลิก
+            {tr("exam.cancel")}
           </button>
         )}
       </div>

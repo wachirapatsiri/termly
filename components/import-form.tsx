@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import { useYearMode } from "@/components/year-mode";
+import { useLang, useT } from "@/components/lang";
+import type { Lang } from "@/lib/i18n";
 import { formatDue, toDueAt } from "@/lib/dates";
 import { MAX_IMAGES, MAX_TEXT_LENGTH, MAX_UPLOAD_BYTES } from "@/lib/ai/limits";
 import { usageBlock, type AiUsage } from "@/lib/ai/usage";
@@ -17,7 +19,7 @@ import {
 import { courseKey } from "@/lib/ai/normalize";
 import {
   EXAM_TYPES,
-  EXAM_TYPE_LABEL,
+  examTypeLabel,
   buildExamTimes,
   examsOverlap,
   formatExamTime,
@@ -50,10 +52,12 @@ type Picked = { id: number; file: File; kind: "pdf" | "image"; preview: string |
 
 const isPdf = (f: File) => f.type === "application/pdf" || /\.pdf$/i.test(f.name);
 const isImage = (f: File) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name);
-const formatBytes = (n: number) =>
-  n < 1024 * 1024
-    ? `${Math.max(1, Math.round(n / 1024)).toLocaleString("th-TH")} KB`
-    : `${(n / 1024 / 1024).toLocaleString("th-TH", { maximumFractionDigits: 1 })} MB`;
+const formatBytes = (n: number, lang: Lang) => {
+  const loc = lang === "en" ? "en-US" : "th-TH";
+  return n < 1024 * 1024
+    ? `${Math.max(1, Math.round(n / 1024)).toLocaleString(loc)} KB`
+    : `${(n / 1024 / 1024).toLocaleString(loc, { maximumFractionDigits: 1 })} MB`;
+};
 let pickedId = 0;
 
 // งาน/สอบที่บันทึกไว้แล้ว (ส่งมาจากหน้า /import) ใช้เตือนรายการซ้ำ + เวลาสอบชน
@@ -150,6 +154,8 @@ export function ImportForm({
   mock: boolean; // โหมดจำลอง = ไม่นับโควตา
   initialUsage: AiUsage | null; // null = โหมดจำลอง หรืออ่านไม่สำเร็จ
 }) {
+  const lang = useLang();
+  const tr = useT();
   const [text, setText] = useState("");
   const [usage, setUsage] = useState(initialUsage);
   const [redacted, setRedacted] = useState({ emails: 0, phones: 0 });
@@ -202,21 +208,21 @@ export function ImportForm({
     setError(null);
     const bad = incoming.find((f) => !isPdf(f) && !isImage(f));
     if (bad) {
-      setError(`ไฟล์ "${bad.name}" ไม่รองรับ ใช้ได้เฉพาะ PDF หรือรูป`);
+      setError(tr("file.unsupported", { name: bad.name }));
       return;
     }
     const pdfs = incoming.filter(isPdf);
     const hasPdf = files.some((f) => f.kind === "pdf");
     if (pdfs.length && (pdfs.length > 1 || incoming.length > 1 || files.length > 0)) {
-      setError("ส่ง PDF ได้ครั้งละ 1 ไฟล์ และไม่ปนกับรูป (เอาไฟล์เดิมออกก่อน)");
+      setError(tr("file.onePdfRemove"));
       return;
     }
     if (hasPdf) {
-      setError("แนบ PDF ไว้แล้ว ส่ง PDF ได้ครั้งละ 1 ไฟล์ และไม่ปนกับรูป");
+      setError(tr("file.pdfAlready"));
       return;
     }
     if (!pdfs.length && files.length + incoming.length > MAX_IMAGES) {
-      setError(`ส่งรูปได้ครั้งละไม่เกิน ${MAX_IMAGES} รูป`);
+      setError(tr("file.maxImages", { n: MAX_IMAGES }));
       return;
     }
 
@@ -232,7 +238,7 @@ export function ImportForm({
           const small = await prepareImage(f);
           added.push({ id: ++pickedId, file: small, kind: "image", preview: URL.createObjectURL(small) });
         } catch {
-          setError(`เปิดรูป "${f.name}" ไม่ได้ ลองแคปหน้าจอใหม่ หรือบันทึกเป็น JPG/PNG`);
+          setError(tr("file.cantOpenImage", { name: f.name }));
           added.forEach((a) => a.preview && URL.revokeObjectURL(a.preview));
           return;
         }
@@ -241,7 +247,10 @@ export function ImportForm({
       if (total > MAX_UPLOAD_BYTES) {
         added.forEach((a) => a.preview && URL.revokeObjectURL(a.preview));
         setError(
-          `ไฟล์ใหญ่เกินไป (${formatBytes(total)}) รวมกันได้ไม่เกิน ${formatBytes(MAX_UPLOAD_BYTES)} — ลองแคปเฉพาะหน้าที่มีกำหนดส่ง หรือบีบอัด PDF ก่อน`,
+          tr("file.tooBig", {
+            size: formatBytes(total, lang),
+            max: formatBytes(MAX_UPLOAD_BYTES, lang),
+          }),
         );
         return;
       }
@@ -300,7 +309,7 @@ export function ImportForm({
       const res = await fetch("/api/extract", { method: "POST", headers, body });
       const data = (await res.json().catch(() => null)) as ExtractResponse | null;
       if (data?.usage) setUsage(data.usage);
-      if (!data) setError("เซิร์ฟเวอร์ตอบกลับผิดพลาด ลองใหม่อีกครั้ง");
+      if (!data) setError(tr("imp.badResponse"));
       else if (!data.ok) setError(data.error);
       else {
         setRows(toRows(data.tasks, existing));
@@ -313,7 +322,7 @@ export function ImportForm({
         });
       }
     } catch {
-      setError("เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่");
+      setError(tr("imp.networkError"));
     } finally {
       setPending(false);
     }
@@ -333,11 +342,11 @@ export function ImportForm({
     if (!rows) return;
     const selected = rows.filter((r) => r.checked);
     if (selected.some((r) => !r.title.trim())) {
-      setError("มีรายการที่ยังไม่มีชื่อ ใส่ชื่อก่อนบันทึก");
+      setError(tr("imp.needTitle"));
       return;
     }
     if (selected.some((r) => r.typeChoice === NEW_TYPE && !r.customCategory.trim())) {
-      setError("พิมพ์ชื่อประเภทงานใหม่ให้ครบก่อนบันทึก");
+      setError(tr("imp.needCategory"));
       return;
     }
     setError(null);
@@ -428,11 +437,7 @@ export function ImportForm({
           onChange={(e) => setText(e.target.value)}
           onPaste={onPaste}
           rows={files.length ? 3 : 10}
-          placeholder={
-            files.length
-              ? "พิมพ์อธิบายเพิ่มได้ (ไม่บังคับ) เช่น นี่คือวิชา 204383"
-              : "วางข้อความ เช่น\n204383 Image Processing\nการบ้าน 2 Due: Fri, 3 Jul 2026 12:30\nสอบกลางภาค วันศุกร์ที่ 28 สิงหาคม พ.ศ. 2569 เวลา 8:00 – 11:00 น.\n\nหรือแนบ PDF / รูปแคปหน้าจอด้านล่าง"
-          }
+          placeholder={files.length ? tr("imp.placeholderFiles") : tr("imp.placeholder")}
           className={`w-full rounded-card border bg-surface px-3 py-2 text-base outline-none focus:border-accent ${
             dragging ? "border-accent" : "border-line"
           }`}
@@ -467,13 +472,13 @@ export function ImportForm({
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{f.file.name}</span>
-                    <span className="text-xs text-muted">{formatBytes(f.file.size)}</span>
+                    <span className="text-xs text-muted">{formatBytes(f.file.size, lang)}</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => removeFile(f.id)}
                     disabled={pending}
-                    aria-label={`เอา ${f.file.name} ออก`}
+                    aria-label={tr("imp.removeFileAria", { name: f.file.name })}
                     className="px-2 text-muted hover:text-foreground"
                   >
                     ✕
@@ -489,17 +494,18 @@ export function ImportForm({
               disabled={pending || preparing || files.some((f) => f.kind === "pdf") || files.length >= MAX_IMAGES}
               className="rounded-card border border-line bg-surface px-3 py-1.5 text-sm disabled:opacity-50"
             >
-              {preparing ? "กำลังเตรียมรูป…" : files.length ? "เพิ่มรูป" : "แนบ PDF / รูป"}
+              {preparing ? tr("imp.preparing") : files.length ? tr("imp.addMore") : tr("imp.attach")}
             </button>
             <span className="text-xs text-muted">
-              PDF 1 ไฟล์ หรือรูปไม่เกิน {MAX_IMAGES} รูป รวมไม่เกิน {formatBytes(MAX_UPLOAD_BYTES)}
+              {tr("imp.fileLimits", { n: MAX_IMAGES, max: formatBytes(MAX_UPLOAD_BYTES, lang) })}
             </span>
           </div>
         </div>
 
         <div className="flex items-center justify-between gap-3">
           <span className={`text-xs ${tooLong ? "text-danger" : "text-muted"}`}>
-            {text.length.toLocaleString("th-TH")} / {MAX_TEXT_LENGTH.toLocaleString("th-TH")}
+            {text.length.toLocaleString(lang === "en" ? "en-US" : "th-TH")} /{" "}
+            {MAX_TEXT_LENGTH.toLocaleString(lang === "en" ? "en-US" : "th-TH")}
           </span>
           <button
             type="submit"
@@ -507,16 +513,14 @@ export function ImportForm({
             className="rounded-card bg-accent px-4 py-2 text-sm text-white disabled:opacity-50"
           >
             {pending
-              ? `${files.length ? "AI กำลังอ่านไฟล์…" : "AI กำลังอ่าน…"}${elapsed > 0 ? ` ${elapsed} วิ` : ""}`
-              : "ให้ AI ดึงงาน"}
+              ? `${files.length ? tr("imp.readingFile") : tr("imp.reading")}${elapsed > 0 ? tr("imp.seconds", { n: elapsed }) : ""}`
+              : tr("imp.extract")}
           </button>
         </div>
         <UsageLine usage={usage} mock={mockMode} />
         {pending && (
           <p role="status" className="text-sm text-muted">
-            {elapsed < 20
-              ? "AI กำลังอ่านเอกสาร ปกติใช้ 5–20 วินาที (ซิลลาบัสยาวหรือไฟล์อาจนานกว่านี้) อย่าเพิ่งปิดหน้านี้นะ"
-              : "ยังทำงานอยู่ — ช่วงนี้ AI คนใช้เยอะ อาจใช้ถึง 1 นาที"}
+            {elapsed < 20 ? tr("imp.waitShort") : tr("imp.waitLong")}
           </p>
         )}
       </form>
@@ -524,11 +528,8 @@ export function ImportForm({
       <div className="space-y-8">
       {!error && !saved && !rows && (
         <div className="hidden rounded-card border border-dashed border-line p-6 text-sm text-muted lg:block">
-          <p className="font-medium text-foreground">ผลจาก AI จะขึ้นตรงนี้</p>
-          <p className="mt-1">
-            วางข้อความหรือแนบไฟล์ทางซ้าย แล้วกด &quot;ให้ AI ดึงงาน&quot; — จะได้รายการงานและวันสอบมาให้ตรวจ
-            แก้ แล้วติ๊กเลือกก่อนบันทึก
-          </p>
+          <p className="font-medium text-foreground">{tr("imp.resultHereTitle")}</p>
+          <p className="mt-1">{tr("imp.resultHereBody")}</p>
         </div>
       )}
 
@@ -541,28 +542,29 @@ export function ImportForm({
       {saved && (
         <div className="space-y-1 rounded-card border border-line bg-surface px-4 py-3 text-sm">
           <p>
-            ✓ บันทึก
-            {[
-              saved.tasks > 0 && ` ${saved.tasks} งาน`,
-              saved.exams > 0 && ` ${saved.exams} สอบ`,
-            ]
-              .filter(Boolean)
-              .join(" และ")}{" "}
-            แล้ว
+            {tr("imp.saved", {
+              list: [
+                saved.tasks > 0 && tr("imp.nTasks", { n: saved.tasks }),
+                saved.exams > 0 && tr("imp.nExams", { n: saved.exams }),
+              ]
+                .filter(Boolean)
+                .join(tr("imp.savedAnd")),
+            })}
           </p>
           {(saved.coursesCreated > 0 || saved.categoriesCreated > 0) && (
             <p className="text-muted">
-              เพิ่มใหม่:
+              {tr("imp.addedNew")}
               {[
-                saved.coursesCreated > 0 && ` วิชา ${saved.coursesCreated}`,
-                saved.categoriesCreated > 0 && ` ประเภทงาน ${saved.categoriesCreated}`,
+                saved.coursesCreated > 0 && tr("imp.addedCourses", { n: saved.coursesCreated }),
+                saved.categoriesCreated > 0 &&
+                  tr("imp.addedCategories", { n: saved.categoriesCreated }),
               ]
                 .filter(Boolean)
                 .join(",")}
             </p>
           )}
           <Link href="/tasks" className="text-accent underline">
-            ไปดูรายการงาน
+            {tr("imp.viewTasks")}
           </Link>
         </div>
       )}
@@ -571,28 +573,23 @@ export function ImportForm({
         <section className="space-y-6">
           {(redacted.emails > 0 || redacted.phones > 0) && (
             <p className="text-xs text-muted">
-              ตัด
+              {tr("imp.redactedLead")}
               {[
-                redacted.emails > 0 && ` อีเมล ${redacted.emails}`,
-                redacted.phones > 0 && ` เบอร์โทร ${redacted.phones}`,
+                redacted.emails > 0 && tr("imp.redactedEmails", { n: redacted.emails }),
+                redacted.phones > 0 && tr("imp.redactedPhones", { n: redacted.phones }),
               ]
                 .filter(Boolean)
                 .join(",")}{" "}
-              ออกจากข้อความก่อนส่งให้ AI แล้ว
+              {tr("imp.redactedTail")}
             </p>
           )}
           {mock.on && (
             <div className="space-y-1 rounded-card border border-line bg-surface px-3 py-2 text-sm text-muted">
-              {mock.reason && <p className="text-xs">สาเหตุ: {mock.reason}</p>}
-              {mock.files && (
-                <p>
-                  โหมดจำลองยังอ่านไฟล์จริงไม่ได้ (ยังไม่ได้เชื่อม AI) — รายการด้านล่างเป็นตัวอย่าง
-                  ไม่ได้มาจากไฟล์ที่แนบ
-                </p>
-              )}
+              {mock.reason && <p className="text-xs">{tr("imp.mockReason", { reason: mock.reason })}</p>}
+              {mock.files && <p>{tr("imp.mockFiles")}</p>}
               {mock.files && !mock.sources.length ? null : mock.sources.length ? (
                 <>
-                  <p>โหมดจำลอง: ใช้คำตอบที่เตรียมไว้สำหรับ</p>
+                  <p>{tr("imp.mockSources")}</p>
                   <ul className="list-disc pl-5">
                     {mock.sources.map((s) => (
                       <li key={s}>{s}</li>
@@ -600,43 +597,41 @@ export function ImportForm({
                   </ul>
                 </>
               ) : (
-                <p>
-                  โหมดจำลอง: ยังไม่ได้เชื่อม AI จริง และข้อความนี้ไม่ตรงกับเอกสารตัวอย่าง
-                  รายการด้านล่างเป็นตัวอย่างทั่วไป
-                </p>
+                <p>{tr("imp.mockGeneric")}</p>
               )}
             </div>
           )}
 
           {rows.length === 0 ? (
-            <h2 className="text-sm text-muted">ไม่มีงานหรือวันสอบเหลือให้บันทึก</h2>
+            <h2 className="text-sm text-muted">{tr("imp.nothingLeft")}</h2>
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-muted">
-                {exams.length > 0 && `${exams.length} สอบ`}
-                {exams.length > 0 && tasks.length > 0 && " และ "}
-                {tasks.length > 0 && `${tasks.length} งาน`} — ตรวจ แก้ แล้วติ๊กรายการที่จะบันทึก
+                {exams.length > 0 && tr("imp.countExams", { n: exams.length })}
+                {exams.length > 0 && tasks.length > 0 && tr("imp.summaryAnd")}
+                {tasks.length > 0 && tr("imp.selectedTasks", { n: tasks.length })}
+                {tr("imp.summaryTail")}
               </p>
               <button
                 type="button"
                 onClick={() => checkAll(!allChecked)}
                 className="text-sm text-accent"
               >
-                {allChecked ? "ไม่ติ๊กทั้งหมด" : "ติ๊กทั้งหมด"}
+                {allChecked ? tr("imp.untickAll") : tr("imp.tickAll")}
               </button>
             </div>
           )}
 
           {exams.length > 0 && (
             <div className="space-y-2">
-              <h2 className="font-medium">ตารางสอบ</h2>
+              <h2 className="font-medium">{tr("imp.examSchedule")}</h2>
               <ul className="space-y-2">{exams.map(renderCard)}</ul>
             </div>
           )}
 
           {tasks.length > 0 && (
             <div className="space-y-2">
-              <h2 className="font-medium">งาน</h2>
+              <h2 className="font-medium">{tr("imp.tasksHeading")}</h2>
               <ul className="space-y-2">{tasks.map(renderCard)}</ul>
             </div>
           )}
@@ -644,8 +639,9 @@ export function ImportForm({
           {rows.length > 0 && (
             <div className="sticky bottom-4 flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3">
               <span className="text-sm text-muted">
-                เลือก {checkedExams > 0 && `${checkedExams} สอบ · `}
-                {checkedTasks} งาน
+                {tr("imp.selected")}{" "}
+                {checkedExams > 0 && tr("imp.selectedExams", { n: checkedExams })}
+                {tr("imp.selectedTasks", { n: checkedTasks })}
               </span>
               <button
                 type="button"
@@ -653,7 +649,7 @@ export function ImportForm({
                 disabled={saving || checkedExams + checkedTasks === 0}
                 className="rounded-card bg-accent px-4 py-2 text-sm text-white disabled:opacity-50"
               >
-                {saving ? "กำลังบันทึก…" : "บันทึกที่เลือก"}
+                {saving ? tr("imp.saving") : tr("imp.saveSelected")}
               </button>
             </div>
           )}
@@ -693,6 +689,8 @@ function ExtractedCard({
   onRemove: () => void;
 }) {
   const yearMode = useYearMode();
+  const lang = useLang();
+  const tr = useT();
   const [editing, setEditing] = useState(false);
   const low = row.confidence === "low";
   const exam = isExamRow(row);
@@ -722,7 +720,7 @@ function ExtractedCard({
       {editing && (
         <div className="space-y-2 rounded-card border border-accent/40 bg-surface p-3">
           <label className="block space-y-1">
-            <span className="text-xs text-muted">ชื่อ</span>
+            <span className="text-xs text-muted">{tr("imp.fieldTitle")}</span>
             <input
               value={row.title}
               onChange={(e) => onChange({ title: e.target.value, edited: true })}
@@ -731,7 +729,7 @@ function ExtractedCard({
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-xs text-muted">{exam ? "วันสอบ" : "วันส่ง"}</span>
+            <span className="text-xs text-muted">{exam ? tr("imp.fieldExamDate") : tr("imp.fieldDueDate")}</span>
             <input
               type="date"
               value={row.due_date ?? ""}
@@ -747,7 +745,7 @@ function ExtractedCard({
           </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block space-y-1">
-              <span className="text-xs text-muted">{exam ? "เวลาเริ่ม" : "เวลาส่ง"}</span>
+              <span className="text-xs text-muted">{exam ? tr("imp.fieldStart") : tr("imp.fieldDueTime")}</span>
               <input
                 type="time"
                 value={row.due_time ?? ""}
@@ -758,7 +756,7 @@ function ExtractedCard({
             </label>
             {exam && (
               <label className="block space-y-1">
-                <span className="text-xs text-muted">เวลาจบ</span>
+                <span className="text-xs text-muted">{tr("imp.fieldEnd")}</span>
                 <input
                   type="time"
                   value={row.end_time ?? ""}
@@ -771,7 +769,7 @@ function ExtractedCard({
           </div>
           {exam && (
             <label className="block space-y-1">
-              <span className="text-xs text-muted">สถานที่</span>
+              <span className="text-xs text-muted">{tr("imp.fieldLocation")}</span>
               <input
                 value={row.location ?? ""}
                 onChange={(e) => onChange({ location: e.target.value || null, edited: true })}
@@ -781,7 +779,7 @@ function ExtractedCard({
             </label>
           )}
           <label className="block space-y-1">
-            <span className="text-xs text-muted">หมายเหตุ</span>
+            <span className="text-xs text-muted">{tr("imp.fieldNotes")}</span>
             <textarea
               value={row.note ?? ""}
               onChange={(e) => onChange({ note: e.target.value || null, edited: true })}
@@ -795,7 +793,7 @@ function ExtractedCard({
             onClick={() => setEditing(false)}
             className="w-full rounded-card bg-accent px-3 py-2 text-sm text-white"
           >
-            เสร็จ
+            {tr("imp.done")}
           </button>
         </div>
       )}
@@ -809,31 +807,39 @@ function ExtractedCard({
         />
         <span className="space-y-1">
           <span className="block font-medium break-words">
-            {row.title || <Missing>ยังไม่มีชื่อ</Missing>}
+            {row.title || <Missing>{tr("imp.noTitle")}</Missing>}
           </span>
           {exam ? (
             <span className="block space-y-0.5 text-sm">
               <span className="block">
-                {dayIso ? formatDue(dayIso, false, yearMode) : <Missing>ไม่ระบุวันสอบ</Missing>}
-                {row.confidence === "medium" && <span className="text-muted"> · ควรตรวจ</span>}
+                {dayIso ? (
+                  formatDue(dayIso, false, yearMode, lang)
+                ) : (
+                  <Missing>{tr("imp.noExamDate")}</Missing>
+                )}
+                {row.confidence === "medium" && <span className="text-muted">{tr("imp.checkThis")}</span>}
               </span>
               {dayIso && (
                 <span className="block">
                   {row.due_time ? (
-                    `${row.due_time}${row.end_time && !badEnd ? `–${row.end_time}` : ""} น.`
+                    `${row.due_time}${row.end_time && !badEnd ? `–${row.end_time}` : ""}${lang === "th" ? " น." : ""}`
                   ) : (
-                    <Missing>ไม่ระบุเวลา</Missing>
+                    <Missing>{tr("imp.noTime")}</Missing>
                   )}
                 </span>
               )}
               <span className="block">
-                {row.location ? `สถานที่ ${row.location}` : <Missing>ไม่ระบุสถานที่</Missing>}
+                {row.location ? (
+                  tr("imp.location", { place: row.location })
+                ) : (
+                  <Missing>{tr("imp.noLocation")}</Missing>
+                )}
               </span>
             </span>
           ) : (
             <span className="block text-sm">
-              {dueIso ? formatDue(dueIso, Boolean(row.due_time), yearMode) : "ยังไม่กำหนดวันส่ง"}
-              {row.confidence === "medium" && <span className="text-muted"> · ควรตรวจ</span>}
+              {dueIso ? formatDue(dueIso, Boolean(row.due_time), yearMode, lang) : tr("imp.noDue")}
+              {row.confidence === "medium" && <span className="text-muted">{tr("imp.checkThis")}</span>}
             </span>
           )}
         </span>
@@ -844,23 +850,23 @@ function ExtractedCard({
           <select
             value={row.typeChoice}
             onChange={(e) => onChange({ typeChoice: e.target.value })}
-            aria-label="ประเภท"
+            aria-label={tr("imp.typeAria")}
             className="w-full rounded-card border border-line bg-surface px-2 py-1.5 text-sm"
           >
-            <optgroup label="สอบ">
+            <optgroup label={tr("imp.groupExam")}>
               {EXAM_TYPES.map((t) => (
                 <option key={t} value={`exam:${t}`}>
-                  {EXAM_TYPE_LABEL[t]}
+                  {examTypeLabel(t, lang)}
                 </option>
               ))}
             </optgroup>
-            <optgroup label="งาน">
+            <optgroup label={tr("imp.groupTask")}>
               {categoryNames.map((n) => (
                 <option key={n} value={`cat:${n}`}>
                   {n}
                 </option>
               ))}
-              <option value={NEW_TYPE}>+ พิมพ์ประเภทใหม่…</option>
+              <option value={NEW_TYPE}>{tr("imp.newCategory")}</option>
             </optgroup>
           </select>
           {row.typeChoice === NEW_TYPE && (
@@ -868,20 +874,20 @@ function ExtractedCard({
               value={row.customCategory}
               onChange={(e) => onChange({ customCategory: e.target.value })}
               maxLength={30}
-              placeholder="ชื่อประเภท เช่น Workshop"
-              aria-label="ชื่อประเภทใหม่"
+              placeholder={tr("imp.newCategoryPlaceholder")}
+              aria-label={tr("imp.newCategoryAria")}
               className="w-full rounded-card border border-line bg-surface px-2 py-1.5 text-base outline-none focus:border-accent"
             />
           )}
           <select
             value={row.courseChoice}
             onChange={(e) => onChange({ courseChoice: e.target.value })}
-            aria-label="วิชา"
+            aria-label={tr("imp.courseAria")}
             className="w-full rounded-card border border-line bg-surface px-2 py-1.5 text-sm"
           >
-            <option value="">ไม่ระบุวิชา</option>
+            <option value="">{tr("imp.noCourse")}</option>
             {canCreate && !row.course_id && (
-              <option value="new">+ เพิ่มวิชาใหม่: {newCourseLabel(row)}</option>
+              <option value="new">{tr("imp.addNewCourse", { label: newCourseLabel(row) })}</option>
             )}
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
@@ -891,7 +897,7 @@ function ExtractedCard({
           </select>
         </div>
         {row.raw_date_text && (
-          <p className="text-xs text-muted">ต้นฉบับ: “{row.raw_date_text}”</p>
+          <p className="text-xs text-muted">{tr("imp.original", { text: row.raw_date_text })}</p>
         )}
         {row.note && <p className="text-xs text-muted">{row.note}</p>}
         {row.warnings.map((w) => (
@@ -899,34 +905,36 @@ function ExtractedCard({
             {w}
           </p>
         ))}
-        {badEnd && <p className="text-xs text-warn">เวลาจบต้องหลังเวลาเริ่ม (จะไม่บันทึกเวลาจบ)</p>}
+        {badEnd && <p className="text-xs text-warn">{tr("imp.badEnd")}</p>}
         {dupExisting && (
           <p className="text-xs text-warn">
-            อาจซ้ำกับ{dupExisting.kind === "exam" ? "สอบ" : "งาน"}ที่บันทึกไว้แล้ว: “{dupExisting.title}”
+            {tr("imp.dupExisting", {
+              kind: tr(dupExisting.kind === "exam" ? "imp.kindExam" : "imp.kindTask"),
+              title: dupExisting.title,
+            })}
           </p>
         )}
-        {dupBatch && <p className="text-xs text-warn">ซ้ำกับรายการอื่นในชุดนี้</p>}
+        {dupBatch && <p className="text-xs text-warn">{tr("imp.dupBatch")}</p>}
         {overlaps.length > 0 && (
-          <p className="text-xs text-danger">เวลาชนกับ {overlaps.join(", ")}</p>
+          <p className="text-xs text-danger">{tr("exam.overlapWith", { list: overlaps.join(", ") })}</p>
         )}
         {similarCourse && (
           <p className="text-xs text-warn">
-            มีวิชา “{courseLabel(similarCourse, "both")}” อยู่แล้ว — ถ้าเป็นวิชาเดียวกัน
-            เลือกจากช่องวิชาแทนการเพิ่มใหม่
+            {tr("imp.similarCourse", { label: courseLabel(similarCourse, "both") })}
           </p>
         )}
         {low && !row.checked && (
-          <p className="text-xs text-warn">ตรวจกับต้นฉบับแล้วติ๊กเพื่อยืนยัน</p>
+          <p className="text-xs text-warn">{tr("imp.confirmHint")}</p>
         )}
-        {row.edited && <p className="text-xs text-muted">แก้ไขแล้ว</p>}
+        {row.edited && <p className="text-xs text-muted">{tr("imp.edited")}</p>}
 
         {!editing && (
           <div className="flex gap-4 pt-1 text-sm">
             <button type="button" onClick={() => setEditing(true)} className="text-accent">
-              แก้ไข
+              {tr("imp.edit")}
             </button>
             <button type="button" onClick={onRemove} className="text-danger">
-              เอาออก
+              {tr("imp.remove")}
             </button>
           </div>
         )}
@@ -937,18 +945,19 @@ function ExtractedCard({
 
 // "วันนี้ใช้ AI ไปแล้ว X/10 ครั้ง" ใต้ปุ่มส่ง — ครั้งที่ไม่สำเร็จไม่นับ (ผู้ใช้เลือก 9 พ.ย.)
 function UsageLine({ usage, mock }: { usage: AiUsage | null; mock: boolean }) {
-  if (mock) return <p className="text-xs text-muted">โหมดจำลอง — ไม่นับโควตา AI</p>;
+  const tr = useT();
+  if (mock) return <p className="text-xs text-muted">{tr("imp.mockUsage")}</p>;
   if (!usage) return null;
   const block = usageBlock(usage);
   const left = Math.max(usage.limit - usage.used, 0);
   return (
     <p className={`text-xs ${block ? "text-danger" : left <= 2 ? "text-warn" : "text-muted"}`}>
-      วันนี้ใช้ AI ไปแล้ว {usage.used}/{usage.limit} ครั้ง
+      {tr("imp.usage", { used: usage.used, limit: usage.limit })}
       {block === "quota"
-        ? " — ครบแล้ว ใช้ได้ใหม่หลังเที่ยงคืน"
+        ? tr("imp.usageQuota")
         : block === "attempts"
-          ? " — ลองไม่สำเร็จหลายครั้งเกินไป ใช้ได้ใหม่หลังเที่ยงคืน"
-          : ` (เหลือ ${left} · ครั้งที่ไม่สำเร็จไม่นับ)`}
+          ? tr("imp.usageAttempts")
+          : tr("imp.usageLeft", { left })}
     </p>
   );
 }

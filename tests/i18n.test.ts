@@ -57,3 +57,64 @@ test("i18n: ฟังก์ชันวันที่/สัปดาห์/น
   assert.equal(formatExamTime(e, "en"), "14:30–16:30");
   assert.equal(formatExamTime(e), "14:30–16:30 น.");
 });
+
+test("i18n: buildExamTimes error + ชื่อสีวิชา รองรับ en", async () => {
+  const { buildExamTimes } = await import("../lib/exams.ts");
+  const { courseColorName } = await import("../lib/course-color.ts");
+  const r = buildExamTimes("2026-12-01", "12:00", "09:00", "en");
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.error, "End time must be after the start time");
+  const th = buildExamTimes("2026-12-01", "12:00", "09:00");
+  assert.equal(!th.ok && th.error, "เวลาจบต้องหลังเวลาเริ่ม");
+  assert.equal(courseColorName(0, "en"), "Blue");
+  assert.equal(courseColorName(0), "น้ำเงิน");
+});
+
+test("i18n: คำเตือนของ AI / ตรวจไฟล์ / AiError / เวลารีเซ็ต รองรับ en", async () => {
+  const { normalizeTasks } = await import("../lib/ai/normalize.ts");
+  const { checkUploads } = await import("../lib/ai/files.ts");
+  const { aiError } = await import("../lib/ai/errors.ts");
+  const { untilBangkokMidnight } = await import("../lib/dates.ts");
+  const task = {
+    title: "HW1", kind: "homework" as const, course_code: null, course_name: null,
+    due_date: "2026-02-30", due_time: null, end_time: null, location: null,
+    due_date_confidence: "high" as const, raw_date_text: null, note: null,
+  };
+  const [en] = normalizeTasks([task], [], "2026-11-17", "en");
+  assert.ok(en.warnings.some((w) => /doesn't exist/.test(w)));
+  assert.ok(!en.warnings.some((w) => /[฀-๿]/.test(w)));
+  const [th] = normalizeTasks([task], [], "2026-11-17");
+  assert.ok(th.warnings.some((w) => /ไม่มีอยู่จริง/.test(w)));
+  // ไม่มีวัน → "The due date is unknown"
+  const [none] = normalizeTasks([{ ...task, due_date: null }], [], "2026-11-17", "en");
+  assert.equal(none.warnings[0], "The due date is unknown");
+  // ไฟล์
+  const bad = checkUploads([{ name: "a.txt", bytes: new Uint8Array([1, 2, 3]) }], "en");
+  assert.equal(!bad.ok && bad.error, 'File "a.txt" isn\'t supported — use a PDF or an image (JPG, PNG, WEBP)');
+  // AiError: message ไทย + key สำหรับแปล
+  const e = aiError("ai.gQuota", true);
+  assert.match(e.message, /โควตา/);
+  assert.equal(t("en", e.key!, e.vars), "The free AI quota is temporarily full. Wait a minute and try again (or try tomorrow).");
+  assert.match(untilBangkokMidnight(new Date("2026-11-17T10:00:00Z"), "en"), /^\d+ h( \d+ min)?$|^\d+ min$/);
+});
+
+test("i18n: แพ็กเกจ / คำยืนยันลบ / ไฟล์ปฏิทิน รองรับ en", async () => {
+  const { planFeatures } = await import("../lib/plans.ts");
+  const { isDeleteWord } = await import("../lib/account.ts");
+  const { taskToIcs, examToIcs } = await import("../lib/ics.ts");
+  const rows = planFeatures("en");
+  assert.equal(rows[2].free, "5/day");
+  assert.ok(rows.every((r) => !/[฀-๿]/.test(r.label)));
+  assert.equal(planFeatures()[2].free, "5 ครั้ง/วัน");
+  assert.ok(isDeleteWord("ลบ") && isDeleteWord(" delete ") && isDeleteWord("DELETE"));
+  assert.ok(!isDeleteWord("del") && !isDeleteWord(""));
+  const task = {
+    id: "1", title: "HW", due_at: "2026-12-01T05:00:00.000Z", due_has_time: false, notes: null, done: true,
+  };
+  const en = taskToIcs(task, { courseName: "Stats", lang: "en" })!;
+  assert.equal(en.description, "✅ Done\nCourse: Stats\nDue today (no time given)\nFrom Termly");
+  const th = taskToIcs(task, { courseName: "สถิติ" })!;
+  assert.match(th.description ?? "", /วิชา: สถิติ/);
+  const exam = { id: "2", starts_at: "2026-12-01T05:00:00.000Z", ends_at: null, has_time: true, location: null, notes: null };
+  assert.match(examToIcs(exam, { label: "Midterm", lang: "en" })!.description ?? "", /End time not set/);
+});

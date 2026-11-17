@@ -3,27 +3,14 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { deleteMyAccount, deleteMyData } from "@/app/settings/actions";
-import { DELETE_CONFIRM_WORD } from "@/lib/account";
+import { isDeleteWord } from "@/lib/account";
+import { useT } from "@/components/lang";
 
 type Mode = "data" | "account";
 
-const COPY: Record<Mode, { button: string; title: string; body: string; confirm: string }> = {
-  data: {
-    button: "ลบข้อมูลทั้งหมด (เก็บบัญชีไว้)",
-    title: "ลบข้อมูลทั้งหมด?",
-    body: "งาน สอบ วิชา ประเภทงานที่เพิ่มเอง และการตั้งค่าจะหายทั้งหมด กู้คืนไม่ได้ — ยังล็อกอินบัญชีเดิมได้และเริ่มใหม่จากศูนย์",
-    confirm: "ลบข้อมูลทั้งหมด",
-  },
-  account: {
-    button: "ลบบัญชีถาวร",
-    title: "ลบบัญชีถาวร?",
-    body: "บัญชีและข้อมูลทุกอย่างจะหาย กู้คืนไม่ได้ แล้วจะออกจากระบบทันที (ความเห็นที่เคยส่งยังเก็บไว้แบบไม่ระบุตัวตน)",
-    confirm: "ลบบัญชีถาวร",
-  },
-};
-
 // ส่วน "ลบข้อมูล / ลบบัญชี" ท้ายหน้า ⚙ — ต้องพิมพ์คำว่า "ลบ" ก่อนกดได้
 export function DeleteAccount() {
+  const tr = useT();
   const [mode, setMode] = useState<Mode | null>(null);
   const [word, setWord] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -51,21 +38,28 @@ export function DeleteAccount() {
     });
   };
 
-  const c = mode ? COPY[mode] : null;
+  const c = mode
+    ? {
+        button: tr(`del.${mode}.button`),
+        title: tr(`del.${mode}.title`),
+        body: tr(`del.${mode}.body`),
+        confirm: tr(`del.${mode}.confirm`),
+      }
+    : null;
 
   return (
     <section className="space-y-3">
-      <h2 className="font-medium">ข้อมูลของฉัน</h2>
+      <h2 className="font-medium">{tr("del.heading")}</h2>
       <p className="text-sm text-muted">
-        ดูว่าเก็บข้อมูลอะไรบ้างได้ที่{" "}
+        {tr("del.seeWhat")}{" "}
         <Link href="/privacy" className="text-accent underline">
-          ข้อมูลและความเป็นส่วนตัว
+          {tr("home.privacyLink")}
         </Link>
       </p>
 
       {done && (
         <p role="status" className="rounded-card border border-line bg-surface p-3 text-sm">
-          ลบข้อมูลทั้งหมดแล้ว
+          {tr("del.done")}
         </p>
       )}
 
@@ -75,7 +69,7 @@ export function DeleteAccount() {
           <p className="text-sm">{c.body}</p>
           <label className="block space-y-1 text-sm">
             <span>
-              พิมพ์คำว่า <b>{DELETE_CONFIRM_WORD}</b> เพื่อยืนยัน
+              {tr("del.typePre")} <b>{tr("del.word")}</b> {tr("del.typePost")}
             </span>
             <input
               value={word}
@@ -97,15 +91,15 @@ export function DeleteAccount() {
               disabled={pending}
               className="flex-1 rounded-card border border-line bg-surface px-3 py-2.5 text-sm"
             >
-              ยกเลิก
+              {tr("del.cancel")}
             </button>
             <button
               type="button"
               onClick={run}
-              disabled={pending || word.trim() !== DELETE_CONFIRM_WORD}
+              disabled={pending || !isDeleteWord(word)}
               className="flex-1 rounded-card bg-danger-solid px-3 py-2.5 text-sm font-medium text-white transition active:scale-95 disabled:opacity-50"
             >
-              {pending ? "กำลังลบ…" : c.confirm}
+              {pending ? tr("del.deleting") : c.confirm}
             </button>
           </div>
         </div>
@@ -118,7 +112,7 @@ export function DeleteAccount() {
               onClick={() => open(m)}
               className="w-full rounded-card border border-danger-line px-4 py-2.5 text-sm text-danger transition active:scale-95"
             >
-              {COPY[m].button}
+              {tr(`del.${m}.button`)}
             </button>
           ))}
         </div>

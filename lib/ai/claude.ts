@@ -6,7 +6,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { AiResultSchema, type AiTask } from "./schema.ts";
 import { SYSTEM_PROMPT, buildUserMessage } from "./prompt.ts";
 import type { Attachment } from "./files.ts";
-import { AiError } from "./errors.ts";
+import { AiError, aiError } from "./errors.ts";
 
 export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
@@ -52,47 +52,39 @@ export async function extractWithClaude(
     });
 
     if (response.stop_reason === "refusal") {
-      throw new AiError("AI ไม่สามารถอ่านเอกสารนี้ได้ ลองตัดเฉพาะส่วนกำหนดส่งงานมาวาง", false);
+      throw aiError("ai.cantRead", false);
     }
     if (response.stop_reason === "max_tokens") {
-      throw new AiError(
-        files.length
-          ? "เอกสารยาวเกินไป ลองส่งเฉพาะหน้าที่มีกำหนดส่งงานหรือตารางสอบ"
-          : "เอกสารยาวเกินไป ลองแบ่งวางทีละส่วน",
-        false,
-      );
+      throw aiError(files.length ? "ai.tooLongFiles" : "ai.tooLongText", false);
     }
     if (!response.parsed_output) {
-      throw new AiError("AI ตอบกลับผิดรูปแบบ ลองใหม่อีกครั้ง", true);
+      throw aiError("ai.badFormat", true);
     }
     return response.parsed_output.tasks;
   } catch (err) {
     if (err instanceof AiError) throw err;
     if (err instanceof Anthropic.RateLimitError) {
-      throw new AiError("ระบบ AI มีคนใช้เยอะ รอสักครู่แล้วลองใหม่", true);
+      throw aiError("ai.busy", true);
     }
     if (err instanceof Anthropic.AuthenticationError) {
       console.error("extractWithClaude: API key ไม่ถูกต้อง");
-      throw new AiError("ระบบ AI ยังตั้งค่าไม่เรียบร้อย", false);
+      throw aiError("ai.notConfigured", false);
     }
     if (err instanceof Anthropic.BadRequestError && files.length) {
       // เช่น PDF เสีย/ล็อกรหัสผ่าน/หน้าเยอะเกิน หรือรูปเสีย
       console.error("extractWithClaude: file rejected", err.message);
-      throw new AiError(
-        "AI เปิดไฟล์นี้ไม่ได้ (ไฟล์อาจเสีย ล็อกรหัสผ่าน หรือมีหน้าเยอะเกินไป) — ลองแคปหน้าจอเฉพาะส่วนที่มีกำหนดส่งแทน",
-        false,
-      );
+      throw aiError("ai.fileRejected", false);
     }
     if (err instanceof Anthropic.APIConnectionError) {
-      throw new AiError("เชื่อมต่อ AI ไม่ได้ ลองใหม่อีกครั้ง", true);
+      throw aiError("ai.connect", true);
     }
     if (err instanceof Anthropic.APIError) {
       console.error("extractWithClaude", err.status, err.message);
-      throw new AiError("AI มีปัญหาชั่วคราว ลองใหม่อีกครั้ง", true);
+      throw aiError("ai.temporary", true);
     }
     // ข้อมูลจาก AI ไม่ผ่าน Zod หรือ error อื่น
     console.error("extractWithClaude", err);
-    throw new AiError("AI ตอบกลับผิดรูปแบบ ลองใหม่อีกครั้ง", true);
+    throw aiError("ai.badFormat", true);
   }
 }
 

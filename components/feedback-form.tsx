@@ -10,6 +10,9 @@ import {
   PRICE_OPTIONS,
 } from "@/lib/feedback";
 import { PlanTable } from "@/components/plan-table";
+import { useLang, useT } from "@/components/lang";
+import { t } from "@/lib/messages";
+import type { Lang } from "@/lib/i18n";
 import { PRO_FEATURE_OPTIONS } from "@/lib/plans";
 
 const inputClass =
@@ -114,7 +117,26 @@ function Question({ n, title, children }: { n: number; title: string; children: 
 
 const RATINGS = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n}` }));
 
+// ป้ายตัวเลือก: คีย์ตามค่า (value) ของแต่ละกลุ่มตัวเลือก
+function aiAccOptions(lang: Lang) {
+  return AI_ACCURACY_OPTIONS.map((o) => ({ value: o.value, label: t(lang, `opt.aiAcc.${o.value}`) }));
+}
+function priceOptions(lang: Lang) {
+  return PRICE_OPTIONS.map((o) => ({
+    value: o.value,
+    label: o.value === "free" ? t(lang, "opt.price.free") : t(lang, "opt.price.baht", { p: o.value }),
+  }));
+}
+function emailLoginOptions(lang: Lang) {
+  return EMAIL_LOGIN_OPTIONS.map((o) => ({ value: o.value, label: t(lang, `opt.emailLogin.${o.value}`) }));
+}
+function proOptions(lang: Lang) {
+  return PRO_FEATURE_OPTIONS.map((o) => ({ value: o.value, label: t(lang, `opt.pro.${o.value}`) }));
+}
+
 export function FeedbackForm() {
+  const lang = useLang();
+  const tr = useT();
   const [state, formAction, pending] = useActionState<FeedbackState, FormData>(sendFeedback, {});
   const [formKey, setFormKey] = useState(0);
   // กด "ส่งอีกครั้ง" → ซ่อนหน้าขอบคุณของผลครั้งนั้น + ล้างฟอร์ม
@@ -123,8 +145,8 @@ export function FeedbackForm() {
   if (state.ok && againFor !== state) {
     return (
       <div className="space-y-3 rounded-card border border-line bg-surface p-6 text-center motion-safe:animate-fade-in">
-        <p className="font-medium">ขอบคุณ ได้รับความเห็นแล้ว</p>
-        <p className="text-sm text-muted">ใช้ไปสักพักแล้วมีอะไรอยากบอกเพิ่ม ส่งใหม่ได้ทุกเมื่อ</p>
+        <p className="font-medium">{tr("fb.thanks")}</p>
+        <p className="text-sm text-muted">{tr("fb.thanksBody")}</p>
         <button
           type="button"
           onClick={() => {
@@ -133,7 +155,7 @@ export function FeedbackForm() {
           }}
           className="text-sm text-accent underline"
         >
-          ส่งความเห็นอีกครั้ง
+          {tr("fb.again")}
         </button>
       </div>
     );
@@ -141,43 +163,43 @@ export function FeedbackForm() {
 
   return (
     <form key={formKey} action={formAction} className="space-y-4">
-      <p className="text-sm text-muted">ตอบเฉพาะข้อที่อยากตอบก็ได้</p>
+      <p className="text-sm text-muted">{tr("fb.optionalHint")}</p>
 
-      <Question n={1} title="ให้คะแนน Termly โดยรวม">
+      <Question n={1} title={tr("fb.q1")}>
         <Choices name="rating" options={RATINGS} cols="grid-cols-5" />
-        <Note name="rating_note" placeholder="ชอบ / ไม่ชอบตรงไหน (ไม่บังคับ)" />
+        <Note name="rating_note" placeholder={tr("fb.q1.note")} />
       </Question>
 
-      <Question n={2} title="AI อ่านซิลลาบัส / ประกาศงานของคุณถูกแค่ไหน">
-        <Choices name="ai_accuracy" options={AI_ACCURACY_OPTIONS} cols="grid-cols-2 sm:grid-cols-4" />
-        <Note name="ai_note" placeholder="เช่น อ่านวันที่ผิด, ใช้กับไฟล์แบบไหน (ไม่บังคับ)" />
+      <Question n={2} title={tr("fb.q2")}>
+        <Choices name="ai_accuracy" options={aiAccOptions(lang)} cols="grid-cols-2 sm:grid-cols-4" />
+        <Note name="ai_note" placeholder={tr("fb.q2.note")} />
       </Question>
 
-      <Question n={3} title="ถ้ามี Termly Pro อยากได้ฟีเจอร์ไหนที่สุด (เลือกได้หลายข้อ)">
+      <Question n={3} title={tr("fb.q3")}>
         <p className="text-sm text-muted">
-          ตอนนี้ยังไม่เก็บเงิน ใช้ได้ทุกอย่างฟรี ตารางนี้คือแผนในอนาคต
+          {tr("fb.q3.hint")}
         </p>
-        <PlanTable />
-        <MultiChoices name="pro_features" options={PRO_FEATURE_OPTIONS} />
-        <Note name="pro_note" placeholder="ฟีเจอร์อื่นที่อยากได้ (ไม่บังคับ)" />
+        <PlanTable lang={lang} />
+        <MultiChoices name="pro_features" options={proOptions(lang)} />
+        <Note name="pro_note" placeholder={tr("fb.q3.note")} />
       </Question>
 
-      <Question n={4} title="ถ้า Pro มีฟีเจอร์ตามตาราง คุณยอมจ่ายเท่าไหร่ต่อเทอม">
-        <Choices name="price" options={PRICE_OPTIONS} cols="grid-cols-2 sm:grid-cols-4" />
-        <Note name="price_note" placeholder="เช่น ถ้ามีฟีเจอร์ ... จะยอมจ่าย / แพงไปเพราะ ... (ไม่บังคับ)" />
+      <Question n={4} title={tr("fb.q4")}>
+        <Choices name="price" options={priceOptions(lang)} cols="grid-cols-2 sm:grid-cols-4" />
+        <Note name="price_note" placeholder={tr("fb.q4.note")} />
       </Question>
 
-      <Question n={5} title="อยากให้มีล็อกอินด้วยอีเมล + รหัสผ่าน (นอกจาก Google) ไหม">
-        <Choices name="email_login" options={EMAIL_LOGIN_OPTIONS} cols="grid-cols-2" />
-        <Note name="login_note" placeholder="เหตุผล (ไม่บังคับ)" />
+      <Question n={5} title={tr("fb.q5")}>
+        <Choices name="email_login" options={emailLoginOptions(lang)} cols="grid-cols-2" />
+        <Note name="login_note" placeholder={tr("fb.q5.note")} />
       </Question>
 
-      <Question n={6} title="อยากให้เพิ่มหรือแก้อะไร">
+      <Question n={6} title={tr("fb.q6")}>
         <textarea
           name="message"
           rows={4}
           maxLength={MAX_MESSAGE_LENGTH}
-          placeholder="บั๊กที่เจอ ฟีเจอร์ที่อยากได้ หรืออะไรก็ได้"
+          placeholder={tr("fb.q6.placeholder")}
           className={`${inputClass} resize-y`}
         />
       </Question>
@@ -193,7 +215,7 @@ export function FeedbackForm() {
         disabled={pending}
         className="w-full rounded-card bg-accent px-4 py-3 font-medium text-white transition active:scale-95 disabled:opacity-60"
       >
-        {pending ? "กำลังส่ง…" : "ส่งความเห็น"}
+        {pending ? tr("fb.sending") : tr("fb.send")}
       </button>
     </form>
   );

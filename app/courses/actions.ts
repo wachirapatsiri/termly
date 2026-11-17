@@ -4,6 +4,9 @@ import { refresh } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { findSimilarCourse } from "@/lib/duplicates";
+import { getLang } from "@/lib/preferences";
+import { t } from "@/lib/messages";
+import type { Lang } from "@/lib/i18n";
 
 // ค่าที่ส่งกลับให้ฟอร์ม: error ภาษาไทย + ค่าที่กรอกไว้ (จะได้ไม่ต้องพิมพ์ใหม่)
 // similar = มีวิชาที่น่าจะซ้ำอยู่แล้ว → ฟอร์มถามผู้ใช้ก่อน (ส่ง intent กลับมาอีกรอบ)
@@ -34,7 +37,7 @@ function str(formData: FormData, key: string) {
   return typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
 }
 
-function parseCourseForm(formData: FormData) {
+function parseCourseForm(formData: FormData, lang: Lang) {
   const name = str(formData, "name");
   const code = str(formData, "code");
   // สีประจำวิชา: "" = อัตโนมัติ (null), "0"–"7" = เลือกเอง (migration 0005)
@@ -42,17 +45,17 @@ function parseCourseForm(formData: FormData) {
   const values = { name, code, color: colorRaw };
   const color = /^[0-7]$/.test(colorRaw) ? Number(colorRaw) : null;
 
-  if (!name) return { error: "กรุณาใส่ชื่อวิชา", values };
-  if (name.length > 200) return { error: "ชื่อวิชายาวเกิน 200 ตัวอักษร", values };
-  if (code.length > 50) return { error: "รหัสวิชายาวเกิน 50 ตัวอักษร", values };
+  if (!name) return { error: t(lang, "course.err.name"), values };
+  if (name.length > 200) return { error: t(lang, "course.err.nameLong"), values };
+  if (code.length > 50) return { error: t(lang, "course.err.codeLong"), values };
 
   return { data: { name, code: code || null }, color, values };
 }
 
 // PGRST204 / 42703 = ฐานข้อมูลยังไม่มีคอลัมน์ color → บอกให้รัน migration แทนข้อความกว้าง ๆ
-function saveErrorText(error: { code?: string }, fallback: string) {
+function saveErrorText(error: { code?: string }, fallback: string, lang: Lang) {
   if (error.code === "PGRST204" || error.code === "42703") {
-    return "ฐานข้อมูลยังไม่มีช่อง \"สีประจำวิชา\" — รัน migration 0005 ใน Supabase ก่อน";
+    return t(lang, "course.err.colorMigration");
   }
   return fallback;
 }
@@ -68,7 +71,8 @@ export async function createCourse(
   formData: FormData,
 ): Promise<CourseFormState> {
   const user = await requireUser();
-  const parsed = parseCourseForm(formData);
+  const lang = await getLang();
+  const parsed = parseCourseForm(formData, lang);
   if (!parsed.data) return { error: parsed.error, values: parsed.values };
   // intent: "" = เช็กซ้ำก่อน, "add_anyway" = เพิ่มเลย, "replace:<id>" = แก้วิชาเดิมเป็นค่านี้แทน
   const intent = str(formData, "intent");
@@ -76,7 +80,7 @@ export async function createCourse(
   const supabase = await createClient();
   if (intent.startsWith("replace:")) {
     const id = intent.slice("replace:".length);
-    if (!UUID_RE.test(id)) return { error: "ไม่พบวิชานี้", values: parsed.values };
+    if (!UUID_RE.test(id)) return { error: t(lang, "course.err.notFound"), values: parsed.values };
     const { data, error } = await supabase
       .from("courses")
       .update(parsed.data)
@@ -85,7 +89,7 @@ export async function createCourse(
       .select("id");
     if (error || !data?.length) {
       if (error) console.error("createCourse replace", error);
-      return { error: "แก้วิชาเดิมไม่สำเร็จ ลองใหม่อีกครั้ง", values: parsed.values };
+      return { error: t(lang, "course.err.replace"), values: parsed.values };
     }
     refresh();
     return { ok: true };
@@ -102,7 +106,7 @@ export async function createCourse(
     .insert({ ...parsed.data, ...(parsed.color === null ? {} : { color: parsed.color }) });
   if (error) {
     console.error("createCourse", error);
-    return { error: saveErrorText(error, "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง"), values: parsed.values };
+    return { error: saveErrorText(error, t(lang, "course.err.save"), lang), values: parsed.values };
   }
 
   refresh();
@@ -115,8 +119,9 @@ export async function updateCourse(
 ): Promise<CourseFormState> {
   const user = await requireUser();
   const id = str(formData, "id");
-  const parsed = parseCourseForm(formData);
-  if (!UUID_RE.test(id)) return { error: "ไม่พบวิชานี้", values: parsed.values };
+  const lang = await getLang();
+  const parsed = parseCourseForm(formData, lang);
+  if (!UUID_RE.test(id)) return { error: t(lang, "course.err.notFound"), values: parsed.values };
   if (!parsed.data) return { error: parsed.error, values: parsed.values };
   if (str(formData, "intent") !== "add_anyway") {
     const similar = await similarCourse({ id, ...parsed.data });
@@ -135,7 +140,7 @@ export async function updateCourse(
   if (error || !data?.length) {
     if (error) console.error("updateCourse", error);
     return {
-      error: error ? saveErrorText(error, "แก้ไขไม่สำเร็จ ลองใหม่อีกครั้ง") : "แก้ไขไม่สำเร็จ ลองใหม่อีกครั้ง",
+      error: error ? saveErrorText(error, t(lang, "course.err.edit"), lang) : t(lang, "course.err.edit"),
       values: parsed.values,
     };
   }
@@ -195,8 +200,9 @@ export async function setCourseNoExam(
   value: boolean,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const user = await requireUser();
+  const lang = await getLang();
   if (typeof id !== "string" || !UUID_RE.test(id) || (type !== "midterm" && type !== "final")) {
-    return { ok: false, error: "ไม่พบวิชานี้" };
+    return { ok: false, error: t(lang, "course.err.notFound") };
   }
 
   const supabase = await createClient();
@@ -213,8 +219,8 @@ export async function setCourseNoExam(
     return {
       ok: false,
       error: missingColumn
-        ? "ฐานข้อมูลยังไม่มีช่อง \"ไม่มีสอบ\" — รัน migration 0003 ใน Supabase ก่อน"
-        : "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง",
+        ? t(lang, "course.err.noExamMigration")
+        : t(lang, "course.err.save"),
     };
   }
   refresh();

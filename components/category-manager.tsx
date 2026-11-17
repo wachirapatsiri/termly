@@ -8,6 +8,7 @@ import {
   type CategoryResult,
 } from "@/app/settings/actions";
 import { MAX_CATEGORY_LENGTH } from "@/lib/categories";
+import { useT } from "@/components/lang";
 
 type Row = { id: string; name: string; taskCount: number };
 
@@ -16,6 +17,7 @@ const inputClass =
 
 // หน้าตั้งค่า: เพิ่ม / เปลี่ยนชื่อ / ลบ ประเภทงาน
 export function CategoryManager({ categories }: { categories: Row[] }) {
+  const tr = useT();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [newName, setNewName] = useState("");
@@ -34,9 +36,9 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
   return (
     <section className="space-y-3">
       <div className="space-y-1">
-        <h2 className="font-medium">ประเภทงาน</h2>
+        <h2 className="font-medium">{tr("cat.title")}</h2>
         <p className="text-xs text-muted">
-          ใช้เป็นป้ายบนงาน เช่น การบ้าน, Quiz · ลบประเภทแล้วงานยังอยู่ แค่ไม่มีป้าย
+          {tr("cat.hint")}
         </p>
       </div>
 
@@ -48,7 +50,7 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 maxLength={MAX_CATEGORY_LENGTH}
-                aria-label="ชื่อประเภทใหม่"
+                aria-label={tr("task.newCategoryAria")}
                 autoFocus
                 className={inputClass}
               />
@@ -58,7 +60,7 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
                 onClick={() => run(() => renameCategory(c.id, draft), () => setEditingId(null))}
                 className="rounded-card bg-accent px-3 text-sm text-white disabled:opacity-50"
               >
-                บันทึก
+                {tr("cat.save")}
               </button>
               <button
                 type="button"
@@ -68,7 +70,7 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
                 }}
                 className="rounded-card border border-line px-3 text-sm"
               >
-                ยกเลิก
+                {tr("task.cancel")}
               </button>
             </li>
           ) : (
@@ -76,7 +78,7 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
               <span className="min-w-0 flex-1 break-words">
                 {c.name}
                 {c.taskCount > 0 && (
-                  <span className="text-sm text-muted"> · {c.taskCount} งาน</span>
+                  <span className="text-sm text-muted">{tr("cat.count", { n: c.taskCount })}</span>
                 )}
               </span>
               <button
@@ -88,7 +90,7 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
                 }}
                 className="text-sm text-accent"
               >
-                แก้ชื่อ
+                {tr("cat.rename")}
               </button>
               <button
                 type="button"
@@ -96,19 +98,19 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
                 onClick={() => {
                   const msg =
                     c.taskCount > 0
-                      ? `ลบประเภท "${c.name}" ?\nงาน ${c.taskCount} ชิ้นจะยังอยู่ แค่ไม่มีป้ายประเภท`
-                      : `ลบประเภท "${c.name}" ?`;
+                      ? tr("cat.confirmDeleteWith", { name: c.name, n: c.taskCount })
+                      : tr("cat.confirmDelete", { name: c.name });
                   if (confirm(msg)) run(() => deleteCategory(c.id));
                 }}
                 className="text-sm text-danger disabled:opacity-50"
               >
-                ลบ
+                {tr("task.delete")}
               </button>
             </li>
           ),
         )}
         {categories.length === 0 && (
-          <li className="px-3 py-2.5 text-sm text-muted">ยังไม่มีประเภทงาน</li>
+          <li className="px-3 py-2.5 text-sm text-muted">{tr("cat.empty")}</li>
         )}
       </ul>
 
@@ -123,8 +125,8 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           maxLength={MAX_CATEGORY_LENGTH}
-          placeholder="เพิ่มประเภทใหม่ เช่น Workshop"
-          aria-label="ชื่อประเภทใหม่"
+          placeholder={tr("cat.addPlaceholder")}
+          aria-label={tr("task.newCategoryAria")}
           className={inputClass}
         />
         <button
@@ -132,7 +134,7 @@ export function CategoryManager({ categories }: { categories: Row[] }) {
           disabled={pending || !newName.trim()}
           className="rounded-card bg-accent px-4 text-sm text-white disabled:opacity-50"
         >
-          เพิ่ม
+          {tr("cat.add")}
         </button>
       </form>
 

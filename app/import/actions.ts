@@ -7,6 +7,8 @@ import { toDueAt } from "@/lib/dates";
 import { courseKey, matchCourse } from "@/lib/ai/normalize";
 import { categoryKey } from "@/lib/categories";
 import { EXAM_TYPES, type ExamType } from "@/lib/exams";
+import { getLang } from "@/lib/preferences";
+import { t as msg } from "@/lib/messages";
 
 // รายการที่ผู้ใช้ติ๊กเลือกจากหน้า /import
 // course: วิชาที่มีอยู่ (id) | วิชาใหม่ที่จะสร้าง (code/name) | null = ไม่ระบุวิชา
@@ -50,12 +52,13 @@ function time(v: unknown): string | null {
 type CourseRef = { id: string } | { key: string } | null;
 
 export async function saveImportedItems(items: ImportItem[]): Promise<ImportResult> {
+  const lang = await getLang();
   const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "กรุณาเข้าสู่ระบบก่อน" };
+  if (!user) return { ok: false, error: msg(lang, "api.needLogin") };
   if (!Array.isArray(items) || items.length === 0) {
-    return { ok: false, error: "ยังไม่ได้เลือกรายการ" };
+    return { ok: false, error: msg(lang, "impSave.noneSelected") };
   }
-  if (items.length > 100) return { ok: false, error: "บันทึกได้ครั้งละไม่เกิน 100 รายการ" };
+  if (items.length > 100) return { ok: false, error: msg(lang, "impSave.tooMany") };
 
   const supabase = await createClient();
   const [coursesRes, categoriesRes] = await Promise.all([
@@ -64,7 +67,7 @@ export async function saveImportedItems(items: ImportItem[]): Promise<ImportResu
   ]);
   if (coursesRes.error || categoriesRes.error) {
     console.error("saveImportedItems: load", coursesRes.error ?? categoriesRes.error);
-    return { ok: false, error: "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง" };
+    return { ok: false, error: msg(lang, "impSave.failed") };
   }
   const courses = coursesRes.data ?? [];
   const ownIds = new Set(courses.map((c) => c.id));
@@ -96,7 +99,7 @@ export async function saveImportedItems(items: ImportItem[]): Promise<ImportResu
 
   for (const item of items) {
     const title = text(item?.title, 300);
-    if (!title) return { ok: false, error: "มีรายการที่ไม่มีชื่อ" };
+    if (!title) return { ok: false, error: msg(lang, "impSave.noTitle") };
 
     // ── วิชา ──
     let courseRef: CourseRef = null;
@@ -104,13 +107,13 @@ export async function saveImportedItems(items: ImportItem[]): Promise<ImportResu
     if (c && "id" in c) {
       // ต้องเป็นวิชาของผู้ใช้เอง (ฐานข้อมูลก็กันซ้ำอีกชั้นด้วย foreign key)
       if (!UUID_RE.test(c.id) || !ownIds.has(c.id)) {
-        return { ok: false, error: "ไม่พบวิชาที่เลือก" };
+        return { ok: false, error: msg(lang, "impSave.courseNotFound") };
       }
       courseRef = { id: c.id };
     } else if (c && "name" in c) {
       const code = text(c.code, 50);
       const name = text(c.name, 200) ?? code;
-      if (!name) return { ok: false, error: "วิชาใหม่ต้องมีชื่อ" };
+      if (!name) return { ok: false, error: msg(lang, "impSave.courseNeedsName") };
       const matched = matchCourse(code, name, courses); // มีอยู่แล้ว ใช้ของเดิม
       if (matched) courseRef = { id: matched };
       else {
@@ -127,13 +130,13 @@ export async function saveImportedItems(items: ImportItem[]): Promise<ImportResu
 
     if (type && "exam" in type) {
       // ── สอบ ──
-      if (!EXAM_TYPES.includes(type.exam)) return { ok: false, error: "ชนิดสอบไม่ถูกต้อง" };
+      if (!EXAM_TYPES.includes(type.exam)) return { ok: false, error: msg(lang, "impSave.badExamType") };
       let startsAt: string | null = null;
       let endsAt: string | null = null;
       if (date) {
         // รู้แค่วัน = เก็บ 00:00 ของวันนั้น (has_time = false)
         startsAt = toDueAt(date, start ?? "00:00");
-        if (!startsAt) return { ok: false, error: `วันสอบของ "${title}" ไม่ถูกต้อง` };
+        if (!startsAt) return { ok: false, error: msg(lang, "impSave.badExamDate", { title }) };
         const end = time(type.end_time);
         if (start && end && end > start) endsAt = toDueAt(date, end);
       }
@@ -152,7 +155,7 @@ export async function saveImportedItems(items: ImportItem[]): Promise<ImportResu
       let dueAt: string | null = null;
       if (date) {
         dueAt = toDueAt(date, start);
-        if (!dueAt) return { ok: false, error: `วันส่งของ "${title}" ไม่ถูกต้อง` };
+        if (!dueAt) return { ok: false, error: msg(lang, "impSave.badDueDate", { title }) };
       }
       const catName = type && "category" in type ? text(type.category, 30) : null;
       const catKey = catName ? categoryKey(catName) : null;
@@ -180,7 +183,7 @@ export async function saveImportedItems(items: ImportItem[]): Promise<ImportResu
       .select("id, name, code");
     if (error || !data || data.length !== entries.length) {
       console.error("saveImportedItems: insert courses", error);
-      return { ok: false, error: "สร้างวิชาไม่สำเร็จ ลองใหม่อีกครั้ง" };
+      return { ok: false, error: msg(lang, "impSave.courseCreateFailed") };
     }
     // จับคู่กลับด้วยรหัส/ชื่อ (ไม่พึ่งลำดับที่ฐานข้อมูลคืนมา)
     for (const row of data) keyToCourseId.set(courseKey(row.code ?? row.name), row.id);
@@ -193,7 +196,7 @@ export async function saveImportedItems(items: ImportItem[]): Promise<ImportResu
       .select("id, name");
     if (error || !data) {
       console.error("saveImportedItems: insert categories", error);
-      return { ok: false, error: "สร้างประเภทงานไม่สำเร็จ ลองใหม่อีกครั้ง" };
+      return { ok: false, error: msg(lang, "impSave.categoryCreateFailed") };
     }
     for (const row of data) categoryIds.set(categoryKey(row.name), row.id);
   }
@@ -217,8 +220,8 @@ export async function saveImportedItems(items: ImportItem[]): Promise<ImportResu
       return {
         ok: false,
         error: createdSomething
-          ? "สร้างวิชา/ประเภทแล้ว แต่บันทึกงานไม่สำเร็จ ลองกดบันทึกอีกครั้ง"
-          : "บันทึกงานไม่สำเร็จ ลองใหม่อีกครั้ง",
+          ? msg(lang, "impSave.tasksFailedAfterCreate")
+          : msg(lang, "impSave.tasksFailed"),
       };
     }
   }
@@ -236,8 +239,8 @@ export async function saveImportedItems(items: ImportItem[]): Promise<ImportResu
       return {
         ok: false,
         error: taskRows.length
-          ? `บันทึกงาน ${taskRows.length} รายการแล้ว แต่บันทึกตารางสอบไม่สำเร็จ — เอาติ๊กงานออกแล้วกดบันทึกสอบอีกครั้ง`
-          : "บันทึกตารางสอบไม่สำเร็จ ลองใหม่อีกครั้ง",
+          ? msg(lang, "impSave.examsFailedAfterTasks", { n: taskRows.length })
+          : msg(lang, "impSave.examsFailed"),
       };
     }
   }

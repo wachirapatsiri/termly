@@ -6,7 +6,7 @@ import { ApiError, GoogleGenAI, type Part } from "@google/genai";
 import { z } from "zod";
 import { AiResultSchema, type AiTask } from "./schema.ts";
 import { SYSTEM_PROMPT, buildUserMessage } from "./prompt.ts";
-import { AiError } from "./errors.ts";
+import { AiError, aiError } from "./errors.ts";
 import type { Attachment } from "./files.ts";
 
 // "gemini-flash-latest" = รุ่น Flash ล่าสุดที่ Google ชี้ให้ (มีโควตาฟรี) — เปลี่ยนได้ด้วย env GEMINI_MODEL
@@ -88,7 +88,7 @@ export async function extractWithGemini(
     }
     finish = response.candidates?.[0]?.finishReason;
     if (response.promptFeedback?.blockReason) {
-      throw new AiError("AI ไม่สามารถอ่านเอกสารนี้ได้ ลองตัดเฉพาะส่วนกำหนดส่งงานมาวาง", false);
+      throw aiError("ai.cantRead", false);
     }
     raw = response.text;
   } catch (err) {
@@ -97,52 +97,41 @@ export async function extractWithGemini(
       const code = googleErrorCode(err);
       if (/API_KEY_INVALID|API_KEY_SERVICE_BLOCKED|PERMISSION_DENIED/.test(code) || err.status === 401) {
         console.error("extractWithGemini: API key", code);
-        throw new AiError(
-          `key ของ Gemini ใช้ไม่ได้ — เช็กว่าคัดลอก GEMINI_API_KEY มาครบ (ขึ้นต้น AIza ไม่มีช่องว่าง/เครื่องหมายคำพูด) (รหัส: ${code})`,
-          false,
-        );
+        throw aiError("ai.gKey", false, { code });
       }
       if (err.status === 404) {
         console.error("extractWithGemini: model", code, err.message);
-        throw new AiError(`ไม่พบรุ่น AI "${process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL}" ลองตั้ง GEMINI_MODEL ใหม่ (รหัส: ${code})`, false);
+        throw aiError("ai.gModel", false, { model: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL, code });
       }
       if (BUSY.has(err.status)) {
         console.error("extractWithGemini: busy", code);
-        throw new AiError(`AI ของ Google คนใช้เยอะตอนนี้ รอสัก 1–2 นาทีแล้วลองใหม่ (รหัส: ${code})`, true);
+        throw aiError("ai.gBusy", true, { code });
       }
       if (err.status === 429) {
         // โควตาฟรีมีเพดานต่อนาทีและต่อวัน
-        throw new AiError("โควตา AI ฟรีเต็มชั่วคราว รอสัก 1 นาทีแล้วลองใหม่ (ถ้ายังไม่ได้ ลองพรุ่งนี้)", true);
+        throw aiError("ai.gQuota", true);
       }
       if (err.status === 400 && files.length) {
         console.error("extractWithGemini: file rejected", err.message);
-        throw new AiError(
-          `AI เปิดไฟล์นี้ไม่ได้ (ไฟล์อาจเสีย ล็อกรหัสผ่าน หรือมีหน้าเยอะเกินไป) — ลองแคปหน้าจอเฉพาะส่วนที่มีกำหนดส่งแทน (รหัส: ${code})`,
-          false,
-        );
+        throw aiError("ai.gFileRejected", false, { code });
       }
       if (err.status === 403) {
         console.error("extractWithGemini: forbidden", code);
-        throw new AiError(`ระบบ AI ยังตั้งค่าไม่เรียบร้อย (รหัส: ${code})`, false);
+        throw aiError("ai.gNotConfigured", false, { code });
       }
       console.error("extractWithGemini", err.status, err.message);
-      throw new AiError(`AI มีปัญหาชั่วคราว ลองใหม่อีกครั้ง (รหัส: ${code})`, true);
+      throw aiError("ai.gTemporary", true, { code });
     }
     console.error("extractWithGemini", err);
-    throw new AiError("เชื่อมต่อ AI ไม่ได้ ลองใหม่อีกครั้ง", true);
+    throw aiError("ai.connect", true);
   }
 
   if (finish === "MAX_TOKENS") {
-    throw new AiError(
-      files.length
-        ? "เอกสารยาวเกินไป ลองส่งเฉพาะหน้าที่มีกำหนดส่งงานหรือตารางสอบ"
-        : "เอกสารยาวเกินไป ลองแบ่งวางทีละส่วน",
-      false,
-    );
+    throw aiError(files.length ? "ai.tooLongFiles" : "ai.tooLongText", false);
   }
   if (finish && finish !== "STOP") {
     console.error("extractWithGemini: finishReason", finish);
-    throw new AiError("AI ไม่สามารถอ่านเอกสารนี้ได้ ลองตัดเฉพาะส่วนกำหนดส่งงานมาวาง", false);
+    throw aiError("ai.cantRead", false);
   }
 
   // ตรวจคำตอบด้วย Zod ชุดเดียวกับ Claude — ผิดรูปแบบ = แจ้งผู้ใช้ ไม่เดาเอง
@@ -153,5 +142,5 @@ export async function extractWithGemini(
   } catch {
     console.error("extractWithGemini: not JSON", raw?.slice(0, 200));
   }
-  throw new AiError("AI ตอบกลับผิดรูปแบบ ลองใหม่อีกครั้ง", true);
+  throw aiError("ai.badFormat", true);
 }

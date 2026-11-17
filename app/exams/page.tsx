@@ -3,11 +3,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getCourseLabelMode } from "@/lib/preferences";
+import { getCourseLabelMode, getLang } from "@/lib/preferences";
+import { t } from "@/lib/messages";
 import { daysUntil } from "@/lib/dates";
 import {
   EXAM_TYPES,
-  EXAM_TYPE_LABEL,
+  examTypeLabel,
   findOverlaps,
   formatExamTime,
   isExamType,
@@ -16,6 +17,7 @@ import {
 import type { CalendarEvent, Course } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { WithYearMode } from "@/components/with-year-mode";
+import { WithLang } from "@/components/with-lang";
 import { ExamForm } from "@/components/exam-form";
 import { ExamItem } from "@/components/exam-item";
 import { EXAM_TYPE_TONE, examLabel } from "@/lib/exam-display";
@@ -23,19 +25,19 @@ import { EmptyState } from "@/components/empty-state";
 
 export default function ExamsPage({ searchParams }: PageProps<"/exams">) {
   return (
-    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
+    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-none lg:px-10 min-[1700px]:px-16">
       <AppNav current="/exams" />
-      <div className="flex items-baseline justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">ตารางสอบ</h1>
-        <Link href="/settings#calendar" className="shrink-0 text-sm text-accent">
-          ส่งออกไปปฏิทิน
-        </Link>
-      </div>
+      {/* ภาษามาจาก cookie → อ่านใน Suspense เสมอ */}
+      <Suspense fallback={<div className="h-8" />}>
+        <ExamsHeader />
+      </Suspense>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
-        <WithYearMode>
-          <ExamsSection searchParams={searchParams} />
-        </WithYearMode>
+        <WithLang>
+          <WithYearMode>
+            <ExamsSection searchParams={searchParams} />
+          </WithYearMode>
+        </WithLang>
       </Suspense>
     </main>
   );
@@ -44,12 +46,17 @@ export default function ExamsPage({ searchParams }: PageProps<"/exams">) {
 const EXAM_COLUMNS =
   "id, course_id, title, kind, exam_type, starts_at, ends_at, has_time, location, notes, created_at";
 
-// หัวตารางของแต่ละชนิด (สอบอื่น ๆ ใช้คำว่า "สอบอื่น ๆ" เหมือนป้าย)
-const SECTION_TITLE: Record<ExamType, string> = {
-  midterm: "สอบกลางภาค",
-  final: "สอบปลายภาค",
-  other: "สอบอื่น ๆ",
-};
+async function ExamsHeader() {
+  const lang = await getLang();
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <h1 className="text-2xl font-semibold tracking-tight">{t(lang, "exams.title")}</h1>
+      <Link href="/settings#calendar" className="shrink-0 text-sm text-accent">
+        {t(lang, "tasks.exportCalendar")}
+      </Link>
+    </div>
+  );
+}
 
 async function ExamsSection({
   searchParams,
@@ -61,7 +68,7 @@ async function ExamsSection({
 
   const supabase = await createClient();
   // RLS ทำให้ได้เฉพาะแถวของผู้ใช้คนนี้อยู่แล้ว
-  const [examsRes, coursesRes, labelMode, params] = await Promise.all([
+  const [examsRes, coursesRes, labelMode, params, lang] = await Promise.all([
     supabase
       .from("events")
       .select(EXAM_COLUMNS)
@@ -75,13 +82,14 @@ async function ExamsSection({
       .order("name"),
     getCourseLabelMode(),
     searchParams,
+    getLang(),
   ]);
 
   if (examsRes.error || coursesRes.error) {
     console.error("load exams", examsRes.error ?? coursesRes.error);
     return (
       <p className="rounded-card border border-danger-line bg-danger-soft p-3 text-sm text-danger">
-        โหลดตารางสอบไม่สำเร็จ ลองรีเฟรชหน้าอีกครั้ง
+        {t(lang, "exams.loadFailed")}
       </p>
     );
   }
@@ -99,7 +107,7 @@ async function ExamsSection({
   const overlapText = new Map(
     [...overlaps].map(([i, hits]) => [
       exams[i].id,
-      hits.map((h) => `${examLabel(h, courseOf(h), labelMode)} (${formatExamTime(h)})`),
+      hits.map((h) => `${examLabel(h, courseOf(h), labelMode, lang)} (${formatExamTime(h, lang)})`),
     ]),
   );
 
@@ -135,7 +143,7 @@ async function ExamsSection({
   return (
     <div className="space-y-8">
       <details className="rounded-card border border-line bg-surface p-4 lg:max-w-xl">
-        <summary className="cursor-pointer font-medium">+ เพิ่มสอบเอง</summary>
+        <summary className="cursor-pointer font-medium">{t(lang, "exams.addOwn")}</summary>
         <div className="mt-3">
           <ExamForm courses={courses} />
         </div>
@@ -143,27 +151,27 @@ async function ExamsSection({
 
       {exams.length === 0 ? (
         <EmptyState
-          title="ยังไม่มีตารางสอบ"
-          body={<>วางซิลลาบัสแล้ว AI จะแยกวันสอบมาให้ หรือกด &quot;+ เพิ่มสอบเอง&quot; ด้านบน</>}
-          actions={[{ href: "/import", label: "ให้ AI ช่วยเพิ่ม", primary: true }]}
+          title={t(lang, "exams.emptyTitle")}
+          body={t(lang, "exams.emptyBody")}
+          actions={[{ href: "/import", label: t(lang, "exams.emptyAi"), primary: true }]}
         />
       ) : (
         <>
           {/* กดดูทีละชนิดได้ */}
           <div className="-mx-6 flex gap-2 overflow-x-auto px-6 pb-1 lg:mx-0 lg:px-0">
             <Link href="/exams" className={chip(!filter)}>
-              ทั้งหมด
+              {t(lang, "exams.all")}
             </Link>
-            {EXAM_TYPES.map((t) => (
-              <Link key={t} href={`/exams?type=${t}`} className={chip(filter === t)}>
-                {EXAM_TYPE_LABEL[t].replace("สอบ", "")}
+            {EXAM_TYPES.map((ty) => (
+              <Link key={ty} href={`/exams?type=${ty}`} className={chip(filter === ty)}>
+                {t(lang, `examShort.${ty}`)}
               </Link>
             ))}
           </div>
 
           {overlapCount > 0 && (
             <p className="rounded-card border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">
-              มีสอบเวลาชนกัน {overlapCount} รายการ — ดูป้ายสีแดงในการ์ด
+              {t(lang, "exams.overlapCount", { n: overlapCount })}
             </p>
           )}
 
@@ -173,17 +181,20 @@ async function ExamsSection({
               filter ? "lg:max-w-xl" : "lg:grid-cols-3"
             }`}
           >
-          {EXAM_TYPES.filter((t) => !filter || filter === t).map((t) => {
-            const items = active.filter((x) => typeOf(x.exam) === t);
-            const tone = EXAM_TYPE_TONE[t];
+          {EXAM_TYPES.filter((ty) => !filter || filter === ty).map((ty) => {
+            const items = active.filter((x) => typeOf(x.exam) === ty);
+            const tone = EXAM_TYPE_TONE[ty];
+            const title = examTypeLabel(ty, lang);
             return (
-              <section key={t} className="space-y-2">
+              <section key={ty} className="space-y-2">
                 <h2 className={`flex items-center gap-2 font-medium ${tone.text}`}>
                   <span className={`h-3 w-3 rounded-full ${tone.dot}`} aria-hidden />
-                  {SECTION_TITLE[t]} <span className="text-muted">({items.length})</span>
+                  {title} <span className="text-muted">({items.length})</span>
                 </h2>
                 {items.length === 0 ? (
-                  <p className="text-sm text-muted">ไม่มี{SECTION_TITLE[t]}ที่กำลังจะมาถึง</p>
+                  <p className="text-sm text-muted">
+                    {t(lang, "exams.noneUpcoming", { type: title.toLowerCase() })}
+                  </p>
                 ) : (
                   <ul className="space-y-2">{items.map(renderItem)}</ul>
                 )}
@@ -195,7 +206,7 @@ async function ExamsSection({
           {past.length > 0 && (
             <details className="space-y-3">
               <summary className="cursor-pointer font-medium">
-                สอบไปแล้ว <span className="text-muted">({past.length})</span>
+                {t(lang, "exams.past")} <span className="text-muted">({past.length})</span>
               </summary>
               <ul className="mt-3 space-y-2 lg:grid lg:grid-cols-3 lg:items-start lg:gap-x-6 lg:gap-y-2 lg:space-y-0">
                 {past.map(renderItem)}

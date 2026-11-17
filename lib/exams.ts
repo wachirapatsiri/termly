@@ -32,20 +32,21 @@ export function buildExamTimes(
   date: string | null,
   start: string | null,
   end: string | null,
+  lang: Lang = "th",
 ):
   | { ok: true; starts_at: string | null; ends_at: string | null; has_time: boolean }
   | { ok: false; error: string } {
   if (!date) {
-    if (start || end) return { ok: false, error: "ใส่เวลาแล้ว กรุณาเลือกวันสอบด้วย" };
+    if (start || end) return { ok: false, error: t(lang, "examTime.needDate") };
     return { ok: true, starts_at: null, ends_at: null, has_time: false };
   }
-  if (start && !TIME_RE.test(start)) return { ok: false, error: "เวลาเริ่มไม่ถูกต้อง" };
-  if (end && !TIME_RE.test(end)) return { ok: false, error: "เวลาจบไม่ถูกต้อง" };
-  if (end && !start) return { ok: false, error: "ใส่เวลาจบแล้ว กรุณาใส่เวลาเริ่มด้วย" };
-  if (start && end && end <= start) return { ok: false, error: "เวลาจบต้องหลังเวลาเริ่ม" };
+  if (start && !TIME_RE.test(start)) return { ok: false, error: t(lang, "examTime.badStart") };
+  if (end && !TIME_RE.test(end)) return { ok: false, error: t(lang, "examTime.badEnd") };
+  if (end && !start) return { ok: false, error: t(lang, "examTime.endNeedsStart") };
+  if (start && end && end <= start) return { ok: false, error: t(lang, "examTime.endAfterStart") };
 
   const startsAt = toDueAt(date, start || "00:00");
-  if (!startsAt) return { ok: false, error: "วันสอบไม่ถูกต้อง" };
+  if (!startsAt) return { ok: false, error: t(lang, "examTime.badDate") };
   return {
     ok: true,
     starts_at: startsAt,

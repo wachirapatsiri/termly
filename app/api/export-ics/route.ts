@@ -4,7 +4,8 @@
 import type { NextRequest } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getCourseLabelMode } from "@/lib/preferences";
+import { getCourseLabelMode, getLang } from "@/lib/preferences";
+import { t as msg } from "@/lib/messages";
 import { courseLabel } from "@/lib/course-label";
 import { examLabel } from "@/lib/exam-display";
 import { toBangkokParts } from "@/lib/dates";
@@ -26,8 +27,9 @@ function fail(message: string, status: number) {
 }
 
 export async function GET(request: NextRequest) {
+  const lang = await getLang();
   const user = await getCurrentUser();
-  if (!user) return fail("กรุณาเข้าสู่ระบบก่อน", 401);
+  if (!user) return fail(msg(lang, "api.needLogin"), 401);
 
   const opts = parseIcsOptions(request.nextUrl.searchParams);
   const wantTasks = opts.pending || opts.done;
@@ -56,7 +58,7 @@ export async function GET(request: NextRequest) {
 
   if (tasksRes?.error || coursesRes.error || examsRes?.error) {
     console.error("export ics", tasksRes?.error ?? coursesRes.error ?? examsRes?.error);
-    return fail("โหลดข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง", 500);
+    return fail(msg(lang, "cal.api.failed"), 500);
   }
   if (categoriesRes.error) console.error("export ics categories", categoriesRes.error);
 
@@ -74,6 +76,7 @@ export async function GET(request: NextRequest) {
       courseLabel: course ? courseLabel(course, labelMode) : null,
       courseName: course?.name,
       category: t.category_id ? categoryById.get(t.category_id) : null,
+      lang,
     });
     if (item) items.push(item);
   }
@@ -81,7 +84,8 @@ export async function GET(request: NextRequest) {
     if (!courseSelected(e.course_id, opts.courses)) continue;
     const course = e.course_id ? courseById.get(e.course_id) : undefined;
     const item = examToIcs(e, {
-      label: examLabel(e, course, labelMode),
+      label: examLabel(e, course, labelMode, lang),
+      lang,
       courseName: course ? [course.code, course.name].filter(Boolean).join(" ") : null,
     });
     if (item) items.push(item);

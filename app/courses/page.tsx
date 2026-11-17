@@ -5,10 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { daysUntil, dueGroup } from "@/lib/dates";
 import { findOverlaps, formatExamTime } from "@/lib/exams";
 import { findSimilarCourse } from "@/lib/duplicates";
-import { getCourseLabelMode } from "@/lib/preferences";
+import { getCourseLabelMode, getLang } from "@/lib/preferences";
+import { t } from "@/lib/messages";
 import type { CalendarEvent, Course, Task } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { WithYearMode } from "@/components/with-year-mode";
+import { WithLang } from "@/components/with-lang";
 import { CourseForm } from "@/components/course-form";
 import { CourseItem, type CourseExam, type CourseTask } from "@/components/course-item";
 import { examLabel } from "@/lib/exam-display";
@@ -16,17 +18,27 @@ import { EmptyState } from "@/components/empty-state";
 
 export default function CoursesPage() {
   return (
-    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
+    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-none lg:px-10 min-[1700px]:px-16">
       <AppNav current="/courses" />
-      <h1 className="text-2xl font-semibold tracking-tight">วิชาของฉัน</h1>
+      {/* ภาษามาจาก cookie → อ่านใน Suspense เสมอ */}
+      <Suspense fallback={<div className="h-8" />}>
+        <CoursesHeader />
+      </Suspense>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
-        <WithYearMode>
-          <CoursesSection />
-        </WithYearMode>
+        <WithLang>
+          <WithYearMode>
+            <CoursesSection />
+          </WithYearMode>
+        </WithLang>
       </Suspense>
     </main>
   );
+}
+
+async function CoursesHeader() {
+  const lang = await getLang();
+  return <h1 className="text-2xl font-semibold tracking-tight">{t(lang, "courses.title")}</h1>;
 }
 
 async function CoursesSection() {
@@ -35,7 +47,7 @@ async function CoursesSection() {
 
   const supabase = await createClient();
   // RLS ทำให้ได้เฉพาะแถวของผู้ใช้คนนี้อยู่แล้ว
-  const [coursesRes, tasksRes, examsRes, labelMode] = await Promise.all([
+  const [coursesRes, tasksRes, examsRes, labelMode, lang] = await Promise.all([
     // select("*"): ถ้ายังไม่ได้รัน migration 0003 หน้านี้ก็ยังโหลดได้ (แค่ไม่มีช่อง no_midterm/no_final)
     supabase
       .from("courses")
@@ -56,6 +68,7 @@ async function CoursesSection() {
       .eq("kind", "exam")
       .order("starts_at", { ascending: true, nullsFirst: true }),
     getCourseLabelMode(),
+    getLang(),
   ]);
   if (examsRes.error) console.error("load exams for courses", examsRes.error);
 
@@ -63,7 +76,7 @@ async function CoursesSection() {
     console.error("load courses", coursesRes.error ?? tasksRes.error);
     return (
       <p className="rounded-card border border-danger-line bg-danger-soft p-3 text-sm text-danger">
-        โหลดรายการวิชาไม่สำเร็จ ลองรีเฟรชหน้าอีกครั้ง
+        {t(lang, "courses.loadFailed")}
       </p>
     );
   }
@@ -106,7 +119,7 @@ async function CoursesSection() {
       past: !!e.starts_at && daysUntil(e.starts_at, now) < 0,
       overlapsWith: (overlaps.get(i) ?? []).map((h) => {
         const hc = h.course_id ? courseById.get(h.course_id) : undefined;
-        return `${examLabel(h, hc, labelMode)} (${formatExamTime(h)})`;
+        return `${examLabel(h, hc, labelMode, lang)} (${formatExamTime(h, lang)})`;
       }),
     });
     examsByCourse.set(e.course_id, list);
@@ -116,19 +129,19 @@ async function CoursesSection() {
     // จอคอม: ซ้าย = ฟอร์มเพิ่มวิชา (ติดอยู่กับที่), ขวา = การ์ดวิชา 2 คอลัมน์
     <div className="space-y-8 lg:grid lg:grid-cols-[20rem_minmax(0,1fr)] lg:items-start lg:gap-10 lg:space-y-0">
       <section className="space-y-3 rounded-card border border-line bg-surface p-4 lg:sticky lg:top-6">
-        <h2 className="font-medium">เพิ่มวิชาใหม่</h2>
+        <h2 className="font-medium">{t(lang, "courses.addNew")}</h2>
         <CourseForm />
       </section>
 
       <section className="space-y-3">
         <h2 className="font-medium">
-          วิชาทั้งหมด <span className="text-muted">({courses.length})</span>
+          {t(lang, "courses.all")} <span className="text-muted">({courses.length})</span>
         </h2>
         {courses.length === 0 ? (
           <EmptyState
-            title="ยังไม่มีวิชา"
-            body="เพิ่มวิชาที่ลงเรียนเทอมนี้ในฟอร์ม หรือวางซิลลาบัสให้ AI สร้างวิชาพร้อมงานให้เลย"
-            actions={[{ href: "/import", label: "ให้ AI ช่วยเพิ่ม", primary: true }]}
+            title={t(lang, "courses.emptyTitle")}
+            body={t(lang, "courses.emptyBody")}
+            actions={[{ href: "/import", label: t(lang, "courses.emptyAi"), primary: true }]}
           />
         ) : (
           <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3 lg:space-y-0">

@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { AppNav } from "@/components/app-nav";
 import { FeedbackForm } from "@/components/feedback-form";
+import { WithLang } from "@/components/with-lang";
+import { getLang } from "@/lib/preferences";
+import { t } from "@/lib/messages";
 
 export const metadata: Metadata = { title: "ส่งความเห็น · Termly" };
 
@@ -12,12 +15,10 @@ export default function FeedbackPage() {
   return (
     <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-6 px-6 py-6 lg:max-w-3xl lg:px-10">
       <AppNav current="/feedback" />
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">ช่วยบอกความเห็นหน่อย</h1>
-        <p className="leading-relaxed text-muted">
-          ตอบข้อไหนก็ได้ ใช้เวลาไม่ถึง 2 นาที
-        </p>
-      </div>
+      {/* ภาษามาจาก cookie → อ่านใน Suspense เสมอ */}
+      <Suspense fallback={<div className="h-16" />}>
+        <FeedbackHeader />
+      </Suspense>
       <Suspense fallback={<div className="h-96 rounded-card border border-line" />}>
         <FeedbackSection />
       </Suspense>
@@ -25,7 +26,21 @@ export default function FeedbackPage() {
   );
 }
 
+async function FeedbackHeader() {
+  const lang = await getLang();
+  return (
+    <div className="space-y-2">
+      <h1 className="text-2xl font-semibold tracking-tight">{t(lang, "fb.title")}</h1>
+      <p className="leading-relaxed text-muted">{t(lang, "fb.subtitle")}</p>
+    </div>
+  );
+}
+
 async function FeedbackSection() {
   if (!(await getCurrentUser())) redirect("/login");
-  return <FeedbackForm />;
+  return (
+    <WithLang>
+      <FeedbackForm />
+    </WithLang>
+  );
 }
