@@ -8,9 +8,10 @@ import {
 } from "@/app/courses/actions";
 import type { Course } from "@/lib/types";
 import { ConfirmBox, DefaultSubmit } from "@/components/confirm-box";
+import { useLang, useT } from "@/components/lang";
 import {
   COURSE_COLOR_COUNT,
-  COURSE_COLOR_NAMES,
+  courseColorName,
   colorVar,
   courseColorIndex,
   isCourseColor,
@@ -29,6 +30,8 @@ export function CourseForm({
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
+  const lang = useLang();
+  const tr = useT();
   const [state, formAction, pending] = useActionState<CourseFormState, FormData>(
     course ? updateCourse : createCourse,
     {},
@@ -65,31 +68,31 @@ export function CourseForm({
 
       <div className="grid grid-cols-[1fr_7.5rem] gap-3">
         <label className="block space-y-1">
-          <span className="text-sm text-muted">ชื่อวิชา</span>
+          <span className="text-sm text-muted">{tr("course.name")}</span>
           <input
             ref={nameRef}
             name="name"
             required
             maxLength={200}
             defaultValue={v.name}
-            placeholder="เช่น สถิติเบื้องต้น"
+            placeholder={tr("course.namePlaceholder")}
             className={inputClass}
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm text-muted">รหัสวิชา</span>
+          <span className="text-sm text-muted">{tr("course.code")}</span>
           <input
             name="code"
             maxLength={50}
             defaultValue={v.code}
-            placeholder="ไม่ใส่ก็ได้"
+            placeholder={tr("course.codePlaceholder")}
             className={inputClass}
           />
         </label>
       </div>
 
       <fieldset className="space-y-1.5">
-        <legend className="text-sm text-muted">สีประจำวิชา</legend>
+        <legend className="text-sm text-muted">{tr("course.color")}</legend>
         {/* ส่งเฉพาะตอนเปลี่ยนสี — ยังไม่ได้รัน migration 0005 ก็ยังแก้ชื่อ/รหัสวิชาได้ */}
         {color !== savedColor && <input type="hidden" name="color" value={color} />}
         <div className="flex flex-wrap items-center gap-2">
@@ -101,7 +104,7 @@ export function CourseForm({
               color === "" ? "border-accent text-accent" : "border-line text-muted"
             }`}
           >
-            อัตโนมัติ
+            {tr("course.colorAuto")}
             {course && (
               <span
                 aria-hidden
@@ -115,7 +118,7 @@ export function CourseForm({
               key={i}
               type="button"
               onClick={() => setColor(String(i))}
-              aria-label={`สี${COURSE_COLOR_NAMES[i]}`}
+              aria-label={tr("course.colorAria", { name: courseColorName(i, lang) })}
               aria-pressed={color === String(i)}
               className={`h-7 w-7 rounded-full transition active:scale-90 ${
                 color === String(i)
@@ -130,24 +133,20 @@ export function CourseForm({
 
       {similar && (
         <ConfirmBox
-          message={
-            <>
-              มีวิชา “{similarLabel}” อยู่แล้ว (รหัสเดียวกันหรือชื่อคล้ายกัน) — เป็นวิชาเดียวกันไหม?
-            </>
-          }
+          message={tr("course.similar", { label: similarLabel })}
           actions={
             course
-              ? [{ intent: "add_anyway", label: "ไม่ใช่ บันทึกต่อ", primary: true }]
+              ? [{ intent: "add_anyway", label: tr("course.notSameSave"), primary: true }]
               : [
                   {
                     intent: `replace:${similar.id}`,
-                    label: "ใช่ แก้วิชาเดิมเป็นชื่อนี้",
+                    label: tr("course.replaceOld"),
                     primary: true,
                   },
-                  { intent: "add_anyway", label: "ไม่ใช่ เพิ่มเป็นวิชาใหม่" },
+                  { intent: "add_anyway", label: tr("course.notSameAdd") },
                 ]
           }
-          cancelLabel={course ? "ยกเลิก" : "ใช่ ใช้วิชาเดิม (ไม่เพิ่ม)"}
+          cancelLabel={course ? tr("course.cancel") : tr("course.useExisting")}
           onCancel={() => {
             setCancelled(state);
             if (!course) setFormKey((k) => k + 1);
@@ -167,7 +166,7 @@ export function CourseForm({
           disabled={pending}
           className="flex-1 rounded-card bg-accent px-4 py-2.5 font-medium text-white disabled:opacity-60"
         >
-          {pending ? "กำลังบันทึก…" : course ? "บันทึกการแก้ไข" : "เพิ่มวิชา"}
+          {pending ? tr("course.saving") : course ? tr("course.saveEdit") : tr("course.add")}
         </button>
         {onCancel && (
           <button
@@ -175,7 +174,7 @@ export function CourseForm({
             onClick={onCancel}
             className="rounded-card border border-line px-4 py-2.5"
           >
-            ยกเลิก
+            {tr("course.cancel")}
           </button>
         )}
       </div>

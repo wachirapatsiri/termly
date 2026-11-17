@@ -7,8 +7,9 @@ import { useCallback, useOptimistic, useState, useTransition } from "react";
 import { deleteCourse, setCourseNoExam } from "@/app/courses/actions";
 import { deleteTask, setTaskDone } from "@/app/tasks/actions";
 import { useYearMode } from "@/components/year-mode";
+import { useLang, useT } from "@/components/lang";
 import { formatDue } from "@/lib/dates";
-import { EXAM_TYPE_LABEL, formatExamTime, type ExamType } from "@/lib/exams";
+import { examTypeLabel, formatExamTime, type ExamType } from "@/lib/exams";
 import type { CalendarEvent, Course } from "@/lib/types";
 import { CourseForm } from "@/components/course-form";
 import { ExamForm } from "@/components/exam-form";
@@ -45,6 +46,8 @@ export function CourseItem({
   similarTo?: Course; // วิชาที่น่าจะซ้ำกัน (รหัสเดียวกัน/ชื่อคล้าย)
 }) {
   const yearMode = useYearMode();
+  const lang = useLang();
+  const tr = useT();
   const [mode, setMode] = useState<"view" | "edit" | "confirmDelete">("view");
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setMode("view"), []);
@@ -107,22 +110,23 @@ export function CourseItem({
             open ? "border-accent text-accent" : "border-line text-muted"
           }`}
         >
-          งานค้าง {visibleTasks.length} {open ? "▴" : "▾"}
+          {tr("course.pendingBtn", { n: visibleTasks.length })} {open ? "▴" : "▾"}
         </button>
       </div>
 
       {similarTo && (
         <p className="rounded border border-warn-line bg-warn-soft px-2 py-1 text-xs text-warn">
-          อาจซ้ำกับวิชา {similarTo.code ? `${similarTo.code} ` : ""}
-          {similarTo.name} — ถ้าเป็นวิชาเดียวกัน ลบอันที่ไม่ใช้ได้
+          {tr("course.maybeDup", {
+            label: `${similarTo.code ? `${similarTo.code} ` : ""}${similarTo.name}`,
+          })}
         </p>
       )}
 
       {open && (
         <div className="space-y-2 border-t border-line pt-3">
-          <h3 className="text-sm font-medium text-muted">งานค้าง</h3>
+          <h3 className="text-sm font-medium text-muted">{tr("course.pendingTitle")}</h3>
           {visibleTasks.length === 0 ? (
-            <p className="text-sm text-muted">ไม่มีงานค้างในวิชานี้</p>
+            <p className="text-sm text-muted">{tr("course.noPending")}</p>
           ) : (
             <ul className="space-y-1">
               {visibleTasks.map((t) => (
@@ -138,7 +142,7 @@ export function CourseItem({
                     <input type="hidden" name="done" value="true" />
                     <button
                       type="submit"
-                      aria-label={`ทำเครื่องหมายว่า "${t.title}" เสร็จแล้ว`}
+                      aria-label={tr("course.markTaskDone", { title: t.title })}
                       className="mt-0.5 h-5 w-5 rounded border border-muted/60"
                     />
                   </form>
@@ -147,11 +151,11 @@ export function CourseItem({
                     <p className="text-sm break-words">{t.title}</p>
                     {t.due_at ? (
                       <p className={`text-xs ${t.overdue ? "text-danger" : "text-muted"}`}>
-                        {formatDue(t.due_at, t.due_has_time, yearMode)}
-                        {t.overdue && " · เลยกำหนด"}
+                        {formatDue(t.due_at, t.due_has_time, yearMode, lang)}
+                        {t.overdue && ` · ${tr("task.overdueSuffix")}`}
                       </p>
                     ) : (
-                      <p className="text-xs text-warn">ยังไม่กำหนดวันส่ง</p>
+                      <p className="text-xs text-warn">{tr("task.noDueBadge")}</p>
                     )}
                   </div>
 
@@ -162,13 +166,13 @@ export function CourseItem({
                       await deleteTask(formData);
                     }}
                     onSubmit={(e) => {
-                      if (!confirm(`ลบงาน "${t.title}" ?`)) e.preventDefault();
+                      if (!confirm(tr("course.confirmDeleteTask", { title: t.title }))) e.preventDefault();
                     }}
                   >
                     <input type="hidden" name="id" value={t.id} />
                     <button
                       type="submit"
-                      aria-label={`ลบงาน "${t.title}"`}
+                      aria-label={tr("course.deleteTaskAria", { title: t.title })}
                       className="px-1 text-lg leading-none text-muted hover:text-danger"
                     >
                       ×
@@ -179,7 +183,7 @@ export function CourseItem({
             </ul>
           )}
           <Link href={`/tasks?course=${course.id}`} className="block text-sm text-accent">
-            เพิ่ม/แก้งานของวิชานี้ในหน้างาน →
+            {tr("course.manageTasks")}
           </Link>
 
         </div>
@@ -191,37 +195,37 @@ export function CourseItem({
       {mode === "confirmDelete" ? (
         <div className="space-y-2 rounded-card border border-danger-line bg-danger-soft/50 p-3">
           <p className="text-sm">
-            ลบวิชา &quot;{course.name}&quot;
-            {exams.length > 0 && <> — สอบของวิชานี้ {exams.length} รายการจะถูกลบด้วย</>}
-            {totalCount > 0 && <> — มีงานในวิชานี้ {totalCount} ชิ้น จะทำอย่างไรกับงาน?</>}
+            {tr("course.confirmDeleteLead", { name: course.name })}
+            {exams.length > 0 && tr("course.confirmDeleteExams", { n: exams.length })}
+            {totalCount > 0 && tr("course.confirmDeleteTasks", { n: totalCount })}
           </p>
           {totalCount > 0 ? (
             <>
-              {deleteButton(false, "ลบแค่วิชา (เก็บงานไว้)", "border border-line bg-surface")}
-              {deleteButton(true, `ลบวิชาพร้อมงาน ${totalCount} ชิ้น`, "bg-danger-solid text-white")}
+              {deleteButton(false, tr("course.deleteKeepTasks"), "border border-line bg-surface")}
+              {deleteButton(true, tr("course.deleteWithTasks", { n: totalCount }), "bg-danger-solid text-white")}
             </>
           ) : (
-            deleteButton(false, "ลบวิชา", "bg-danger-solid text-white")
+            deleteButton(false, tr("course.deleteOnly"), "bg-danger-solid text-white")
           )}
           <button
             type="button"
             onClick={close}
             className="w-full rounded-card px-4 py-2 text-sm text-muted"
           >
-            ยกเลิก
+            {tr("course.cancel")}
           </button>
         </div>
       ) : (
         <div className="flex gap-4 text-sm">
           <button type="button" onClick={() => setMode("edit")} className="text-accent">
-            แก้ไขวิชา
+            {tr("course.edit")}
           </button>
           <button
             type="button"
             onClick={() => setMode("confirmDelete")}
             className="text-danger"
           >
-            ลบวิชา
+            {tr("course.delete")}
           </button>
         </div>
       )}
@@ -239,6 +243,8 @@ function CourseExams({
   courses: Course[];
   exams: CourseExam[];
 }) {
+  const lang = useLang();
+  const tr = useT();
   // ฟอร์มที่เปิดอยู่: id สอบที่กำลังแก้ หรือ "new:<ชนิด>" = กำลังเพิ่มสอบชนิดนั้น
   const [editing, setEditing] = useState<string | null>(null);
   const close = useCallback(() => setEditing(null), []);
@@ -273,7 +279,7 @@ function CourseExams({
         const res = await setCourseNoExam(course.id, type, value);
         if (!res.ok) setError(res.error);
       } catch {
-        setError("บันทึกไม่สำเร็จ ลองรีเฟรชหน้าแล้วลองใหม่");
+        setError(tr("course.saveFailedRetry"));
       }
     });
   };
@@ -288,7 +294,7 @@ function CourseExams({
             <li key={t} className="space-y-2">
               <div className="flex items-start gap-2">
                 <span className={`shrink-0 rounded border px-1.5 py-0.5 text-xs ${tone.badge}`}>
-                  {EXAM_TYPE_LABEL[t].replace("สอบ", "")}
+                  {tr(`examShort.${t}`)}
                 </span>
                 <div className="min-w-0 flex-1 space-y-1">
                   {list.length > 0 ? (
@@ -299,14 +305,16 @@ function CourseExams({
                     // ยังไม่มีข้อมูล → ไม่เตือน แค่ให้ติ๊กได้ว่าไม่มีสอบ
                     <div className="flex items-center justify-between gap-2 text-sm text-muted">
                       <span>
-                        {noExam[t] ? `ไม่มี${EXAM_TYPE_LABEL[t]}` : "ยังไม่มีข้อมูล"}
+                        {noExam[t]
+                          ? tr("course.noExamOf", { type: examTypeLabel(t, lang).toLowerCase() })
+                          : tr("course.noData")}
                         {!noExam[t] && (
                           <button
                             type="button"
                             onClick={() => setEditing(`new:${t}`)}
                             className="ml-2 text-accent"
                           >
-                            + เพิ่ม
+                            {tr("course.addExam")}
                           </button>
                         )}
                       </span>
@@ -318,7 +326,7 @@ function CourseExams({
                           onChange={() => toggle(t)}
                           className="h-4 w-4 accent-accent"
                         />
-                        ไม่มีสอบ
+                        {tr("course.noExamCheck")}
                       </label>
                     </div>
                   )}
@@ -334,7 +342,7 @@ function CourseExams({
             <span
               className={`shrink-0 rounded border px-1.5 py-0.5 text-xs ${EXAM_TYPE_TONE.other.badge}`}
             >
-              อื่น ๆ
+              {tr("examShort.other")}
             </span>
             <div className="min-w-0 flex-1 space-y-1">
               {others.map((e) => (
@@ -355,7 +363,7 @@ function CourseExams({
               onClick={() => setEditing("new:other")}
               className="text-xs text-accent"
             >
-              + เพิ่มสอบอื่น ๆ (Quiz ใหญ่, สอบย่อย)
+              {tr("course.addOtherExam")}
             </button>
           )}
           {formFor("new:other", undefined, "other")}
@@ -380,7 +388,9 @@ function ExamLine({
   onEdit: () => void;
 }) {
   const yearMode = useYearMode();
-  const time = formatExamTime(exam);
+  const lang = useLang();
+  const tr = useT();
+  const time = formatExamTime(exam, lang);
   return (
     <div className={`space-y-0.5 text-sm ${exam.past ? "text-muted" : ""}`}>
       {showTitle && <p className="break-words">{exam.title}</p>}
@@ -388,20 +398,24 @@ function ExamLine({
         <button
           type="button"
           onClick={onEdit}
-          aria-label={`แก้ไข ${exam.title}`}
+          aria-label={tr("course.editExamAria", { title: exam.title })}
           className="float-right ml-2 text-xs text-accent"
         >
-          แก้ไข
+          {tr("exam.edit")}
         </button>
-        {exam.starts_at ? formatDue(exam.starts_at, false, yearMode) : (
-          <span className="text-warn">ยังไม่ประกาศวันสอบ</span>
+        {exam.starts_at ? formatDue(exam.starts_at, false, yearMode, lang) : (
+          <span className="text-warn">{tr("course.examNotAnnounced")}</span>
         )}
         {time && <span className="text-muted"> · {time}</span>}
-        {exam.past && " · สอบแล้ว"}
+        {exam.past && tr("course.examPast")}
       </p>
-      {exam.location && <p className="text-xs text-muted">สถานที่ {exam.location}</p>}
+      {exam.location && (
+        <p className="text-xs text-muted">{tr("exam.location", { place: exam.location })}</p>
+      )}
       {exam.overlapsWith.length > 0 && !exam.past && (
-        <p className="text-xs text-danger">เวลาชนกับ {exam.overlapsWith.join(", ")}</p>
+        <p className="text-xs text-danger">
+          {tr("exam.overlapWith", { list: exam.overlapsWith.join(", ") })}
+        </p>
       )}
     </div>
   );

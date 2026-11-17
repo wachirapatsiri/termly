@@ -1,5 +1,8 @@
 // สีประจำวิชา: 8 สี (ค่าจริงอยู่ใน app/globals.css --course-0 … --course-7 แยกโหมดสว่าง/มืด)
 // courses.color (migration 0005) = เลข 0–7 ที่ผู้ใช้เลือก, null = เลือกให้อัตโนมัติจาก id (วิชาเดิมได้สีเดิมเสมอ)
+import type { Lang } from "./i18n.ts";
+import { t } from "./messages.ts";
+
 export const COURSE_COLOR_COUNT = 8;
 export const COURSE_COLOR_NAMES = [
   "น้ำเงิน",
@@ -11,6 +14,11 @@ export const COURSE_COLOR_NAMES = [
   "เหลือง",
   "เขียวอ่อน",
 ] as const;
+
+// ชื่อสีตามภาษา (ใช้เป็น aria-label)
+export function courseColorName(i: number, lang: Lang = "th"): string {
+  return t(lang, `color.${i as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`);
+}
 
 export function isCourseColor(v: unknown): v is number {
   return typeof v === "number" && Number.isInteger(v) && v >= 0 && v < COURSE_COLOR_COUNT;

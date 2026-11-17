@@ -5,7 +5,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { toBangkokParts } from "@/lib/dates";
 import { findDuplicate } from "@/lib/duplicates";
-import { EXAM_TYPE_LABEL, buildExamTimes, isExamType } from "@/lib/exams";
+import { buildExamTimes, examTypeLabel, isExamType } from "@/lib/exams";
+import { getLang } from "@/lib/preferences";
+import { t } from "@/lib/messages";
+import type { Lang } from "@/lib/i18n";
 
 // ค่าที่ส่งกลับให้ฟอร์ม: error ภาษาไทย + ค่าที่กรอกไว้ (จะได้ไม่ต้องพิมพ์ใหม่)
 // duplicate = ชื่อสอบที่มีอยู่แล้วและน่าจะซ้ำ → ฟอร์มถามก่อนเพิ่ม
@@ -31,7 +34,7 @@ async function requireUser() {
 }
 
 // ตรวจค่าจากฟอร์ม → ข้อมูลพร้อมบันทึก หรือข้อความ error
-async function parseExamForm(formData: FormData) {
+async function parseExamForm(formData: FormData, lang: Lang) {
   const values = {
     exam_type: str(formData, "exam_type"),
     course_id: str(formData, "course_id"),
@@ -43,25 +46,26 @@ async function parseExamForm(formData: FormData) {
     notes: str(formData, "notes"),
   };
 
-  if (!isExamType(values.exam_type)) return { error: "กรุณาเลือกชนิดสอบ", values };
+  if (!isExamType(values.exam_type)) return { error: t(lang, "exam.err.type"), values };
   if (values.course_id && !UUID_RE.test(values.course_id)) {
-    return { error: "วิชาไม่ถูกต้อง", values };
+    return { error: t(lang, "exam.err.course"), values };
   }
-  if (values.title.length > 300) return { error: "ชื่อยาวเกิน 300 ตัวอักษร", values };
-  if (values.location.length > 300) return { error: "สถานที่ยาวเกิน 300 ตัวอักษร", values };
-  if (values.notes.length > 2000) return { error: "หมายเหตุยาวเกิน 2,000 ตัวอักษร", values };
+  if (values.title.length > 300) return { error: t(lang, "exam.err.titleLong"), values };
+  if (values.location.length > 300) return { error: t(lang, "exam.err.locationLong"), values };
+  if (values.notes.length > 2000) return { error: t(lang, "exam.err.notesLong"), values };
 
   const times = buildExamTimes(
     values.date || null,
     values.start_time || null,
     values.end_time || null,
+    lang,
   );
   if (!times.ok) return { error: times.error, values };
 
   // ไม่ใส่ชื่อ → ตั้งให้จากชนิดสอบ + รหัสวิชา เช่น "สอบกลางภาค 204383"
   let title = values.title;
   if (!title) {
-    title = EXAM_TYPE_LABEL[values.exam_type];
+    title = examTypeLabel(values.exam_type, lang);
     if (values.course_id) {
       const supabase = await createClient();
       const { data } = await supabase
@@ -94,7 +98,8 @@ export async function createExam(
   formData: FormData,
 ): Promise<ExamFormState> {
   await requireUser();
-  const parsed = await parseExamForm(formData);
+  const lang = await getLang();
+  const parsed = await parseExamForm(formData, lang);
   if (!parsed.data) return { error: parsed.error, values: parsed.values };
 
   const supabase = await createClient();
@@ -127,7 +132,7 @@ export async function createExam(
   const { error } = await supabase.from("events").insert(parsed.data);
   if (error) {
     console.error("createExam", error);
-    return { error: "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง", values: parsed.values };
+    return { error: t(lang, "exam.err.save"), values: parsed.values };
   }
 
   refresh();
@@ -140,8 +145,9 @@ export async function updateExam(
 ): Promise<ExamFormState> {
   const user = await requireUser();
   const id = str(formData, "id");
-  const parsed = await parseExamForm(formData);
-  if (!UUID_RE.test(id)) return { error: "ไม่พบสอบนี้", values: parsed.values };
+  const lang = await getLang();
+  const parsed = await parseExamForm(formData, lang);
+  if (!UUID_RE.test(id)) return { error: t(lang, "exam.err.notFound"), values: parsed.values };
   if (!parsed.data) return { error: parsed.error, values: parsed.values };
 
   const supabase = await createClient();
@@ -154,7 +160,7 @@ export async function updateExam(
     .select("id");
   if (error || !data?.length) {
     if (error) console.error("updateExam", error);
-    return { error: "แก้ไขไม่สำเร็จ ลองใหม่อีกครั้ง", values: parsed.values };
+    return { error: t(lang, "exam.err.edit"), values: parsed.values };
   }
 
   refresh();

@@ -57,3 +57,15 @@ test("i18n: ฟังก์ชันวันที่/สัปดาห์/น
   assert.equal(formatExamTime(e, "en"), "14:30–16:30");
   assert.equal(formatExamTime(e), "14:30–16:30 น.");
 });
+
+test("i18n: buildExamTimes error + ชื่อสีวิชา รองรับ en", async () => {
+  const { buildExamTimes } = await import("../lib/exams.ts");
+  const { courseColorName } = await import("../lib/course-color.ts");
+  const r = buildExamTimes("2026-12-01", "12:00", "09:00", "en");
+  assert.equal(r.ok, false);
+  assert.equal(!r.ok && r.error, "End time must be after the start time");
+  const th = buildExamTimes("2026-12-01", "12:00", "09:00");
+  assert.equal(!th.ok && th.error, "เวลาจบต้องหลังเวลาเริ่ม");
+  assert.equal(courseColorName(0, "en"), "Blue");
+  assert.equal(courseColorName(0), "น้ำเงิน");
+});

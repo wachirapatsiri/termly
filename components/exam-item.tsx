@@ -4,9 +4,10 @@ import { CourseDot } from "@/components/course-dot";
 import { useCallback, useOptimistic, useState } from "react";
 import { deleteExam } from "@/app/exams/actions";
 import { useYearMode } from "@/components/year-mode";
+import { useLang, useT } from "@/components/lang";
 import { formatDue } from "@/lib/dates";
 import type { Lang } from "@/lib/i18n";
-import { EXAM_TYPE_LABEL, countdownLabel, formatExamTime } from "@/lib/exams";
+import { countdownLabel, examTypeLabel, formatExamTime } from "@/lib/exams";
 import { EXAM_TYPE_TONE } from "@/lib/exam-display";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import type { CalendarEvent, Course } from "@/lib/types";
@@ -29,6 +30,8 @@ export function ExamItem({
   overlapsWith?: string[]; // ชื่อสอบที่เวลาชนกัน (คำนวณฝั่งเซิร์ฟเวอร์)
 }) {
   const yearMode = useYearMode();
+  const lang = useLang();
+  const tr = useT();
   const [editing, setEditing] = useState<{ focus?: ExamField } | null>(null);
   const close = useCallback(() => setEditing(null), []);
   const [removed, setOptimisticRemoved] = useOptimistic(false);
@@ -49,7 +52,7 @@ export function ExamItem({
     );
   }
 
-  const time = formatExamTime(exam);
+  const time = formatExamTime(exam, lang);
   const type = exam.exam_type ?? "other";
   const tone = EXAM_TYPE_TONE[type];
   const past = daysLeft !== null && daysLeft < 0;
@@ -59,7 +62,7 @@ export function ExamItem({
       onClick={() => setEditing({ focus })}
       className="rounded border border-warn-line bg-warn-soft px-1.5 py-0.5 text-xs text-warn"
     >
-      {label} · เติม
+      {tr("exam.fill", { label })}
     </button>
   );
 
@@ -71,7 +74,7 @@ export function ExamItem({
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
             <span className={`rounded border px-1.5 py-0.5 ${tone.badge}`}>
-              {EXAM_TYPE_LABEL[type]}
+              {examTypeLabel(type, lang)}
             </span>
             {course && (
               <span className="inline-flex items-center gap-1.5 text-muted">
@@ -82,24 +85,26 @@ export function ExamItem({
           </div>
           <p className={`font-medium break-words ${past ? "text-muted" : ""}`}>{exam.title}</p>
         </div>
-        {daysLeft !== null && !past && <Countdown days={daysLeft} />}
+        {daysLeft !== null && !past && <Countdown days={daysLeft} lang={lang} />}
       </div>
 
       <div className="space-y-1 text-sm">
         <p>
-          {exam.starts_at ? formatDue(exam.starts_at, false, yearMode) : missing("ไม่ระบุวันสอบ", "date")}
+          {exam.starts_at ? formatDue(exam.starts_at, false, yearMode, lang) : missing(tr("exam.noDate"), "date")}
         </p>
         {exam.starts_at && (
-          <p className="text-muted">{time ?? missing("ไม่ระบุเวลา", "start_time")}</p>
+          <p className="text-muted">{time ?? missing(tr("exam.noTime"), "start_time")}</p>
         )}
         <p className="break-words text-muted">
-          {exam.location ? `สถานที่ ${exam.location}` : missing("ไม่ระบุสถานที่", "location")}
+          {exam.location
+            ? tr("exam.location", { place: exam.location })
+            : missing(tr("exam.noLocation"), "location")}
         </p>
       </div>
 
       {overlapsWith.length > 0 && !past && (
         <p className="rounded border border-danger-line bg-danger-soft px-2 py-1 text-xs text-danger">
-          เวลาชนกับ {overlapsWith.join(", ")}
+          {tr("exam.overlapWith", { list: overlapsWith.join(", ") })}
         </p>
       )}
 
@@ -109,7 +114,7 @@ export function ExamItem({
 
       <div className="flex gap-4 pt-1 text-sm">
         <button type="button" onClick={() => setEditing({})} className="text-accent">
-          แก้ไข
+          {tr("exam.edit")}
         </button>
         <form
           action={async (formData) => {
@@ -117,12 +122,12 @@ export function ExamItem({
             await deleteExam(formData);
           }}
           onSubmit={(e) => {
-            if (!confirm(`ลบ "${exam.title}" ?`)) e.preventDefault();
+            if (!confirm(tr("exam.confirmDelete", { title: exam.title }))) e.preventDefault();
           }}
         >
           <input type="hidden" name="id" value={exam.id} />
           <button type="submit" className="text-danger">
-            ลบ
+            {tr("exam.delete")}
           </button>
         </form>
       </div>
