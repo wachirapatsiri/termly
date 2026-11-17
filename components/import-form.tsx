@@ -461,8 +461,8 @@ export function ImportForm({
                     // eslint-disable-next-line @next/next/no-img-element -- รูปย่อจาก object URL ในเครื่อง
                     <img src={f.preview} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
                   ) : (
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-background text-xl">
-                      📄
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-background text-xs text-muted">
+                      PDF
                     </span>
                   )}
                   <span className="min-w-0 flex-1">
@@ -489,7 +489,7 @@ export function ImportForm({
               disabled={pending || preparing || files.some((f) => f.kind === "pdf") || files.length >= MAX_IMAGES}
               className="rounded-card border border-line bg-surface px-3 py-1.5 text-sm disabled:opacity-50"
             >
-              {preparing ? "กำลังเตรียมรูป…" : files.length ? "📎 เพิ่มรูป" : "📎 แนบ PDF / รูป"}
+              {preparing ? "กำลังเตรียมรูป…" : files.length ? "เพิ่มรูป" : "แนบ PDF / รูป"}
             </button>
             <span className="text-xs text-muted">
               PDF 1 ไฟล์ หรือรูปไม่เกิน {MAX_IMAGES} รูป รวมไม่เกิน {formatBytes(MAX_UPLOAD_BYTES)}
@@ -571,7 +571,7 @@ export function ImportForm({
         <section className="space-y-6">
           {(redacted.emails > 0 || redacted.phones > 0) && (
             <p className="text-xs text-muted">
-              🔒 ตัด
+              ตัด
               {[
                 redacted.emails > 0 && ` อีเมล ${redacted.emails}`,
                 redacted.phones > 0 && ` เบอร์โทร ${redacted.phones}`,
@@ -586,13 +586,13 @@ export function ImportForm({
               {mock.reason && <p className="text-xs">สาเหตุ: {mock.reason}</p>}
               {mock.files && (
                 <p>
-                  🧪 โหมดจำลองยังอ่านไฟล์จริงไม่ได้ (ยังไม่ได้เชื่อม AI) — รายการด้านล่างเป็นตัวอย่าง
+                  โหมดจำลองยังอ่านไฟล์จริงไม่ได้ (ยังไม่ได้เชื่อม AI) — รายการด้านล่างเป็นตัวอย่าง
                   ไม่ได้มาจากไฟล์ที่แนบ
                 </p>
               )}
               {mock.files && !mock.sources.length ? null : mock.sources.length ? (
                 <>
-                  <p>🧪 โหมดจำลอง: ใช้คำตอบที่เตรียมไว้สำหรับ</p>
+                  <p>โหมดจำลอง: ใช้คำตอบที่เตรียมไว้สำหรับ</p>
                   <ul className="list-disc pl-5">
                     {mock.sources.map((s) => (
                       <li key={s}>{s}</li>
@@ -601,7 +601,7 @@ export function ImportForm({
                 </>
               ) : (
                 <p>
-                  🧪 โหมดจำลอง: ยังไม่ได้เชื่อม AI จริง และข้อความนี้ไม่ตรงกับเอกสารตัวอย่าง
+                  โหมดจำลอง: ยังไม่ได้เชื่อม AI จริง และข้อความนี้ไม่ตรงกับเอกสารตัวอย่าง
                   รายการด้านล่างเป็นตัวอย่างทั่วไป
                 </p>
               )}
@@ -629,7 +629,7 @@ export function ImportForm({
 
           {exams.length > 0 && (
             <div className="space-y-2">
-              <h2 className="font-medium">📝 ตารางสอบ</h2>
+              <h2 className="font-medium">ตารางสอบ</h2>
               <ul className="space-y-2">{exams.map(renderCard)}</ul>
             </div>
           )}
@@ -665,7 +665,7 @@ export function ImportForm({
 }
 
 function Missing({ children }: { children: React.ReactNode }) {
-  return <span className="text-warn">⚠ {children}</span>;
+  return <span className="text-warn">{children}</span>;
 }
 
 const editInput =
@@ -827,7 +827,7 @@ function ExtractedCard({
                 </span>
               )}
               <span className="block">
-                {row.location ? `📍 ${row.location}` : <Missing>ไม่ระบุสถานที่</Missing>}
+                {row.location ? `สถานที่ ${row.location}` : <Missing>ไม่ระบุสถานที่</Missing>}
               </span>
             </span>
           ) : (
@@ -850,7 +850,7 @@ function ExtractedCard({
             <optgroup label="สอบ">
               {EXAM_TYPES.map((t) => (
                 <option key={t} value={`exam:${t}`}>
-                  📝 {EXAM_TYPE_LABEL[t]}
+                  {EXAM_TYPE_LABEL[t]}
                 </option>
               ))}
             </optgroup>
@@ -896,29 +896,29 @@ function ExtractedCard({
         {row.note && <p className="text-xs text-muted">{row.note}</p>}
         {row.warnings.map((w) => (
           <p key={w} className="text-xs text-warn">
-            ⚠ {w}
+            {w}
           </p>
         ))}
-        {badEnd && <p className="text-xs text-warn">⚠ เวลาจบต้องหลังเวลาเริ่ม (จะไม่บันทึกเวลาจบ)</p>}
+        {badEnd && <p className="text-xs text-warn">เวลาจบต้องหลังเวลาเริ่ม (จะไม่บันทึกเวลาจบ)</p>}
         {dupExisting && (
           <p className="text-xs text-warn">
-            ⚠ อาจซ้ำกับ{dupExisting.kind === "exam" ? "สอบ" : "งาน"}ที่บันทึกไว้แล้ว: “{dupExisting.title}”
+            อาจซ้ำกับ{dupExisting.kind === "exam" ? "สอบ" : "งาน"}ที่บันทึกไว้แล้ว: “{dupExisting.title}”
           </p>
         )}
-        {dupBatch && <p className="text-xs text-warn">⚠ ซ้ำกับรายการอื่นในชุดนี้</p>}
+        {dupBatch && <p className="text-xs text-warn">ซ้ำกับรายการอื่นในชุดนี้</p>}
         {overlaps.length > 0 && (
-          <p className="text-xs text-danger">⚠ เวลาชนกับ {overlaps.join(", ")}</p>
+          <p className="text-xs text-danger">เวลาชนกับ {overlaps.join(", ")}</p>
         )}
         {similarCourse && (
           <p className="text-xs text-warn">
-            ⚠ มีวิชา “{courseLabel(similarCourse, "both")}” อยู่แล้ว — ถ้าเป็นวิชาเดียวกัน
+            มีวิชา “{courseLabel(similarCourse, "both")}” อยู่แล้ว — ถ้าเป็นวิชาเดียวกัน
             เลือกจากช่องวิชาแทนการเพิ่มใหม่
           </p>
         )}
         {low && !row.checked && (
           <p className="text-xs text-warn">ตรวจกับต้นฉบับแล้วติ๊กเพื่อยืนยัน</p>
         )}
-        {row.edited && <p className="text-xs text-muted">✎ แก้ไขแล้ว</p>}
+        {row.edited && <p className="text-xs text-muted">แก้ไขแล้ว</p>}
 
         {!editing && (
           <div className="flex gap-4 pt-1 text-sm">
@@ -937,7 +937,7 @@ function ExtractedCard({
 
 // "วันนี้ใช้ AI ไปแล้ว X/10 ครั้ง" ใต้ปุ่มส่ง — ครั้งที่ไม่สำเร็จไม่นับ (ผู้ใช้เลือก 9 พ.ย.)
 function UsageLine({ usage, mock }: { usage: AiUsage | null; mock: boolean }) {
-  if (mock) return <p className="text-xs text-muted">🧪 โหมดจำลอง — ไม่นับโควตา AI</p>;
+  if (mock) return <p className="text-xs text-muted">โหมดจำลอง — ไม่นับโควตา AI</p>;
   if (!usage) return null;
   const block = usageBlock(usage);
   const left = Math.max(usage.limit - usage.used, 0);

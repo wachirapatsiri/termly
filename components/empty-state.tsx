@@ -8,7 +8,7 @@ export function EmptyState({
   actions = [],
   compact = false,
 }: {
-  icon: string;
+  icon?: string;
   title: string;
   body?: React.ReactNode;
   actions?: { href: string; label: string; primary?: boolean }[];
@@ -20,14 +20,16 @@ export function EmptyState({
         compact ? "gap-1.5 px-4 py-6" : "gap-2 bg-surface px-6 py-10"
       }`}
     >
-      <span
-        aria-hidden
-        className={`flex items-center justify-center rounded-full bg-accent/10 ${
-          compact ? "h-11 w-11 text-xl" : "mb-1 h-16 w-16 text-3xl"
-        }`}
-      >
-        {icon}
-      </span>
+      {icon && (
+        <span
+          aria-hidden
+          className={`flex items-center justify-center rounded-full bg-accent/10 ${
+            compact ? "h-11 w-11 text-xl" : "mb-1 h-16 w-16 text-3xl"
+          }`}
+        >
+          {icon}
+        </span>
+      )}
       <p className="font-medium">{title}</p>
       {body && <p className="max-w-sm text-sm text-muted">{body}</p>}
       {actions.length > 0 && (

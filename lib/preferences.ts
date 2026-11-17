@@ -10,8 +10,14 @@ import {
 } from "@/lib/course-label";
 import { DEFAULT_YEAR_MODE, YEAR_MODE_COOKIE, isYearMode, type YearMode } from "@/lib/year-mode";
 import { DEFAULT_THEME, THEME_COOKIE, isThemeMode, type ThemeMode } from "@/lib/theme";
+import { DEFAULT_LANG, LANG_COOKIE, isLang, type Lang } from "@/lib/i18n";
 
-export type UserSettings = { courseLabel: CourseLabelMode; yearMode: YearMode; theme: ThemeMode };
+export type UserSettings = {
+  courseLabel: CourseLabelMode;
+  yearMode: YearMode;
+  theme: ThemeMode;
+  language: Lang;
+};
 
 // อ่านการตั้งค่าของผู้ใช้ — ต้องเรียกภายใน <Suspense>
 // ลำดับ: ตาราง user_settings (จำข้ามเครื่อง, migration 0004) → cookie เดิม → ค่าตั้งต้น
@@ -21,6 +27,7 @@ export const getUserSettings = cache(async (): Promise<UserSettings> => {
   const cookieLabel = jar.get(COURSE_LABEL_COOKIE)?.value;
   const cookieYear = jar.get(YEAR_MODE_COOKIE)?.value;
   const cookieTheme = jar.get(THEME_COOKIE)?.value;
+  const cookieLang = jar.get(LANG_COOKIE)?.value;
 
   // RLS ทำให้ได้เฉพาะแถวของผู้ใช้คนนี้ (ยังไม่ล็อกอิน = ไม่มีแถว)
   const supabase = await createClient();
@@ -35,10 +42,13 @@ export const getUserSettings = cache(async (): Promise<UserSettings> => {
   const label = data?.course_label ?? cookieLabel;
   const year = data?.year_mode ?? cookieYear;
   const theme = data?.theme ?? cookieTheme;
+  // language ในตารางเป็น null = ยังไม่เคยเลือก (migration 0008) → ใช้ cookie ของเครื่อง
+  const language = data?.language ?? cookieLang;
   return {
     courseLabel: isCourseLabelMode(label) ? label : DEFAULT_COURSE_LABEL,
     yearMode: isYearMode(year) ? year : DEFAULT_YEAR_MODE,
     theme: isThemeMode(theme) ? theme : DEFAULT_THEME,
+    language: isLang(language) ? language : DEFAULT_LANG,
   };
 });
 
@@ -49,4 +59,9 @@ export async function getCourseLabelMode(): Promise<CourseLabelMode> {
 // แสดงปีเป็น พ.ศ./ค.ศ.
 export async function getYearMode(): Promise<YearMode> {
   return (await getUserSettings()).yearMode;
+}
+
+// ภาษาของแอป (ไทย/อังกฤษ)
+export async function getLang(): Promise<Lang> {
+  return (await getUserSettings()).language;
 }

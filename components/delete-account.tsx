@@ -65,7 +65,7 @@ export function DeleteAccount() {
 
       {done && (
         <p role="status" className="rounded-card border border-line bg-surface p-3 text-sm">
-          ✅ ลบข้อมูลทั้งหมดแล้ว
+          ลบข้อมูลทั้งหมดแล้ว
         </p>
       )}
 

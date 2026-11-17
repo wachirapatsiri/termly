@@ -11,11 +11,11 @@ export const PRO_PRICES = [49, 79, 99] as const; // บาท/เทอม
 
 // ฟีเจอร์ Pro ที่ถามในฟอร์มว่าอยากได้ไหน (ตรงกับ check constraint feedback.pro_features ใน migration 0006)
 export const PRO_FEATURE_OPTIONS = [
-  { value: "reminders", icon: "🔔", label: "แจ้งเตือนก่อนส่งงาน/สอบ" },
-  { value: "calendar_sync", icon: "📅", label: "ปฏิทินอัปเดตเองอัตโนมัติ" },
-  { value: "grade_calc", icon: "🎯", label: "คำนวณ “ไฟนอลต้องได้เท่าไหร่”" },
-  { value: "recurring", icon: "🔁", label: "งานที่ส่งซ้ำทุกสัปดาห์" },
-  { value: "more_ai", icon: "✨", label: "ใช้ AI ได้มากขึ้น" },
+  { value: "reminders", label: "แจ้งเตือนก่อนส่งงาน/สอบ" },
+  { value: "calendar_sync", label: "ปฏิทินอัปเดตเองอัตโนมัติ" },
+  { value: "grade_calc", label: "คำนวณ “ไฟนอลต้องได้เท่าไหร่”" },
+  { value: "recurring", label: "งานที่ส่งซ้ำทุกสัปดาห์" },
+  { value: "more_ai", label: "ใช้ AI ได้มากขึ้น" },
 ] as const;
 
 export type PlanCell = string | boolean;
@@ -34,9 +34,9 @@ export const PLAN_FEATURES: { label: string; free: PlanCell; pro: PlanCell; soon
     free: `${PLAN_LIMITS.free.file} ครั้ง/วัน`,
     pro: `${PLAN_LIMITS.pro.file} ครั้ง/วัน`,
   },
-  { label: "🔔 แจ้งเตือนก่อนส่งงาน/สอบ", free: false, pro: true, soon: true },
-  { label: "📅 ปฏิทินอัปเดตเอง ไม่ต้องส่งออกใหม่", free: false, pro: true, soon: true },
-  { label: "🎯 คำนวณ “ไฟนอลต้องได้เท่าไหร่”", free: false, pro: true, soon: true },
-  { label: "🔁 งานที่ส่งซ้ำทุกสัปดาห์", free: false, pro: true, soon: true },
-  { label: "🚀 ฟีเจอร์ใหม่ที่เพิ่มในอนาคต", free: false, pro: "ได้ก่อน" },
+  { label: "แจ้งเตือนก่อนส่งงาน/สอบ", free: false, pro: true, soon: true },
+  { label: "ปฏิทินอัปเดตเอง ไม่ต้องส่งออกใหม่", free: false, pro: true, soon: true },
+  { label: "คำนวณ “ไฟนอลต้องได้เท่าไหร่”", free: false, pro: true, soon: true },
+  { label: "งานที่ส่งซ้ำทุกสัปดาห์", free: false, pro: true, soon: true },
+  { label: "ฟีเจอร์ใหม่ที่เพิ่มในอนาคต", free: false, pro: "ได้ก่อน" },
 ];

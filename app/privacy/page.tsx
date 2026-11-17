@@ -67,7 +67,7 @@ const SECTIONS = (ai: ReturnType<typeof aiSection>) => [
 export default function PrivacyPage() {
   const sections = SECTIONS(aiSection());
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-6 px-6 py-8 lg:max-w-3xl lg:px-10">
+    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-6 px-6 py-8 lg:max-w-3xl lg:px-10">
       <Link href="/" className="font-semibold tracking-tight">
         Termly
       </Link>

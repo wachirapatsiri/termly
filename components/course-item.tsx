@@ -113,7 +113,7 @@ export function CourseItem({
 
       {similarTo && (
         <p className="rounded border border-warn-line bg-warn-soft px-2 py-1 text-xs text-warn">
-          ⚠ อาจซ้ำกับวิชา {similarTo.code ? `${similarTo.code} ` : ""}
+          อาจซ้ำกับวิชา {similarTo.code ? `${similarTo.code} ` : ""}
           {similarTo.name} — ถ้าเป็นวิชาเดียวกัน ลบอันที่ไม่ใช้ได้
         </p>
       )}
@@ -122,7 +122,7 @@ export function CourseItem({
         <div className="space-y-2 border-t border-line pt-3">
           <h3 className="text-sm font-medium text-muted">งานค้าง</h3>
           {visibleTasks.length === 0 ? (
-            <p className="text-sm text-muted">ไม่มีงานค้างในวิชานี้ 🎉</p>
+            <p className="text-sm text-muted">ไม่มีงานค้างในวิชานี้</p>
           ) : (
             <ul className="space-y-1">
               {visibleTasks.map((t) => (
@@ -151,7 +151,7 @@ export function CourseItem({
                         {t.overdue && " · เลยกำหนด"}
                       </p>
                     ) : (
-                      <p className="text-xs text-warn">⚠ ยังไม่กำหนดวันส่ง</p>
+                      <p className="text-xs text-warn">ยังไม่กำหนดวันส่ง</p>
                     )}
                   </div>
 
@@ -394,14 +394,14 @@ function ExamLine({
           แก้ไข
         </button>
         {exam.starts_at ? formatDue(exam.starts_at, false, yearMode) : (
-          <span className="text-warn">⚠ ยังไม่ประกาศวันสอบ</span>
+          <span className="text-warn">ยังไม่ประกาศวันสอบ</span>
         )}
         {time && <span className="text-muted"> · {time}</span>}
         {exam.past && " · สอบแล้ว"}
       </p>
-      {exam.location && <p className="text-xs text-muted">📍 {exam.location}</p>}
+      {exam.location && <p className="text-xs text-muted">สถานที่ {exam.location}</p>}
       {exam.overlapsWith.length > 0 && !exam.past && (
-        <p className="text-xs text-danger">⚠ เวลาชนกับ {exam.overlapsWith.join(", ")}</p>
+        <p className="text-xs text-danger">เวลาชนกับ {exam.overlapsWith.join(", ")}</p>
       )}
     </div>
   );

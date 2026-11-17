@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/empty-state";
 
 export default function CoursesPage() {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
+    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
       <AppNav current="/courses" />
       <h1 className="text-2xl font-semibold tracking-tight">วิชาของฉัน</h1>
 
@@ -126,10 +126,9 @@ async function CoursesSection() {
         </h2>
         {courses.length === 0 ? (
           <EmptyState
-            icon="🎒"
             title="ยังไม่มีวิชา"
             body="เพิ่มวิชาที่ลงเรียนเทอมนี้ในฟอร์ม หรือวางซิลลาบัสให้ AI สร้างวิชาพร้อมงานให้เลย"
-            actions={[{ href: "/import", label: "✨ ให้ AI ช่วยเพิ่ม", primary: true }]}
+            actions={[{ href: "/import", label: "ให้ AI ช่วยเพิ่ม", primary: true }]}
           />
         ) : (
           <ul className="space-y-2 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3 lg:space-y-0">

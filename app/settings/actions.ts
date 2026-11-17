@@ -11,6 +11,7 @@ import { YEAR_MODE_COOKIE, isYearMode } from "@/lib/year-mode";
 import { getUserSettings, type UserSettings } from "@/lib/preferences";
 import { THEME_COOKIE, isThemeMode } from "@/lib/theme";
 import { DELETE_CONFIRM_WORD } from "@/lib/account";
+import { LANG_COOKIE, isLang } from "@/lib/i18n";
 
 const PREF_COOKIE = {
   path: "/",
@@ -30,6 +31,8 @@ async function saveSettings(patch: Partial<UserSettings>) {
   jar.set(YEAR_MODE_COOKIE, next.yearMode, PREF_COOKIE);
   // ธีม: สคริปต์ใน <head> ต้องอ่านได้ → ไม่ httpOnly (ไม่ใช่ข้อมูลลับ)
   jar.set(THEME_COOKIE, next.theme, { ...PREF_COOKIE, httpOnly: false });
+  // ภาษา: สคริปต์ใน <head> อ่านใส่ <html lang> → ไม่ httpOnly
+  jar.set(LANG_COOKIE, next.language, { ...PREF_COOKIE, httpOnly: false });
 
   const user = await getCurrentUser();
   if (!user) return;
@@ -40,6 +43,8 @@ async function saveSettings(patch: Partial<UserSettings>) {
       course_label: next.courseLabel,
       year_mode: next.yearMode,
       theme: next.theme,
+      // เขียนช่องภาษาเฉพาะตอนผู้ใช้เลือกเอง (null = ยังไม่เคยเลือก ให้ cookie ตัดสินแทน)
+      ...(patch.language ? { language: patch.language } : {}),
       updated_at: new Date().toISOString(),
     },
     { onConflict: "user_id" },
@@ -57,6 +62,14 @@ export async function setYearMode(formData: FormData) {
   const mode = formData.get("mode");
   if (!isYearMode(mode)) return;
   await saveSettings({ yearMode: mode });
+}
+
+// ภาษาของแอป — ใช้ได้ทั้งตอนล็อกอินและยังไม่ล็อกอิน (ยังไม่ล็อกอิน = เก็บแค่ cookie)
+export async function setLanguage(formData: FormData) {
+  const value = formData.get("lang");
+  if (!isLang(value)) return;
+  await saveSettings({ language: value });
+  refresh();
 }
 
 export async function setTheme(formData: FormData) {

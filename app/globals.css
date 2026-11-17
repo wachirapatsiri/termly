@@ -191,3 +191,15 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* จอคอมใหญ่: ขยายตัวอักษรและระยะทั้งแอปพร้อมกัน (ทุกอย่างใช้หน่วย rem) — มือถือ/แท็บเล็ตไม่เปลี่ยน */
+@media (min-width: 1280px) {
+  html {
+    font-size: 112.5%;
+  }
+}
+@media (min-width: 1700px) {
+  html {
+    font-size: 125%;
+  }
+}

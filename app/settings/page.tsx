@@ -8,6 +8,8 @@ import { CategoryManager } from "@/components/category-manager";
 import { CourseLabelSetting } from "@/components/course-label-setting";
 import { YearModeSetting } from "@/components/year-mode-setting";
 import { ThemeSetting } from "@/components/theme-setting";
+import { LanguageSetting } from "@/components/language-setting";
+import { t } from "@/lib/messages";
 import { SignOutButton } from "@/components/sign-out-button";
 import { InstallApp } from "@/components/install-app";
 import { DeleteAccount } from "@/components/delete-account";
@@ -18,7 +20,7 @@ import { NO_COURSE } from "@/lib/ics";
 
 export default function SettingsPage() {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
+    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
       <AppNav current="/settings" />
       <h1 className="text-2xl font-semibold tracking-tight">ตั้งค่า</h1>
 
@@ -34,7 +36,7 @@ async function SettingsSection() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
-  const [{ courseLabel: mode, yearMode, theme }, sampleRes, categoriesRes, taskCatsRes, exportRes] = await Promise.all([
+  const [{ courseLabel: mode, yearMode, theme, language }, sampleRes, categoriesRes, taskCatsRes, exportRes] = await Promise.all([
     getUserSettings(),
     // ใช้วิชาที่มีรหัสเป็นตัวอย่างในพรีวิว
     supabase.from("courses").select("name, code").not("code", "is", null).limit(1),
@@ -66,17 +68,21 @@ async function SettingsSection() {
           href="/feedback"
           className="flex items-center gap-3 rounded-card border border-info-line bg-info-soft px-4 py-3 text-sm transition active:scale-95"
         >
-          <span aria-hidden className="text-lg">
-            💬
-          </span>
           <span className="min-w-0 flex-1">
             <span className="font-medium">ส่งความเห็น / แจ้งปัญหา</span>
-            <span className="block text-muted">ช่วงทดลอง — ทุกความเห็นช่วยได้มาก</span>
           </span>
           <span aria-hidden className="text-info">
             →
           </span>
         </Link>
+      </Block>
+
+      <Block>
+        <LanguageSetting
+          current={language}
+          legend={t(language, "settings.language")}
+          hint={t(language, "settings.languageHint")}
+        />
       </Block>
 
       <Block>

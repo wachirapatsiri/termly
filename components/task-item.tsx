@@ -183,7 +183,7 @@ function TaskInfo({
           </span>
         ) : (
           <span className="rounded border border-warn-line bg-warn-soft px-1.5 py-0.5 text-xs text-warn">
-            ⚠ ยังไม่กำหนดวันส่ง
+            ยังไม่กำหนดวันส่ง
           </span>
         )}
         {course && (
