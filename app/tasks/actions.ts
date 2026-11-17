@@ -6,6 +6,9 @@ import { createClient } from "@/lib/supabase/server";
 import { toBangkokParts, toDueAt } from "@/lib/dates";
 import { findDuplicate } from "@/lib/duplicates";
 import { NEW_CATEGORY, resolveCategory } from "@/lib/categories";
+import { getLang } from "@/lib/preferences";
+import { t } from "@/lib/messages";
+import type { Lang } from "@/lib/i18n";
 
 // ค่าที่ส่งกลับให้ฟอร์ม: error ภาษาไทย + ค่าที่กรอกไว้ (จะได้ไม่ต้องพิมพ์ใหม่)
 // duplicate = ชื่องานที่มีอยู่แล้วและน่าจะซ้ำ → ฟอร์มถามก่อนเพิ่ม
@@ -25,7 +28,7 @@ function str(formData: FormData, key: string) {
 }
 
 // ตรวจค่าจากฟอร์ม → คืนข้อมูลพร้อมบันทึก หรือข้อความ error
-function parseTaskForm(formData: FormData) {
+function parseTaskForm(formData: FormData, lang: Lang) {
   const title = str(formData, "title");
   const date = str(formData, "due_date");
   const time = str(formData, "due_time");
@@ -43,23 +46,23 @@ function parseTaskForm(formData: FormData) {
     new_category: newCategory,
   };
 
-  if (!title) return { error: "กรุณาใส่ชื่องาน", values };
-  if (title.length > 300) return { error: "ชื่องานยาวเกิน 300 ตัวอักษร", values };
-  if (notes.length > 2000) return { error: "หมายเหตุยาวเกิน 2,000 ตัวอักษร", values };
-  if (time && !date) return { error: "ใส่เวลาแล้ว กรุณาเลือกวันส่งด้วย", values };
-  if (courseId && !UUID_RE.test(courseId)) return { error: "วิชาไม่ถูกต้อง", values };
+  if (!title) return { error: t(lang, "err.titleRequired"), values };
+  if (title.length > 300) return { error: t(lang, "err.titleTooLong"), values };
+  if (notes.length > 2000) return { error: t(lang, "err.notesTooLong"), values };
+  if (time && !date) return { error: t(lang, "err.timeNeedsDate"), values };
+  if (courseId && !UUID_RE.test(courseId)) return { error: t(lang, "err.badCourse"), values };
   if (category && category !== NEW_CATEGORY && !UUID_RE.test(category)) {
-    return { error: "ประเภทงานไม่ถูกต้อง", values };
+    return { error: t(lang, "err.badCategory"), values };
   }
   if (category === NEW_CATEGORY && !newCategory) {
-    return { error: "พิมพ์ชื่อประเภทใหม่ หรือเลือกประเภทที่มีอยู่", values };
+    return { error: t(lang, "err.categoryNeeded"), values };
   }
-  if (newCategory.length > 30) return { error: "ชื่อประเภทยาวเกิน 30 ตัวอักษร", values };
+  if (newCategory.length > 30) return { error: t(lang, "err.categoryTooLong"), values };
 
   let dueAt: string | null = null;
   if (date) {
     dueAt = toDueAt(date, time);
-    if (!dueAt) return { error: "วันหรือเวลาส่งไม่ถูกต้อง", values };
+    if (!dueAt) return { error: t(lang, "err.badDue"), values };
   }
 
   return {
@@ -88,7 +91,8 @@ export async function createTask(
   formData: FormData,
 ): Promise<TaskFormState> {
   await requireUser();
-  const parsed = parseTaskForm(formData);
+  const lang = await getLang();
+  const parsed = parseTaskForm(formData, lang);
   if (!parsed.data) return { error: parsed.error, values: parsed.values };
 
   const supabase = await createClient();
@@ -120,7 +124,7 @@ export async function createTask(
     .insert({ ...parsed.data, category_id: cat.id, source: "manual" });
   if (error) {
     console.error("createTask", error);
-    return { error: "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง", values: parsed.values };
+    return { error: t(lang, "err.saveFailed"), values: parsed.values };
   }
 
   refresh();
@@ -133,8 +137,9 @@ export async function updateTask(
 ): Promise<TaskFormState> {
   const user = await requireUser();
   const id = str(formData, "id");
-  const parsed = parseTaskForm(formData);
-  if (!UUID_RE.test(id)) return { error: "ไม่พบงานนี้", values: parsed.values };
+  const lang = await getLang();
+  const parsed = parseTaskForm(formData, lang);
+  if (!UUID_RE.test(id)) return { error: t(lang, "err.taskNotFound"), values: parsed.values };
   if (!parsed.data) return { error: parsed.error, values: parsed.values };
 
   const supabase = await createClient();
@@ -148,7 +153,7 @@ export async function updateTask(
     .select("id");
   if (error || !data?.length) {
     if (error) console.error("updateTask", error);
-    return { error: "แก้ไขไม่สำเร็จ ลองใหม่อีกครั้ง", values: parsed.values };
+    return { error: t(lang, "err.editFailed"), values: parsed.values };
   }
 
   refresh();

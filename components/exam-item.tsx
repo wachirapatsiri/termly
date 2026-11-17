@@ -5,6 +5,7 @@ import { useCallback, useOptimistic, useState } from "react";
 import { deleteExam } from "@/app/exams/actions";
 import { useYearMode } from "@/components/year-mode";
 import { formatDue } from "@/lib/dates";
+import type { Lang } from "@/lib/i18n";
 import { EXAM_TYPE_LABEL, countdownLabel, formatExamTime } from "@/lib/exams";
 import { EXAM_TYPE_TONE } from "@/lib/exam-display";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
@@ -130,7 +131,7 @@ export function ExamItem({
 }
 
 // ป้ายนับถอยหลัง: ≤ 3 วันสีแดง, ≤ 14 วันสีเน้น, ไกลกว่านั้นสีจาง
-export function Countdown({ days }: { days: number }) {
+export function Countdown({ days, lang = "th" }: { days: number; lang?: Lang }) {
   const tone =
     days <= 3
       ? "border-danger-line bg-danger-soft text-danger"
@@ -139,7 +140,7 @@ export function Countdown({ days }: { days: number }) {
         : "border-line text-muted";
   return (
     <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${tone}`}>
-      {countdownLabel(days)}
+      {countdownLabel(days, lang)}
     </span>
   );
 }

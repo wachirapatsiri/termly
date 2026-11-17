@@ -35,3 +35,25 @@ test("i18n: isLang / ค่าตั้งต้น / ตัวเลือก",
   assert.ok(!isLang("fr") && !isLang(undefined) && !isLang(null));
   assert.deepEqual(LANG_OPTIONS.map((o) => o.value), ["th", "en"]);
 });
+
+test("i18n: ฟังก์ชันวันที่/สัปดาห์/นับถอยหลังรองรับ en", async () => {
+  const { formatDue, dueGroupLabel } = await import("../lib/dates.ts");
+  const { countdownLabel, examTypeLabel, formatExamTime } = await import("../lib/exams.ts");
+  const { shortDay, weekOffsetLabel, weekLoadLabel, formatWeekRange } = await import("../lib/weeks.ts");
+  const iso = "2026-11-11T07:30:00.000Z"; // พุธ 11 พ.ย. 14:30 เวลาไทย
+  assert.equal(formatDue(iso, true, "ce", "en"), "Wed 11 Nov 2026 · 14:30");
+  assert.equal(formatDue(iso, false, "be", "en"), "Wed 11 Nov 2569");
+  assert.equal(formatDue(iso, false, "be"), "พุธ 11 พ.ย. 2569"); // ไทยเหมือนเดิม
+  assert.equal(dueGroupLabel("overdue", "en"), "Overdue");
+  assert.equal(dueGroupLabel("overdue"), "เลยกำหนด");
+  assert.equal(countdownLabel(5, "en"), "In 5 days");
+  assert.equal(countdownLabel(5), "อีก 5 วัน");
+  assert.equal(examTypeLabel("midterm", "en"), "Midterm exam");
+  assert.equal(weekOffsetLabel(3, "en"), "In 3 weeks");
+  assert.equal(weekLoadLabel("heavy", "en"), "Heavy");
+  assert.equal(shortDay(iso, "en"), "Wed 11");
+  assert.equal(formatWeekRange("2026-11-09", "2026-11-15", "ce", new Date(iso), "en"), "9–15 Nov");
+  const e = { starts_at: iso, ends_at: "2026-11-11T09:30:00.000Z", has_time: true };
+  assert.equal(formatExamTime(e, "en"), "14:30–16:30");
+  assert.equal(formatExamTime(e), "14:30–16:30 น.");
+});

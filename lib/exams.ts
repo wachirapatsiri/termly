@@ -1,6 +1,8 @@
 // ฟังก์ชันกลางของ "สอบ" (ตาราง events kind = exam) — ใช้ทั้งหน้า /exams, หน้างาน และหน้านำเข้า
 // import ด้วยนามสกุล .ts เพื่อให้ `node --test` รันได้ตรง
 import { daysUntil, toBangkokParts, toDueAt } from "./dates.ts";
+import type { Lang } from "./i18n.ts";
+import { t } from "./messages.ts";
 
 export type ExamType = "midterm" | "final" | "other";
 export const EXAM_TYPES: ExamType[] = ["midterm", "final", "other"];
@@ -9,6 +11,10 @@ export const EXAM_TYPE_LABEL: Record<ExamType, string> = {
   final: "สอบปลายภาค",
   other: "สอบอื่น ๆ",
 };
+
+export function examTypeLabel(type: ExamType, lang: Lang = "th"): string {
+  return t(lang, `examType.${type}`);
+}
 
 export function isExamType(v: unknown): v is ExamType {
   return v === "midterm" || v === "final" || v === "other";
@@ -53,19 +59,19 @@ export function formatExamTime(e: {
   starts_at: string | null;
   ends_at: string | null;
   has_time: boolean;
-}): string | null {
+}, lang: Lang = "th"): string | null {
   if (!e.starts_at || !e.has_time) return null;
   const start = toBangkokParts(e.starts_at).time;
   const end = e.ends_at ? toBangkokParts(e.ends_at).time : null;
-  return `${start}${end ? `–${end}` : ""} น.`;
+  return `${start}${end ? `–${end}` : ""}${lang === "th" ? " น." : ""}`;
 }
 
 // "วันนี้" / "พรุ่งนี้" / "อีก 5 วัน" / "ผ่านไปแล้ว"
-export function countdownLabel(days: number): string {
-  if (days < 0) return "ผ่านไปแล้ว";
-  if (days === 0) return "วันนี้";
-  if (days === 1) return "พรุ่งนี้";
-  return `อีก ${days} วัน`;
+export function countdownLabel(days: number, lang: Lang = "th"): string {
+  if (days < 0) return t(lang, "countdown.past");
+  if (days === 0) return t(lang, "countdown.today");
+  if (days === 1) return t(lang, "countdown.tomorrow");
+  return t(lang, "countdown.days", { n: days });
 }
 
 // สอบที่ยังไม่ถึง (รวมวันนี้) ภายใน `days` วัน เรียงตามวัน

@@ -3,6 +3,7 @@
 import { useCallback, useOptimistic, useState } from "react";
 import { deleteTask, setTaskDone } from "@/app/tasks/actions";
 import { useYearMode } from "@/components/year-mode";
+import { useLang, useT } from "@/components/lang";
 import { formatDue } from "@/lib/dates";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
 import type { Course, Task, TaskCategory } from "@/lib/types";
@@ -28,6 +29,7 @@ export function TaskItem({
   labelMode: CourseLabelMode; // แสดงวิชาเป็นรหัส/ชื่อ ตามที่ตั้งค่าไว้
   overdue: boolean; // คำนวณฝั่งเซิร์ฟเวอร์ เพื่อให้ผลตรงกันทั้งสองฝั่ง
 }) {
+  const tr = useT();
   const [editing, setEditing] = useState(false);
   const close = useCallback(() => setEditing(false), []);
 
@@ -102,7 +104,7 @@ export function TaskItem({
         <input type="hidden" name="done" value={String(!done)} />
         <button
           type="submit"
-          aria-label={done ? "ทำเครื่องหมายว่ายังไม่เสร็จ" : "ทำเครื่องหมายว่าเสร็จแล้ว"}
+          aria-label={done ? tr("task.markUndone") : tr("task.markDone")}
           className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded border text-xs transition-colors hover:border-accent active:scale-90 ${
             done ? "border-accent bg-accent text-white motion-safe:animate-pop" : "border-muted/60"
           }`}
@@ -123,7 +125,7 @@ export function TaskItem({
 
         <div className="flex gap-4 pt-1 text-sm">
           <button type="button" onClick={() => setEditing(true)} className="text-accent">
-            แก้ไข
+            {tr("task.edit")}
           </button>
           <form
             action={async (formData) => {
@@ -131,12 +133,12 @@ export function TaskItem({
               await deleteTask(formData);
             }}
             onSubmit={(e) => {
-              if (!confirm(`ลบงาน "${task.title}" ?`)) e.preventDefault();
+              if (!confirm(tr("task.confirmDelete", { title: task.title }))) e.preventDefault();
             }}
           >
             <input type="hidden" name="id" value={task.id} />
             <button type="submit" className="text-danger">
-              ลบ
+              {tr("task.delete")}
             </button>
           </form>
         </div>
@@ -162,6 +164,8 @@ function TaskInfo({
   labelMode: CourseLabelMode;
 }) {
   const yearMode = useYearMode();
+  const lang = useLang();
+  const tr = useT();
   return (
     <div className="min-w-0 flex-1 space-y-1">
       <p
@@ -178,12 +182,12 @@ function TaskInfo({
         )}
         {task.due_at ? (
           <span className={overdue && !done ? "text-danger" : "text-muted"}>
-            {formatDue(task.due_at, task.due_has_time, yearMode)}
-            {overdue && !done && " · เลยกำหนด"}
+            {formatDue(task.due_at, task.due_has_time, yearMode, lang)}
+            {overdue && !done && ` · ${tr("task.overdueSuffix")}`}
           </span>
         ) : (
           <span className="rounded border border-warn-line bg-warn-soft px-1.5 py-0.5 text-xs text-warn">
-            ยังไม่กำหนดวันส่ง
+            {tr("task.noDueBadge")}
           </span>
         )}
         {course && (

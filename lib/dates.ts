@@ -1,6 +1,8 @@
 // จัดการวันที่: เก็บเป็น ค.ศ. (timestamptz) แสดงผลเป็น พ.ศ. โซนเวลา Asia/Bangkok
 // ประเทศไทยไม่มี daylight saving → เวลาไทย = UTC+7 ตลอดปี
 import type { YearMode } from "./year-mode.ts";
+import type { Lang } from "./i18n.ts";
+import { t } from "./messages.ts";
 
 export const TIME_ZONE = "Asia/Bangkok";
 const BANGKOK_OFFSET = "+07:00";
@@ -77,10 +79,31 @@ const thaiTime = new Intl.DateTimeFormat("th-TH-u-ca-buddhist", {
   hourCycle: "h23",
 });
 
+const enDate = new Intl.DateTimeFormat("en-GB", DATE_PARTS);
+const enTime = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
 // แสดงวันส่งแบบไทย เช่น "พุธ 11 พ.ย. 2569" หรือ "พุธ 11 พ.ย. 2569 · 14:30 น."
 // yearMode "ce" = "พุธ 11 พ.ย. 2026" (ตั้งค่าที่หน้า ⚙ — ฝั่ง client ใช้ useYearMode())
-export function formatDue(iso: string, hasTime: boolean, yearMode: YearMode = "be"): string {
+// lang "en" = "Wed, 11 Nov 2569 · 14:30" (ปีตามโหมด พ.ศ./ค.ศ. เหมือนกัน)
+export function formatDue(
+  iso: string,
+  hasTime: boolean,
+  yearMode: YearMode = "be",
+  lang: Lang = "th",
+): string {
   const d = new Date(iso);
+  if (lang === "en") {
+    const parts = enDate.formatToParts(d);
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+    const year = yearMode === "be" ? Number(get("year")) + 543 : get("year");
+    const date = `${get("weekday")} ${get("day")} ${get("month")} ${year}`;
+    return hasTime ? `${date} · ${enTime.format(d)}` : date;
+  }
   const date = thaiDate[yearMode].format(d);
   return hasTime ? `${date} · ${thaiTime.format(d)} น.` : date;
 }
@@ -96,6 +119,10 @@ export const DUE_GROUP_LABEL: Record<DueGroup, string> = {
   week: "ภายใน 7 วัน",
   later: "หลังจากนั้น",
 };
+
+export function dueGroupLabel(g: DueGroup, lang: Lang = "th"): string {
+  return t(lang, `due.${g}`);
+}
 
 // จำนวนวันจาก "วันนี้" ถึงวันส่ง (นับตามปฏิทินไทย ไม่สนชั่วโมง) เช่น พรุ่งนี้ = 1
 export function daysUntil(iso: string, now: Date = new Date()): number {

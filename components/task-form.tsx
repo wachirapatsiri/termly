@@ -11,6 +11,7 @@ import { toBangkokParts } from "@/lib/dates";
 import { MAX_CATEGORY_LENGTH, NEW_CATEGORY } from "@/lib/categories";
 import type { Course, Task, TaskCategory } from "@/lib/types";
 import { ConfirmBox, DefaultSubmit } from "@/components/confirm-box";
+import { useT } from "@/components/lang";
 
 const inputClass =
   "w-full rounded-card border border-line bg-surface px-3 py-2 text-base outline-none focus:border-accent";
@@ -32,6 +33,7 @@ export function TaskForm({
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
+  const tr = useT();
   const [state, formAction, pending] = useActionState<TaskFormState, FormData>(
     task ? updateTask : createTask,
     {},
@@ -73,20 +75,20 @@ export function TaskForm({
       {task && <input type="hidden" name="id" value={task.id} />}
 
       <label className="block space-y-1">
-        <span className="text-sm text-muted">ชื่องาน</span>
+        <span className="text-sm text-muted">{tr("task.title")}</span>
         <input
           name="title"
           required
           maxLength={300}
           defaultValue={v.title}
-          placeholder="เช่น รายงานบทที่ 3"
+          placeholder={tr("task.titlePlaceholder")}
           className={inputClass}
         />
       </label>
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block space-y-1">
-          <span className="text-sm text-muted">วันส่ง</span>
+          <span className="text-sm text-muted">{tr("task.dueDate")}</span>
           <input
             type="date"
             name="due_date"
@@ -95,7 +97,7 @@ export function TaskForm({
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-sm text-muted">เวลา (ไม่ใส่ก็ได้)</span>
+          <span className="text-sm text-muted">{tr("task.dueTime")}</span>
           <input
             type="time"
             name="due_time"
@@ -105,27 +107,27 @@ export function TaskForm({
         </label>
       </div>
       <p className="text-xs text-muted">
-        ยังไม่รู้วันส่ง เว้นว่างไว้ได้ — งานจะขึ้นป้าย &quot;ยังไม่กำหนดวันส่ง&quot;
+        {tr("task.noDueHint")}
       </p>
 
       {courses.length === 0 && (
         <p className="text-sm text-muted">
-          อยากผูกงานกับวิชา?{" "}
+          {tr("task.linkCourse")}{" "}
           <Link href="/courses" className="text-accent">
-            เพิ่มวิชาก่อน
+            {tr("task.addCourseFirst")}
           </Link>
         </p>
       )}
 
       {courses.length > 0 && (
         <label className="block space-y-1">
-          <span className="text-sm text-muted">วิชา</span>
+          <span className="text-sm text-muted">{tr("task.course")}</span>
           <select
             name="course_id"
             defaultValue={v.course_id}
             className={inputClass}
           >
-            <option value="">— ไม่ระบุ —</option>
+            <option value="">{tr("task.unspecified")}</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.code ? `${c.code} ${c.name}` : c.name}
@@ -137,20 +139,20 @@ export function TaskForm({
 
       <div className="space-y-2">
         <label className="block space-y-1">
-          <span className="text-sm text-muted">ประเภท</span>
+          <span className="text-sm text-muted">{tr("task.category")}</span>
           <select
             name="category"
             defaultValue={v.category}
             onChange={(e) => setShowNew(e.target.value === NEW_CATEGORY)}
             className={inputClass}
           >
-            <option value="">— ไม่ระบุ —</option>
+            <option value="">{tr("task.unspecified")}</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
-            <option value={NEW_CATEGORY}>+ พิมพ์ประเภทใหม่…</option>
+            <option value={NEW_CATEGORY}>{tr("task.newCategory")}</option>
           </select>
         </label>
         {showNew && (
@@ -158,8 +160,8 @@ export function TaskForm({
             name="new_category"
             maxLength={MAX_CATEGORY_LENGTH}
             defaultValue={v.new_category}
-            placeholder="ชื่อประเภท เช่น Workshop"
-            aria-label="ชื่อประเภทใหม่"
+            placeholder={tr("task.newCategoryPlaceholder")}
+            aria-label={tr("task.newCategoryAria")}
             autoFocus
             className={inputClass}
           />
@@ -167,7 +169,7 @@ export function TaskForm({
       </div>
 
       <label className="block space-y-1">
-        <span className="text-sm text-muted">หมายเหตุ</span>
+        <span className="text-sm text-muted">{tr("task.notes")}</span>
         <textarea
           name="notes"
           rows={2}
@@ -179,8 +181,9 @@ export function TaskForm({
 
       {state.duplicate && !isCancelled && (
         <ConfirmBox
-          message={<>มีงาน “{state.duplicate}” อยู่แล้ว — ยังจะเพิ่มอีกไหม?</>}
-          actions={[{ intent: "add_anyway", label: "เพิ่มต่อ" }]}
+          message={tr("task.duplicate", { title: state.duplicate })}
+          actions={[{ intent: "add_anyway", label: tr("task.addAnyway") }]}
+          cancelLabel={tr("task.dontAdd")}
           onCancel={() => {
             setCancelled(state);
             setFormKey((k) => k + 1);
@@ -201,7 +204,7 @@ export function TaskForm({
           disabled={pending}
           className="flex-1 rounded-card bg-accent px-4 py-2.5 font-medium text-white disabled:opacity-60"
         >
-          {pending ? "กำลังบันทึก…" : task ? "บันทึกการแก้ไข" : "เพิ่มงาน"}
+          {pending ? tr("task.saving") : task ? tr("task.saveEdit") : tr("task.add")}
         </button>
         {onCancel && (
           <button
@@ -209,7 +212,7 @@ export function TaskForm({
             onClick={onCancel}
             className="rounded-card border border-line px-4 py-2.5"
           >
-            ยกเลิก
+            {tr("task.cancel")}
           </button>
         )}
       </div>

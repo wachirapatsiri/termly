@@ -7,7 +7,7 @@ import { formatExamTime } from "@/lib/exams";
 import {
   HEAVY_WEEK_TASKS,
   MEDIUM_WEEK_TASKS,
-  WEEK_LOAD_LABEL,
+  weekLoadLabel,
   buildWeeks,
   formatWeekRange,
   shortDay,
@@ -16,6 +16,8 @@ import {
   type WeekLoad,
 } from "@/lib/weeks";
 import { toBangkokParts } from "@/lib/dates";
+import { t as msg } from "@/lib/messages";
+import type { Lang } from "@/lib/i18n";
 import { CourseDot } from "@/components/course-dot";
 import type { YearMode } from "@/lib/year-mode";
 import type { CalendarEvent, Course, Task, TaskCategory } from "@/lib/types";
@@ -41,6 +43,7 @@ export function WeekView({
   labelMode,
   yearMode,
   now,
+  lang,
 }: {
   tasks: Task[];
   exams: WeekExam[];
@@ -49,6 +52,7 @@ export function WeekView({
   labelMode: CourseLabelMode;
   yearMode: YearMode;
   now: Date;
+  lang: Lang;
 }) {
   const courseById = new Map(courses.map((c) => [c.id, c]));
   const categoryById = new Map(categories.map((c) => [c.id, c]));
@@ -64,11 +68,13 @@ export function WeekView({
   return (
     <div className="space-y-6">
       {/* ภาพรวม: แท่งต่อสัปดาห์ สูงตามจำนวนงาน กดแล้วเลื่อนไปสัปดาห์นั้น */}
-      <section className="space-y-3 rounded-card border border-line bg-surface p-4" aria-label="ภาพรวมรายสัปดาห์">
+      <section className="space-y-3 rounded-card border border-line bg-surface p-4" aria-label={msg(lang, "week.overviewAria")}>
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="font-medium">ภาพรวม</h2>
+          <h2 className="font-medium">{msg(lang, "week.overview")}</h2>
           <p className="text-xs text-muted">
-            {heavyCount > 0 ? `งานหนัก ${heavyCount} สัปดาห์` : "ยังไม่มีสัปดาห์งานหนัก"}
+            {heavyCount > 0
+              ? msg(lang, "week.heavyCount", { n: heavyCount })
+              : msg(lang, "week.noHeavy")}
           </p>
         </div>
         <div className="-mx-4 overflow-x-auto px-4">
@@ -77,7 +83,10 @@ export function WeekView({
               <li key={w.start} className="flex min-w-7 flex-1 flex-col items-center gap-1">
                 <a
                   href={`#w-${w.start}`}
-                  aria-label={`${weekOffsetLabel(w.offset)} ${w.taskCount} งาน`}
+                  aria-label={msg(lang, "week.barAria", {
+                    week: weekOffsetLabel(w.offset, lang),
+                    n: w.taskCount,
+                  })}
                   className="flex h-20 w-full flex-col justify-end"
                 >
                   <span className="text-center text-[11px] text-muted">
@@ -91,15 +100,18 @@ export function WeekView({
                 <span
                   className={`text-[11px] ${w.offset === 0 ? "font-medium text-accent" : "text-muted"}`}
                 >
-                  {w.offset === 0 ? "นี้" : Number(w.start.slice(8, 10))}
+                  {w.offset === 0 ? msg(lang, "week.thisShort") : Number(w.start.slice(8, 10))}
                 </span>
               </li>
             ))}
           </ol>
         </div>
         <p className="text-xs text-muted">
-          ตัวเลขใต้แท่ง = วันจันทร์ของสัปดาห์ · {MEDIUM_WEEK_TASKS}–{HEAVY_WEEK_TASKS - 1} งาน = ปานกลาง ·{" "}
-          {HEAVY_WEEK_TASKS} งานขึ้นไป = หนัก (สอบไม่นับ)
+          {msg(lang, "week.legend", {
+            medium: MEDIUM_WEEK_TASKS,
+            heavyMinus: HEAVY_WEEK_TASKS - 1,
+            heavy: HEAVY_WEEK_TASKS,
+          })}
         </p>
       </section>
 
@@ -107,17 +119,17 @@ export function WeekView({
         <div className="space-y-1 text-sm">
           {overdueBefore > 0 && (
             <p className="text-danger">
-              เลยกำหนดจากสัปดาห์ก่อน {overdueBefore} งาน ·{" "}
+              {msg(lang, "week.overdueBefore", { n: overdueBefore })} ·{" "}
               <Link href="/tasks" className="underline">
-                ดูในรายการ
+                {msg(lang, "week.viewInList")}
               </Link>
             </p>
           )}
           {noDue > 0 && (
             <p className="text-warn">
-              ยังไม่กำหนดวันส่ง {noDue} งาน (ไม่อยู่ในสัปดาห์ไหน) ·{" "}
+              {msg(lang, "week.noDue", { n: noDue })} ·{" "}
               <Link href="/tasks" className="underline">
-                ไปเติมวันส่ง
+                {msg(lang, "week.addDue")}
               </Link>
             </p>
           )}
@@ -135,6 +147,7 @@ export function WeekView({
             labelMode={labelMode}
             yearMode={yearMode}
             now={now}
+            lang={lang}
           />
         ))}
       </ol>
@@ -149,6 +162,7 @@ function WeekCard({
   labelMode,
   yearMode,
   now,
+  lang,
 }: {
   week: Week<Task, WeekExam>;
   courseById: Map<string, Course>;
@@ -156,8 +170,9 @@ function WeekCard({
   labelMode: CourseLabelMode;
   yearMode: YearMode;
   now: Date;
+  lang: Lang;
 }) {
-  const range = formatWeekRange(w.start, w.end, yearMode, now);
+  const range = formatWeekRange(w.start, w.end, yearMode, now, lang);
   const empty = w.taskCount === 0 && w.exams.length === 0;
   const tone = LOAD_TONE[w.load];
 
@@ -171,14 +186,14 @@ function WeekCard({
       <div className="flex items-center justify-between gap-3">
         <h3 className="min-w-0 text-sm">
           <span className={`font-medium ${w.offset === 0 ? "text-accent" : ""}`}>
-            {weekOffsetLabel(w.offset)}
+            {weekOffsetLabel(w.offset, lang)}
           </span>{" "}
           <span className="text-muted">· {range}</span>
         </h3>
         <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${tone.badge}`}>
           {w.load === "free"
-            ? "ว่าง"
-            : `${WEEK_LOAD_LABEL[w.load]} · ${w.taskCount} งาน`}
+            ? weekLoadLabel("free", lang)
+            : msg(lang, "week.loadBadge", { load: weekLoadLabel(w.load, lang), n: w.taskCount })}
         </span>
       </div>
 
@@ -186,7 +201,7 @@ function WeekCard({
         <ul className="space-y-1.5">
           {w.exams.map((e) => {
             const course = e.course_id ? courseById.get(e.course_id) : undefined;
-            const time = formatExamTime(e);
+            const time = formatExamTime(e, lang);
             return (
               <li key={e.id}>
                 <Link
@@ -195,9 +210,9 @@ function WeekCard({
                     EXAM_TYPE_TONE[e.exam_type ?? "other"].border
                   }`}
                 >
-                  <span className="w-11 shrink-0 text-muted">{shortDay(e.starts_at!)}</span>
+                  <span className="w-11 shrink-0 text-muted">{shortDay(e.starts_at!, lang)}</span>
                   <span className="min-w-0 flex-1">
-                    {examLabel(e, course, labelMode)}
+                    {examLabel(e, course, labelMode, lang)}
                     {(time || e.location) && (
                       <span className="block text-xs text-muted">
                         {[time, e.location].filter(Boolean).join(" · ")}
@@ -220,7 +235,8 @@ function WeekCard({
             const meta = [
               course && courseLabel(course, labelMode),
               category?.name,
-              t.due_has_time && `${toBangkokParts(t.due_at!).time} น.`,
+              t.due_has_time &&
+                `${toBangkokParts(t.due_at!).time}${lang === "th" ? " น." : ""}`,
             ].filter(Boolean);
             return (
               <li key={t.id} className="flex items-baseline gap-2 py-1.5 text-sm">
@@ -230,7 +246,7 @@ function WeekCard({
                   <span className="w-2 shrink-0" aria-hidden />
                 )}
                 <span className={`w-11 shrink-0 ${overdue ? "text-danger" : "text-muted"}`}>
-                  {shortDay(t.due_at!)}
+                  {shortDay(t.due_at!, lang)}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className={t.done ? "text-muted line-through" : ""}>
@@ -240,11 +256,11 @@ function WeekCard({
                   {meta.length > 0 && (
                     <span className="block text-xs text-muted">
                       {meta.join(" · ")}
-                      {overdue && <span className="text-danger"> · เลยกำหนด</span>}
+                      {overdue && <span className="text-danger"> · {msg(lang, "task.overdueSuffix")}</span>}
                     </span>
                   )}
                   {meta.length === 0 && overdue && (
-                    <span className="block text-xs text-danger">เลยกำหนด</span>
+                    <span className="block text-xs text-danger">{msg(lang, "task.overdueSuffix")}</span>
                   )}
                 </span>
               </li>
@@ -255,7 +271,7 @@ function WeekCard({
 
       {w.doneCount > 0 && (
         <p className="text-xs text-muted">
-          เสร็จแล้ว {w.doneCount}/{w.taskCount} งาน
+          {msg(lang, "week.doneOf", { done: w.doneCount, total: w.taskCount })}
         </p>
       )}
     </li>
