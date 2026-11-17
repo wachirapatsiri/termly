@@ -18,7 +18,7 @@ import { EmptyState } from "@/components/empty-state";
 
 export default function CoursesPage() {
   return (
-    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
+    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-none lg:px-10 min-[1700px]:px-16">
       <AppNav current="/courses" />
       {/* ภาษามาจาก cookie → อ่านใน Suspense เสมอ */}
       <Suspense fallback={<div className="h-8" />}>
