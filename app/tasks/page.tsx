@@ -36,7 +36,7 @@ export default function TasksPage({ searchParams }: PageProps<"/tasks">) {
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">งานของฉัน</h1>
         <Link href="/settings#calendar" className="shrink-0 text-sm text-accent">
-          📅 ส่งออกไปปฏิทิน
+          ส่งออกไปปฏิทิน
         </Link>
       </div>
 
@@ -203,7 +203,7 @@ async function TasksSection({
   const upcoming = exams.length > 0 && (
     <section className="space-y-2" aria-label="สอบที่ใกล้ถึง">
       <h2 className="text-sm font-medium text-muted">
-        📝 สอบใน {UPCOMING_EXAM_DAYS} วันนี้
+        สอบใน {UPCOMING_EXAM_DAYS} วันนี้
       </h2>
       <ul className="space-y-1.5">
         {exams.map((e) => {
@@ -236,11 +236,10 @@ async function TasksSection({
       <div className="space-y-8">
         {firstTime ? (
           <EmptyState
-            icon="📚"
             title="เริ่มเพิ่มงานแรกกันเลย"
             body="วางซิลลาบัสหรือประกาศงานให้ AI ช่วยแยกงานและวันส่งให้ หรือจะพิมพ์เพิ่มเองในฟอร์มก็ได้"
             actions={[
-              { href: "/import", label: "✨ ให้ AI ช่วยเพิ่ม", primary: true },
+              { href: "/import", label: "ให้ AI ช่วยเพิ่ม", primary: true },
               { href: "/courses", label: "เพิ่มวิชาก่อน" },
             ]}
           />
@@ -291,8 +290,7 @@ async function TasksSection({
               {pending.length === 0 && !firstTime && (
                 <EmptyState
                   compact
-                  icon="🎉"
-                  title={filterCourse ? "วิชานี้ไม่มีงานค้างแล้ว" : "ไม่มีงานค้างแล้ว เก่งมาก!"}
+                  title={filterCourse ? "วิชานี้ไม่มีงานค้างแล้ว" : "ไม่มีงานค้างแล้ว"}
                   body="พักได้เลย หรือเช็กตารางสอบไว้ล่วงหน้า"
                   actions={[{ href: "/exams", label: "ดูตารางสอบ" }]}
                 />
@@ -300,7 +298,7 @@ async function TasksSection({
 
               {/* งานที่ยังไม่มีวันส่งขึ้นก่อน เพราะต้องไปหาวันส่งมาใส่ */}
               {noDue.length > 0 && (
-                <TaskGroup label="⚠ ยังไม่กำหนดวันส่ง" count={noDue.length} tone="warn">
+                <TaskGroup label="ยังไม่กำหนดวันส่ง" count={noDue.length} tone="warn">
                   {noDue.map(renderItem)}
                 </TaskGroup>
               )}

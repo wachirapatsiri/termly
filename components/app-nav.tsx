@@ -41,7 +41,6 @@ export function AppNav({ current }: { current: NavPath }) {
           aria-current={current === "/import" ? "page" : undefined}
           className={iconBtn(current === "/import")}
         >
-          <span aria-hidden>✨</span>
           {/* จอมือถือทั่วไปเหลือ "AI" จอกว้างขึ้นแสดงเต็ม */}
           <span aria-hidden className="min-[440px]:hidden">AI</span>
           <span aria-hidden className="hidden min-[440px]:inline">AI ช่วยเพิ่ม</span>

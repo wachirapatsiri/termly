@@ -66,12 +66,8 @@ async function SettingsSection() {
           href="/feedback"
           className="flex items-center gap-3 rounded-card border border-info-line bg-info-soft px-4 py-3 text-sm transition active:scale-95"
         >
-          <span aria-hidden className="text-lg">
-            💬
-          </span>
           <span className="min-w-0 flex-1">
             <span className="font-medium">ส่งความเห็น / แจ้งปัญหา</span>
-            <span className="block text-muted">ช่วงทดลอง — ทุกความเห็นช่วยได้มาก</span>
           </span>
           <span aria-hidden className="text-info">
             →

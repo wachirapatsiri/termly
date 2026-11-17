@@ -25,7 +25,7 @@ export function ThemeSetting({ current }: { current: ThemeMode }) {
         {THEME_OPTIONS.map((o) => (
           <label
             key={o.value}
-            className={`flex cursor-pointer flex-col items-center gap-1 rounded-card border bg-surface px-2 py-3 text-sm transition active:scale-95 ${
+            className={`flex cursor-pointer items-center justify-center rounded-card border bg-surface px-2 py-3 text-sm transition active:scale-95 ${
               mode === o.value ? "border-accent text-accent" : "border-line"
             }`}
           >
@@ -37,9 +37,6 @@ export function ThemeSetting({ current }: { current: ThemeMode }) {
               onChange={() => choose(o.value)}
               className="sr-only"
             />
-            <span aria-hidden className="text-xl">
-              {o.icon}
-            </span>
             {o.label}
           </label>
         ))}

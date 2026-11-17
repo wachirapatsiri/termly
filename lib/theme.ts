@@ -6,10 +6,10 @@ export type ThemeMode = "system" | "light" | "dark";
 export const THEME_COOKIE = "theme";
 export const DEFAULT_THEME: ThemeMode = "system";
 
-export const THEME_OPTIONS: { value: ThemeMode; label: string; icon: string }[] = [
-  { value: "system", label: "ตามเครื่อง", icon: "📱" },
-  { value: "light", label: "สว่าง", icon: "☀️" },
-  { value: "dark", label: "มืด", icon: "🌙" },
+export const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
+  { value: "system", label: "ตามเครื่อง" },
+  { value: "light", label: "สว่าง" },
+  { value: "dark", label: "มืด" },
 ];
 
 export function isThemeMode(v: unknown): v is ThemeMode {

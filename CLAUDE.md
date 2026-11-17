@@ -62,6 +62,7 @@ minimal, ภาษาไทยเป็นหลัก, ฟอนต์ Anuphan,
 - token สีอยู่ใน `app/globals.css` (ตั้งชื่อตามหน้าที่ มีค่าโหมดสว่าง + มืด): `bg-background`, `bg-surface` (พื้นการ์ด/ช่องกรอก), `text-foreground`, `text-muted`, `bg-accent`/`text-accent`, `border-line`, `rounded-card`; สถานะ `danger`/`warn`/`info` (กลางภาค)/`final` (ปลายภาค) แต่ละตัวมี `text-x`, `bg-x-soft`, `border-x-line`, `bg-x-solid` — **ห้ามใช้สีตรง ๆ เช่น `bg-white`, `text-red-600`, `amber-*`** (โหมดมืดจะไม่เปลี่ยนตาม); ปุ่ม `bg-foreground` ใช้ `text-background`
 - ธีมมืด/สว่าง (12b): `data-theme` บน `<html>` (`light`/`dark`, ไม่ใส่ = ตามเครื่องผ่าน `prefers-color-scheme`); สคริปต์ใน `<head>` (`THEME_INIT_SCRIPT` ใน `lib/theme.ts`) อ่าน cookie `theme` (ไม่ httpOnly) กันจอกะพริบ + `ThemeSync` ใน root layout ปรับตามค่าในบัญชี
 - สีประจำวิชา: `courseColor(course)` / `<CourseDot course>` (`lib/course-color.ts`, `components/course-dot.tsx`) 8 สี `--course-0..7`; `courses.color` null = อัตโนมัติจาก id
+- **ไม่ใส่อีโมจิตกแต่ง** (ผู้ใช้ขอ 17 พ.ย. หลังโดนว่าดู "AI slop"): หัวข้อ/ปุ่ม/ป้ายเตือน/หน้าว่าง ใช้ตัวหนังสือล้วน (สีเตือนบอกสถานะอยู่แล้ว) เหลือเฉพาะสัญลักษณ์ใช้งานจริง ✓ ✕ ⚙ และอีโมจิในไฟล์ปฏิทิน `.ics`; ข้อความสั้น ตรง ไม่เป็นทางการเกิน — `<EmptyState>` ไม่ต้องใส่ `icon`
 - ลูกเล่น: `motion-safe:animate-fade-in` (การ์ด), `animate-pop` (ติ๊กเสร็จ), `active:scale-95` (ปุ่ม) — ปิดเองเมื่อเครื่องตั้ง "ลดการเคลื่อนไหว"; กล่องว่างใช้ `<EmptyState>` (`components/empty-state.tsx`)
 
 ## แผนเซสชัน / สถานะ

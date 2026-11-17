@@ -47,7 +47,7 @@ export function CalendarExport({
   return (
     <section id="calendar" className="scroll-mt-6 space-y-4">
       <div className="space-y-1">
-        <h2 className="font-medium">📅 ส่งออกไปปฏิทิน</h2>
+        <h2 className="font-medium">ส่งออกไปปฏิทิน</h2>
         <p className="text-sm text-muted">
           ได้ไฟล์ .ics ไปนำเข้า Google Calendar / ปฏิทิน iPhone · เตือนล่วงหน้า 1 วัน
         </p>

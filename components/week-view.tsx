@@ -115,7 +115,7 @@ export function WeekView({
           )}
           {noDue > 0 && (
             <p className="text-warn">
-              ⚠ ยังไม่กำหนดวันส่ง {noDue} งาน (ไม่อยู่ในสัปดาห์ไหน) ·{" "}
+              ยังไม่กำหนดวันส่ง {noDue} งาน (ไม่อยู่ในสัปดาห์ไหน) ·{" "}
               <Link href="/tasks" className="underline">
                 ไปเติมวันส่ง
               </Link>
@@ -197,7 +197,7 @@ function WeekCard({
                 >
                   <span className="w-11 shrink-0 text-muted">{shortDay(e.starts_at!)}</span>
                   <span className="min-w-0 flex-1">
-                    📝 {examLabel(e, course, labelMode)}
+                    {examLabel(e, course, labelMode)}
                     {(time || e.location) && (
                       <span className="block text-xs text-muted">
                         {[time, e.location].filter(Boolean).join(" · ")}

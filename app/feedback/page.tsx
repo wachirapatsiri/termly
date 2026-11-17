@@ -13,9 +13,9 @@ export default function FeedbackPage() {
     <main className="mx-auto w-full max-w-md flex-1 space-y-6 px-6 py-6 lg:max-w-3xl lg:px-10">
       <AppNav current="/feedback" />
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">💬 ช่วยบอกความเห็นหน่อย</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">ช่วยบอกความเห็นหน่อย</h1>
         <p className="leading-relaxed text-muted">
-          Termly ยังอยู่ช่วงทดลอง ทุกความเห็นช่วยตัดสินใจว่าจะทำอะไรต่อ ใช้เวลาไม่ถึง 2 นาที
+          ตอบข้อไหนก็ได้ ใช้เวลาไม่ถึง 2 นาที
         </p>
       </div>
       <Suspense fallback={<div className="h-96 rounded-card border border-line" />}>

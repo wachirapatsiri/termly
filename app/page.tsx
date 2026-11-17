@@ -7,24 +7,20 @@ import { SignOutButton } from "@/components/sign-out-button";
 // หน้าแรก: อธิบายสั้น ๆ ว่าแอปทำอะไร + ปุ่มเข้าสู่ระบบ (ล็อกอินแล้ว = ทางลัดไปหน้าต่าง ๆ)
 const STEPS = [
   {
-    icon: "📋",
     title: "วางซิลลาบัสหรือประกาศงาน",
-    body: "วางข้อความ แนบ PDF หรือรูปแคปจาก Canvas / LINE กลุ่มวิชา",
+    body: "วางข้อความ แนบ PDF หรือรูปแคป",
   },
   {
-    icon: "✨",
     title: "AI ดึงงาน วันส่ง และวันสอบ",
-    body: "อ่านได้ทั้ง พ.ศ. และ ค.ศ. — อันไหนไม่ชัดจะเตือนให้ตรวจ ไม่เดาเอง",
+    body: "วันที่ไม่ชัดจะเตือนให้ตรวจ ไม่เดาเอง",
   },
   {
-    icon: "✅",
     title: "ตรวจ แก้ แล้วค่อยบันทึก",
-    body: "เลือกเฉพาะรายการที่ถูก แก้วัน/วิชาได้ก่อนกดบันทึก",
+    body: "เลือกเฉพาะรายการที่ถูก แก้ได้ก่อนบันทึก",
   },
   {
-    icon: "📅",
     title: "ดูแผนรายสัปดาห์ + ส่งออกปฏิทิน",
-    body: "รู้ล่วงหน้าว่าสัปดาห์ไหนงานหนัก และเพิ่มลง Google Calendar / iPhone ได้",
+    body: "ดูว่าสัปดาห์ไหนงานหนัก เพิ่มลงปฏิทินได้",
   },
 ] as const;
 
@@ -40,7 +36,7 @@ export default function Home() {
               รวมงาน deadline และวันสอบของทุกวิชาไว้ในที่เดียว
             </p>
             <p className="leading-relaxed text-muted">
-              ไม่ต้องนั่งจดเองทีละวิชา — วางซิลลาบัสแล้วให้ AI ช่วยแยกงานและวันสอบออกมาให้
+              วางซิลลาบัส แล้วให้ AI แยกงานและวันสอบให้
             </p>
           </div>
 
@@ -57,9 +53,6 @@ export default function Home() {
                 key={s.title}
                 className="flex gap-3 rounded-card border border-line bg-surface p-4"
               >
-                <span aria-hidden className="text-xl leading-7">
-                  {s.icon}
-                </span>
                 <span className="min-w-0 space-y-0.5">
                   <span className="block font-medium">
                     {i + 1}. {s.title}
@@ -70,9 +63,9 @@ export default function Home() {
             ))}
           </ol>
           <ul className="space-y-1 pt-1 text-xs text-muted">
-            <li>• ช่วงทดลองใช้ฟรี — AI {AI_DAILY_LIMIT} ครั้ง/วัน (ครั้งที่ไม่สำเร็จไม่นับ)</li>
-            <li>• ไฟล์ที่แนบส่งให้ AI อ่านแล้วทิ้ง ไม่เก็บไว้ · เห็นข้อมูลได้เฉพาะบัญชีตัวเอง</li>
-            <li>• เพิ่มลงหน้าจอโฮมมือถือ ใช้เหมือนแอปได้</li>
+            <li>• ช่วงทดลองใช้ฟรี · AI {AI_DAILY_LIMIT} ครั้ง/วัน</li>
+            <li>• ไม่เก็บไฟล์ที่แนบ · เห็นข้อมูลได้เฉพาะบัญชีตัวเอง</li>
+            <li>• ติดตั้งลงหน้าจอโฮมมือถือได้</li>
             <li>
               •{" "}
               <Link href="/privacy" className="underline">
@@ -125,7 +118,7 @@ async function UserSection() {
           href="/import"
           className="rounded-card border border-line px-3 py-2.5 text-center font-medium"
         >
-          ✨ AI
+          AI
         </Link>
       </div>
       <div className="flex items-center justify-between gap-3 text-sm text-muted">

@@ -39,7 +39,7 @@ export function TaskSummaryTiles<E extends { exam_type: string | null; course_id
           <span className="ml-1 text-sm font-normal text-muted">งาน</span>
         </span>
         <span className={`text-xs ${LOAD_TEXT[s.weekLoad]}`}>
-          {s.weekLoad === "free" ? "ว่าง 🌿" : WEEK_LOAD_LABEL[s.weekLoad]}
+          {s.weekLoad === "free" ? "ว่าง" : WEEK_LOAD_LABEL[s.weekLoad]}
         </span>
         {s.weekTotal > 0 && (
           <span
@@ -67,7 +67,7 @@ export function TaskSummaryTiles<E extends { exam_type: string | null; course_id
           <span className="ml-1 text-sm font-normal text-muted">งาน</span>
         </span>
         <span className={`text-xs ${s.noDue ? "text-warn" : "text-muted"}`}>
-          {s.noDue ? `⚠ ไม่มีวันส่ง ${s.noDue}` : s.overdue ? "รีบเคลียร์นะ" : "ไม่มีค้าง 🎉"}
+          {s.noDue ? `ไม่มีวันส่ง ${s.noDue}` : s.overdue ? "รีบเคลียร์นะ" : "ไม่มีค้าง"}
         </span>
       </Link>
 

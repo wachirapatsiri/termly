@@ -52,7 +52,7 @@ function Choices({
 }
 
 // ติ๊กได้หลายข้อ
-function MultiChoices({ name, options }: { name: string; options: readonly { value: string; label: string; icon: string }[] }) {
+function MultiChoices({ name, options }: { name: string; options: readonly { value: string; label: string }[] }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const toggle = (v: string) =>
     setPicked((prev) => {
@@ -78,7 +78,6 @@ function MultiChoices({ name, options }: { name: string; options: readonly { val
             onChange={() => toggle(o.value)}
             className="sr-only"
           />
-          <span aria-hidden>{o.icon}</span>
           <span className="min-w-0 flex-1">{o.label}</span>
           <span aria-hidden className={picked.has(o.value) ? "" : "invisible"}>
             ✓
@@ -113,7 +112,7 @@ function Question({ n, title, children }: { n: number; title: string; children: 
   );
 }
 
-const RATINGS = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n} ⭐` }));
+const RATINGS = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n}` }));
 
 export function FeedbackForm() {
   const [state, formAction, pending] = useActionState<FeedbackState, FormData>(sendFeedback, {});
@@ -124,10 +123,7 @@ export function FeedbackForm() {
   if (state.ok && againFor !== state) {
     return (
       <div className="space-y-3 rounded-card border border-line bg-surface p-6 text-center motion-safe:animate-fade-in">
-        <p className="text-3xl" aria-hidden>
-          💙
-        </p>
-        <p className="font-medium">ขอบคุณมาก! ได้รับความเห็นแล้ว</p>
+        <p className="font-medium">ขอบคุณ ได้รับความเห็นแล้ว</p>
         <p className="text-sm text-muted">ใช้ไปสักพักแล้วมีอะไรอยากบอกเพิ่ม ส่งใหม่ได้ทุกเมื่อ</p>
         <button
           type="button"
@@ -145,7 +141,7 @@ export function FeedbackForm() {
 
   return (
     <form key={formKey} action={formAction} className="space-y-4">
-      <p className="text-sm text-muted">ตอบเฉพาะข้อที่อยากตอบก็ได้ · ทุกข้อพิมพ์อธิบายเพิ่มได้</p>
+      <p className="text-sm text-muted">ตอบเฉพาะข้อที่อยากตอบก็ได้</p>
 
       <Question n={1} title="ให้คะแนน Termly โดยรวม">
         <Choices name="rating" options={RATINGS} cols="grid-cols-5" />
@@ -159,8 +155,7 @@ export function FeedbackForm() {
 
       <Question n={3} title="ถ้ามี Termly Pro อยากได้ฟีเจอร์ไหนที่สุด (เลือกได้หลายข้อ)">
         <p className="text-sm text-muted">
-          ตอนนี้ยังไม่เก็บเงิน — ช่วงทดลองทุกคนใช้ได้ทุกอย่างฟรี (AI 10 ครั้ง/วัน) ตารางนี้คือแผนในอนาคต
-          ฟีเจอร์ที่คนเลือกเยอะจะได้ทำก่อน
+          ตอนนี้ยังไม่เก็บเงิน ใช้ได้ทุกอย่างฟรี ตารางนี้คือแผนในอนาคต
         </p>
         <PlanTable />
         <MultiChoices name="pro_features" options={PRO_FEATURE_OPTIONS} />

@@ -28,7 +28,7 @@ export default function ExamsPage({ searchParams }: PageProps<"/exams">) {
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">ตารางสอบ</h1>
         <Link href="/settings#calendar" className="shrink-0 text-sm text-accent">
-          📅 ส่งออกไปปฏิทิน
+          ส่งออกไปปฏิทิน
         </Link>
       </div>
 
@@ -143,10 +143,9 @@ async function ExamsSection({
 
       {exams.length === 0 ? (
         <EmptyState
-          icon="📝"
           title="ยังไม่มีตารางสอบ"
           body={<>วางซิลลาบัสแล้ว AI จะแยกวันสอบมาให้ หรือกด &quot;+ เพิ่มสอบเอง&quot; ด้านบน</>}
-          actions={[{ href: "/import", label: "✨ ให้ AI ช่วยเพิ่ม", primary: true }]}
+          actions={[{ href: "/import", label: "ให้ AI ช่วยเพิ่ม", primary: true }]}
         />
       ) : (
         <>
@@ -164,7 +163,7 @@ async function ExamsSection({
 
           {overlapCount > 0 && (
             <p className="rounded-card border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger">
-              ⚠ มีสอบเวลาชนกัน {overlapCount} รายการ — ดูป้ายสีแดงในการ์ด
+              มีสอบเวลาชนกัน {overlapCount} รายการ — ดูป้ายสีแดงในการ์ด
             </p>
           )}
 

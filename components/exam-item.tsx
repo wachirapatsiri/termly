@@ -58,7 +58,7 @@ export function ExamItem({
       onClick={() => setEditing({ focus })}
       className="rounded border border-warn-line bg-warn-soft px-1.5 py-0.5 text-xs text-warn"
     >
-      ⚠ {label} · เติม
+      {label} · เติม
     </button>
   );
 
@@ -70,7 +70,7 @@ export function ExamItem({
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
             <span className={`rounded border px-1.5 py-0.5 ${tone.badge}`}>
-              📝 {EXAM_TYPE_LABEL[type]}
+              {EXAM_TYPE_LABEL[type]}
             </span>
             {course && (
               <span className="inline-flex items-center gap-1.5 text-muted">
@@ -92,13 +92,13 @@ export function ExamItem({
           <p className="text-muted">{time ?? missing("ไม่ระบุเวลา", "start_time")}</p>
         )}
         <p className="break-words text-muted">
-          {exam.location ? `📍 ${exam.location}` : missing("ไม่ระบุสถานที่", "location")}
+          {exam.location ? `สถานที่ ${exam.location}` : missing("ไม่ระบุสถานที่", "location")}
         </p>
       </div>
 
       {overlapsWith.length > 0 && !past && (
         <p className="rounded border border-danger-line bg-danger-soft px-2 py-1 text-xs text-danger">
-          ⚠ เวลาชนกับ {overlapsWith.join(", ")}
+          เวลาชนกับ {overlapsWith.join(", ")}
         </p>
       )}
 

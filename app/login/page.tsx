@@ -41,7 +41,7 @@ async function LoginForm({
     <div className="space-y-4">
       {deleted && (
         <p role="status" className="rounded-card border border-line bg-surface p-3 text-sm">
-          ✅ ลบบัญชีและข้อมูลทั้งหมดเรียบร้อยแล้ว — ขอบคุณที่ลองใช้ Termly
+          ลบบัญชีและข้อมูลทั้งหมดเรียบร้อยแล้ว — ขอบคุณที่ลองใช้ Termly
         </p>
       )}
       {error && (
