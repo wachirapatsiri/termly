@@ -8,6 +8,7 @@ import {
   useTransition,
 } from "react";
 import { deleteTasks, setTasksDone } from "@/app/tasks/actions";
+import { useT } from "@/components/lang";
 
 // โหมด "เลือกหลายรายการ": เก็บว่าเลือกงานไหนไว้ + ผลแบบ optimistic หลังกดปุ่ม
 type Selection = {
@@ -32,6 +33,7 @@ export function useTaskSelection() {
 type Optimistic = { hidden: Set<string>; doneIds: Set<string> };
 
 export function TaskSelectionProvider({ children }: { children: React.ReactNode }) {
+  const tr = useT();
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
@@ -59,7 +61,7 @@ export function TaskSelectionProvider({ children }: { children: React.ReactNode 
   const run = (kind: "done" | "delete") => {
     const ids = [...selected];
     if (!ids.length) return;
-    if (kind === "delete" && !confirm(`ลบงานที่เลือก ${ids.length} ชิ้น ?`)) return;
+    if (kind === "delete" && !confirm(tr("task.confirmDeleteSel", { n: ids.length }))) return;
     stop();
     startTransition(async () => {
       if (kind === "done") {
@@ -86,7 +88,7 @@ export function TaskSelectionProvider({ children }: { children: React.ReactNode 
           <div className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface/95 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
             <div className="mx-auto flex max-w-md items-center gap-2 lg:max-w-6xl lg:px-4">
               <span className="flex-1 text-sm text-muted">
-                เลือกแล้ว {selected.size} งาน
+                {tr("task.selectedCount", { n: selected.size })}
               </span>
               <button
                 type="button"
@@ -94,7 +96,7 @@ export function TaskSelectionProvider({ children }: { children: React.ReactNode 
                 onClick={() => run("done")}
                 className={`${btn} bg-accent text-white`}
               >
-                ✓ เสร็จ
+                {tr("task.markDoneBtn")}
               </button>
               <button
                 type="button"
@@ -102,7 +104,7 @@ export function TaskSelectionProvider({ children }: { children: React.ReactNode 
                 onClick={() => run("delete")}
                 className={`${btn} border border-danger-line text-danger`}
               >
-                ลบ
+                {tr("task.delete")}
               </button>
             </div>
           </div>
@@ -115,6 +117,7 @@ export function TaskSelectionProvider({ children }: { children: React.ReactNode 
 // ปุ่ม "เลือกหลายรายการ" / "ยกเลิก" ไว้วางข้างหัวข้อ
 export function SelectModeButton() {
   const ctl = useContext(ControlsContext);
+  const tr = useT();
   if (!ctl) return null;
   return (
     <button
@@ -122,7 +125,7 @@ export function SelectModeButton() {
       onClick={ctl.selecting ? ctl.stop : ctl.start}
       className="text-sm text-accent"
     >
-      {ctl.selecting ? "ยกเลิกการเลือก" : "เลือกหลายรายการ"}
+      {ctl.selecting ? tr("task.cancelSelect") : tr("task.selectMany")}
     </button>
   );
 }

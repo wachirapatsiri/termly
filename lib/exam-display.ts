@@ -1,7 +1,8 @@
 // ข้อมูลการแสดงผลของสอบ ที่ใช้ได้ทั้งฝั่งเซิร์ฟเวอร์และ client
 // (ห้ามย้ายไปไว้ในไฟล์ "use client" — หน้า server component เรียกฟังก์ชันจากไฟล์ client ไม่ได้)
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
-import { EXAM_TYPE_LABEL, type ExamType } from "@/lib/exams";
+import { examTypeLabel, type ExamType } from "@/lib/exams";
+import type { Lang } from "@/lib/i18n";
 import type { CalendarEvent, Course } from "@/lib/types";
 
 // สีของแต่ละชนิดสอบ: กลางภาค = น้ำเงิน, ปลายภาค = ม่วง, อื่น ๆ = เทา
@@ -35,8 +36,9 @@ export function examLabel(
   exam: Pick<CalendarEvent, "title" | "exam_type">,
   course: Course | undefined,
   labelMode: CourseLabelMode,
+  lang: Lang = "th",
 ) {
   return course
-    ? `${EXAM_TYPE_LABEL[exam.exam_type ?? "other"]} ${courseLabel(course, labelMode)}`
+    ? `${examTypeLabel(exam.exam_type ?? "other", lang)} ${courseLabel(course, labelMode)}`
     : exam.title;
 }

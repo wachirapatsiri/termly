@@ -3,6 +3,8 @@
 // import ด้วยนามสกุล .ts เพื่อให้ `node --test` รันได้ตรง
 import { toBangkokParts } from "./dates.ts";
 import type { YearMode } from "./year-mode.ts";
+import type { Lang } from "./i18n.ts";
+import { t } from "./messages.ts";
 
 export type WeekLoad = "free" | "light" | "medium" | "heavy";
 
@@ -16,6 +18,10 @@ export const WEEK_LOAD_LABEL: Record<WeekLoad, string> = {
   medium: "ปานกลาง",
   heavy: "งานหนัก",
 };
+
+export function weekLoadLabel(load: WeekLoad, lang: Lang = "th"): string {
+  return t(lang, `weekLoad.${load}`);
+}
 
 export function weekLoad(taskCount: number): WeekLoad {
   if (taskCount >= HEAVY_WEEK_TASKS) return "heavy";
@@ -109,6 +115,7 @@ export function buildWeeks<
   return weeks;
 }
 
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
 // ช่วงวันของสัปดาห์ เช่น "9–15 พ.ย." หรือ "30 พ.ย. – 6 ธ.ค."
@@ -118,29 +125,32 @@ export function formatWeekRange(
   end: string,
   yearMode: YearMode = "be",
   now: Date = new Date(),
+  lang: Lang = "th",
 ): string {
+  const months = lang === "en" ? MONTHS_EN : MONTHS;
   const [sy, sm, sd] = start.split("-").map(Number);
   const [ey, em, ed] = end.split("-").map(Number);
   const nowYear = Number(toBangkokParts(now.toISOString()).date.slice(0, 4));
   const year = (y: number) => (yearMode === "be" ? y + 543 : y);
   const showYear = sy !== nowYear || ey !== nowYear;
   const tail = (y: number) => (showYear ? ` ${year(y)}` : "");
-  if (sy === ey && sm === em) return `${sd}–${ed} ${MONTHS[em - 1]}${tail(ey)}`;
-  return `${sd} ${MONTHS[sm - 1]}${sy !== ey ? tail(sy) : ""} – ${ed} ${MONTHS[em - 1]}${tail(ey)}`;
+  if (sy === ey && sm === em) return `${sd}–${ed} ${months[em - 1]}${tail(ey)}`;
+  return `${sd} ${months[sm - 1]}${sy !== ey ? tail(sy) : ""} – ${ed} ${months[em - 1]}${tail(ey)}`;
 }
 
 // "สัปดาห์นี้" / "สัปดาห์หน้า" / "อีก 3 สัปดาห์"
-export function weekOffsetLabel(offset: number): string {
-  if (offset === 0) return "สัปดาห์นี้";
-  if (offset === 1) return "สัปดาห์หน้า";
-  return `อีก ${offset} สัปดาห์`;
+export function weekOffsetLabel(offset: number, lang: Lang = "th"): string {
+  if (offset === 0) return t(lang, "week.thisWeek");
+  if (offset === 1) return t(lang, "week.nextWeek");
+  return t(lang, "week.inWeeks", { n: offset });
 }
 
+const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAYS = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."];
 
 // ชื่อวันย่อ + วันที่ เช่น "พ. 11"
-export function shortDay(iso: string): string {
+export function shortDay(iso: string, lang: Lang = "th"): string {
   const date = toBangkokParts(iso).date;
   const n = dayNumber(date);
-  return `${WEEKDAYS[new Date(n * DAY_MS).getUTCDay()]} ${Number(date.slice(8, 10))}`;
+  return `${(lang === "en" ? WEEKDAYS_EN : WEEKDAYS)[new Date(n * DAY_MS).getUTCDay()]} ${Number(date.slice(8, 10))}`;
 }

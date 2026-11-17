@@ -3,14 +3,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getCourseLabelMode, getYearMode } from "@/lib/preferences";
+import { getCourseLabelMode, getLang, getYearMode } from "@/lib/preferences";
+import { t } from "@/lib/messages";
+import type { Lang } from "@/lib/i18n";
 import { courseLabel, type CourseLabelMode } from "@/lib/course-label";
-import { DUE_GROUP_LABEL, dueGroup, toDueAt, type DueGroup } from "@/lib/dates";
+import { dueGroup, dueGroupLabel, toDueAt, type DueGroup } from "@/lib/dates";
 import { weekStartOf } from "@/lib/weeks";
-import { EXAM_TYPE_LABEL, UPCOMING_EXAM_DAYS, upcomingExams } from "@/lib/exams";
+import { UPCOMING_EXAM_DAYS, examTypeLabel, upcomingExams } from "@/lib/exams";
 import type { Course, Task, TaskCategory } from "@/lib/types";
 import { AppNav } from "@/components/app-nav";
 import { WithYearMode } from "@/components/with-year-mode";
+import { WithLang } from "@/components/with-lang";
 import { CourseDot } from "@/components/course-dot";
 import { Countdown } from "@/components/exam-item";
 import { TaskForm } from "@/components/task-form";
@@ -33,23 +36,35 @@ export default function TasksPage({ searchParams }: PageProps<"/tasks">) {
   return (
     <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
       <AppNav current="/tasks" />
-      <div className="flex items-baseline justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">งานของฉัน</h1>
-        <Link href="/settings#calendar" className="shrink-0 text-sm text-accent">
-          ส่งออกไปปฏิทิน
-        </Link>
-      </div>
+      {/* ภาษามาจาก cookie → อ่านใน Suspense เสมอ */}
+      <Suspense fallback={<div className="h-8" />}>
+        <TasksHeader />
+      </Suspense>
 
       <Suspense fallback={null}>
         <FeedbackNudge />
       </Suspense>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
-        <WithYearMode>
-          <TasksSection searchParams={searchParams} />
-        </WithYearMode>
+        <WithLang>
+          <WithYearMode>
+            <TasksSection searchParams={searchParams} />
+          </WithYearMode>
+        </WithLang>
       </Suspense>
     </main>
+  );
+}
+
+async function TasksHeader() {
+  const lang = await getLang();
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <h1 className="text-2xl font-semibold tracking-tight">{t(lang, "tasks.title")}</h1>
+      <Link href="/settings#calendar" className="shrink-0 text-sm text-accent">
+        {t(lang, "tasks.exportCalendar")}
+      </Link>
+    </div>
   );
 }
 
@@ -69,7 +84,7 @@ async function TasksSection({
   const yesterday = new Date(now.getTime() - 86_400_000).toISOString();
   const monday = toDueAt(weekStartOf(now.toISOString()), "00:00") ?? yesterday;
   const since = monday < yesterday ? monday : yesterday;
-  const [tasksRes, coursesRes, categoriesRes, examsRes, params, labelMode, yearMode] = await Promise.all([
+  const [tasksRes, coursesRes, categoriesRes, examsRes, params, labelMode, yearMode, lang] = await Promise.all([
     supabase
       .from("tasks")
       .select(
@@ -96,6 +111,7 @@ async function TasksSection({
     searchParams,
     getCourseLabelMode(),
     getYearMode(),
+    getLang(),
   ]);
 
   // ประเภท/สอบโหลดไม่ได้ (เช่น ยังไม่ได้รัน migration 0002) → หน้างานยังใช้ได้ แค่ไม่มีป้าย/แถบสอบ
@@ -105,7 +121,7 @@ async function TasksSection({
     console.error("load tasks", tasksRes.error ?? coursesRes.error);
     return (
       <p className="rounded-card border border-danger-line bg-danger-soft p-3 text-sm text-danger">
-        โหลดรายการงานไม่สำเร็จ ลองรีเฟรชหน้าอีกครั้ง
+        {t(lang, "tasks.loadFailed")}
       </p>
     );
   }
@@ -136,10 +152,13 @@ async function TasksSection({
   const summaryTiles = (
     <TaskSummaryTiles
       summary={summary}
-      nextExamLabel={summary.nextExam ? examLabel(summary.nextExam, nextCourse, labelMode) : null}
+      nextExamLabel={
+        summary.nextExam ? examLabel(summary.nextExam, nextCourse, labelMode, lang) : null
+      }
       nextExamCourse={nextCourse}
       weekHref={tasksHref("week", filterCourse?.id)}
       listHref={tasksHref("list", filterCourse?.id)}
+      lang={lang}
     />
   );
 
@@ -152,7 +171,7 @@ async function TasksSection({
         {!firstTime && summaryTiles}
         <div className="space-y-6 lg:flex lg:items-center lg:gap-4 lg:space-y-0">
           <div className="lg:w-64 lg:shrink-0">
-            <ViewToggle view={view} courseId={filterCourse?.id} />
+            <ViewToggle view={view} courseId={filterCourse?.id} lang={lang} />
           </div>
           {courses.length > 0 && (
             <CourseFilter
@@ -160,6 +179,7 @@ async function TasksSection({
               activeId={filterCourse?.id}
               labelMode={labelMode}
               view={view}
+              lang={lang}
             />
           )}
         </div>
@@ -171,6 +191,7 @@ async function TasksSection({
           labelMode={labelMode}
           yearMode={yearMode}
           now={now}
+          lang={lang}
         />
       </div>
     );
@@ -201,16 +222,16 @@ async function TasksSection({
   );
 
   const upcoming = exams.length > 0 && (
-    <section className="space-y-2" aria-label="สอบที่ใกล้ถึง">
+    <section className="space-y-2" aria-label={t(lang, "tasks.upcomingAria")}>
       <h2 className="text-sm font-medium text-muted">
-        สอบใน {UPCOMING_EXAM_DAYS} วันนี้
+        {t(lang, "tasks.upcomingTitle", { n: UPCOMING_EXAM_DAYS })}
       </h2>
       <ul className="space-y-1.5">
         {exams.map((e) => {
           const course = e.course_id ? courseById.get(e.course_id) : undefined;
           // มีวิชา → "สอบกลางภาค 204383" ไม่มี → ใช้ชื่อที่บันทึกไว้
           const label = course
-            ? `${EXAM_TYPE_LABEL[e.exam_type ?? "other"]} ${courseLabel(course, labelMode)}`
+            ? `${examTypeLabel(e.exam_type ?? "other", lang)} ${courseLabel(course, labelMode)}`
             : e.title;
           return (
             <li key={e.id}>
@@ -222,7 +243,7 @@ async function TasksSection({
                   {course && <CourseDot course={course} />}
                   <span className="truncate">{label}</span>
                 </span>
-                <Countdown days={e.daysLeft} />
+                <Countdown days={e.daysLeft} lang={lang} />
               </Link>
             </li>
           );
@@ -236,11 +257,11 @@ async function TasksSection({
       <div className="space-y-8">
         {firstTime ? (
           <EmptyState
-            title="เริ่มเพิ่มงานแรกกันเลย"
-            body="วางซิลลาบัสหรือประกาศงานให้ AI ช่วยแยกงานและวันส่งให้ หรือจะพิมพ์เพิ่มเองในฟอร์มก็ได้"
+            title={t(lang, "tasks.firstTitle")}
+            body={t(lang, "tasks.firstBody")}
             actions={[
-              { href: "/import", label: "ให้ AI ช่วยเพิ่ม", primary: true },
-              { href: "/courses", label: "เพิ่มวิชาก่อน" },
+              { href: "/import", label: t(lang, "tasks.firstAi"), primary: true },
+              { href: "/courses", label: t(lang, "tasks.firstCourse") },
             ]}
           />
         ) : (
@@ -248,7 +269,7 @@ async function TasksSection({
         )}
         <div className="space-y-8 lg:flex lg:items-center lg:gap-4 lg:space-y-0">
           <div className="lg:w-64 lg:shrink-0">
-            <ViewToggle view={view} courseId={filterCourse?.id} />
+            <ViewToggle view={view} courseId={filterCourse?.id} lang={lang} />
           </div>
           {courses.length > 0 && (
             <CourseFilter
@@ -256,6 +277,7 @@ async function TasksSection({
               activeId={filterCourse?.id}
               labelMode={labelMode}
               view={view}
+              lang={lang}
             />
           )}
         </div>
@@ -267,7 +289,7 @@ async function TasksSection({
             {upcoming}
 
             <section className="space-y-3 rounded-card border border-line bg-surface p-4">
-              <h2 className="font-medium">เพิ่มงานใหม่</h2>
+              <h2 className="font-medium">{t(lang, "tasks.addNew")}</h2>
               {/* key: เปลี่ยนตัวกรอง → ฟอร์มเลือกวิชานั้นไว้ให้ล่วงหน้า */}
               <TaskForm
                 key={filterCourse?.id ?? "all"}
@@ -282,7 +304,7 @@ async function TasksSection({
             <section className="space-y-6">
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="font-medium">
-                  ยังไม่เสร็จ <span className="text-muted">({pending.length})</span>
+                  {t(lang, "tasks.pending")} <span className="text-muted">({pending.length})</span>
                 </h2>
                 {tasks.length > 0 && <SelectModeButton />}
               </div>
@@ -290,15 +312,15 @@ async function TasksSection({
               {pending.length === 0 && !firstTime && (
                 <EmptyState
                   compact
-                  title={filterCourse ? "วิชานี้ไม่มีงานค้างแล้ว" : "ไม่มีงานค้างแล้ว"}
-                  body="พักได้เลย หรือเช็กตารางสอบไว้ล่วงหน้า"
-                  actions={[{ href: "/exams", label: "ดูตารางสอบ" }]}
+                  title={filterCourse ? t(lang, "tasks.noPendingCourse") : t(lang, "tasks.noPending")}
+                  body={t(lang, "tasks.noPendingBody")}
+                  actions={[{ href: "/exams", label: t(lang, "tasks.viewExams") }]}
                 />
               )}
 
               {/* งานที่ยังไม่มีวันส่งขึ้นก่อน เพราะต้องไปหาวันส่งมาใส่ */}
               {noDue.length > 0 && (
-                <TaskGroup label="ยังไม่กำหนดวันส่ง" count={noDue.length} tone="warn">
+                <TaskGroup label={t(lang, "tasks.noDueGroup")} count={noDue.length} tone="warn">
                   {noDue.map(renderItem)}
                 </TaskGroup>
               )}
@@ -308,7 +330,7 @@ async function TasksSection({
                 return (
                   <TaskGroup
                     key={g}
-                    label={DUE_GROUP_LABEL[g]}
+                    label={dueGroupLabel(g, lang)}
                     count={items.length}
                     tone={g === "overdue" ? "danger" : "normal"}
                   >
@@ -321,7 +343,7 @@ async function TasksSection({
             {done.length > 0 && (
               <details className="space-y-3">
                 <summary className="cursor-pointer font-medium">
-                  เสร็จแล้ว <span className="text-muted">({done.length})</span>
+                  {t(lang, "tasks.done")} <span className="text-muted">({done.length})</span>
                 </summary>
                 <ul className="mt-3 space-y-2">{done.map(renderItem)}</ul>
               </details>
@@ -373,7 +395,15 @@ function tasksHref(view: TasksView, courseId?: string) {
 }
 
 // สลับ "รายการ | รายสัปดาห์"
-function ViewToggle({ view, courseId }: { view: TasksView; courseId?: string }) {
+function ViewToggle({
+  view,
+  courseId,
+  lang,
+}: {
+  view: TasksView;
+  courseId?: string;
+  lang: Lang;
+}) {
   const tab = (v: TasksView, label: string) => (
     <Link
       href={tasksHref(v, courseId)}
@@ -387,8 +417,8 @@ function ViewToggle({ view, courseId }: { view: TasksView; courseId?: string }) 
   );
   return (
     <div className="flex rounded-card border border-line bg-surface p-0.5 text-sm">
-      {tab("list", "รายการ")}
-      {tab("week", "รายสัปดาห์")}
+      {tab("list", t(lang, "tasks.viewList"))}
+      {tab("week", t(lang, "tasks.viewWeek"))}
     </div>
   );
 }
@@ -399,11 +429,13 @@ function CourseFilter({
   activeId,
   labelMode,
   view,
+  lang,
 }: {
   courses: Course[];
   activeId?: string;
   labelMode: CourseLabelMode;
   view: TasksView;
+  lang: Lang;
 }) {
   const chip = (active: boolean) =>
     `shrink-0 rounded-full border px-3 py-1 text-sm ${
@@ -412,7 +444,7 @@ function CourseFilter({
   return (
     <div className="-mx-6 flex min-w-0 gap-2 overflow-x-auto px-6 pb-1 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 lg:pb-0">
       <Link href={tasksHref(view)} className={chip(!activeId)}>
-        ทั้งหมด
+        {t(lang, "tasks.filterAll")}
       </Link>
       {courses.map((c) => (
         <Link
