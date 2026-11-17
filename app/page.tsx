@@ -26,16 +26,16 @@ const STEPS = [
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-10 px-6 py-12 lg:max-w-5xl lg:px-10">
-      <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center lg:gap-16 lg:space-y-0">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-10 px-6 py-12 md:max-w-xl lg:max-w-6xl lg:px-10 lg:py-20">
+      <div className="space-y-10 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-center lg:gap-20 lg:space-y-0">
         <div className="space-y-6">
           <div className="space-y-3">
             <p className="text-sm font-medium text-accent">สำหรับนักศึกษามหาวิทยาลัย</p>
-            <h1 className="text-3xl font-semibold tracking-tight lg:text-4xl">Termly</h1>
-            <p className="text-lg leading-relaxed">
+            <h1 className="text-3xl font-semibold tracking-tight lg:text-6xl">Termly</h1>
+            <p className="text-lg leading-relaxed lg:text-2xl">
               รวมงาน deadline และวันสอบของทุกวิชาไว้ในที่เดียว
             </p>
-            <p className="leading-relaxed text-muted">
+            <p className="leading-relaxed text-muted lg:text-lg">
               วางซิลลาบัส แล้วให้ AI แยกงานและวันสอบให้
             </p>
           </div>
@@ -51,7 +51,7 @@ export default function Home() {
             {STEPS.map((s, i) => (
               <li
                 key={s.title}
-                className="flex gap-3 rounded-card border border-line bg-surface p-4"
+                className="flex gap-3 rounded-card border border-line bg-surface p-4 lg:p-5"
               >
                 <span className="min-w-0 space-y-0.5">
                   <span className="block font-medium">

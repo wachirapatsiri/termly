@@ -23,7 +23,7 @@ import { EmptyState } from "@/components/empty-state";
 
 export default function ExamsPage({ searchParams }: PageProps<"/exams">) {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
+    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
       <AppNav current="/exams" />
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">ตารางสอบ</h1>

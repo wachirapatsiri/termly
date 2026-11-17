@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/empty-state";
 
 export default function CoursesPage() {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
+    <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-6xl lg:px-10">
       <AppNav current="/courses" />
       <h1 className="text-2xl font-semibold tracking-tight">วิชาของฉัน</h1>
 
