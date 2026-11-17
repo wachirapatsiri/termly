@@ -132,6 +132,14 @@ await ok('delete_my_account: ลบบัญชี → feedback เหลือ�
   const c=await db.query(`select count(*)::int n from task_categories where user_id='${D}'`); eq(c.rows[0].n,0,'cascade');
   eq((await db.query(`select count(*)::int n from auth.users where id='${B}'`)).rows[0].n,1,'B ยังอยู่');
 });
+// ── 0008: ภาษา ──
+const E='55555555-5555-5555-5555-555555555555';
+await db.exec(`insert into auth.users values ('${E}')`);
+await ok('user_settings: language ค่าตั้งต้น null (ยังไม่เคยเลือก)', async()=>{ const r=await as(E,`insert into user_settings(theme) values('light') returning language`); eq(r[0].language,null,'null'); });
+await ok('user_settings: เลือก en / th ได้', async()=>{ eq((await as(E,`update user_settings set language='en' returning language`))[0].language,'en','en'); eq((await as(E,`update user_settings set language='th' returning language`))[0].language,'th','th'); });
+await rejects('user_settings: language แปลก', ()=>as(E,`update user_settings set language='fr'`));
+await ok('user_settings: upsert ธีมโดยไม่ส่ง language → ภาษาเดิมไม่หาย', async()=>{ await as(E,`update user_settings set language='en'`); await as(E,`insert into user_settings(theme) values('dark') on conflict (user_id) do update set theme=excluded.theme`); const r=await as(E,`select language,theme from user_settings`); eq(r[0],{language:'en',theme:'dark'},'row'); });
+await ok('user_settings: คนอื่นเปลี่ยนภาษาของเราไม่ได้ (0 แถว)', async()=>{ eq((await as(C3,`update user_settings set language='th' where user_id='${E}' returning user_id`)).length,0,'upd'); });
 console.log(`\n${pass} ผ่าน, ${fail} ไม่ผ่าน`);
 if (fail) process.exit(1);
 })();

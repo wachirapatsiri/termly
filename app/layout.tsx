@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { ServiceWorker } from "@/components/service-worker";
 import { ThemeFromAccount } from "@/components/theme-from-account";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { LANG_INIT_SCRIPT } from "@/lib/i18n";
 
 const anuphan = Anuphan({
   variable: "--font-anuphan",
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         {/* ใส่ธีมมืด/สว่างก่อนหน้าเว็บแสดง กันจอขาวแวบตอนเปิดโหมดมืด */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: LANG_INIT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
         {children}

@@ -8,6 +8,8 @@ import { CategoryManager } from "@/components/category-manager";
 import { CourseLabelSetting } from "@/components/course-label-setting";
 import { YearModeSetting } from "@/components/year-mode-setting";
 import { ThemeSetting } from "@/components/theme-setting";
+import { LanguageSetting } from "@/components/language-setting";
+import { t } from "@/lib/messages";
 import { SignOutButton } from "@/components/sign-out-button";
 import { InstallApp } from "@/components/install-app";
 import { DeleteAccount } from "@/components/delete-account";
@@ -34,7 +36,7 @@ async function SettingsSection() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
-  const [{ courseLabel: mode, yearMode, theme }, sampleRes, categoriesRes, taskCatsRes, exportRes] = await Promise.all([
+  const [{ courseLabel: mode, yearMode, theme, language }, sampleRes, categoriesRes, taskCatsRes, exportRes] = await Promise.all([
     getUserSettings(),
     // ใช้วิชาที่มีรหัสเป็นตัวอย่างในพรีวิว
     supabase.from("courses").select("name, code").not("code", "is", null).limit(1),
@@ -73,6 +75,14 @@ async function SettingsSection() {
             →
           </span>
         </Link>
+      </Block>
+
+      <Block>
+        <LanguageSetting
+          current={language}
+          legend={t(language, "settings.language")}
+          hint={t(language, "settings.languageHint")}
+        />
       </Block>
 
       <Block>

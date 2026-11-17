@@ -86,3 +86,10 @@
 1. Supabase Dashboard → **SQL Editor** → **New query**
 2. เปิดไฟล์ `supabase/migrations/0007_feedback_pro_features.sql` คัดลอกทั้งหมดไปวาง → กด **Run** → ต้องขึ้น "Success. No rows returned" (รันซ้ำได้ ไม่พัง)
 3. ตรวจ: **Table Editor** → `feedback` มีคอลัมน์ `pro_features` และ `pro_note`
+
+## 13. ภาษาไทย / อังกฤษ (เซสชัน 14)
+**ควรรันก่อน merge โค้ดเซสชัน 14** — ถ้ายังไม่รัน แอปยังใช้ได้ปกติ แต่การเลือกภาษาจะจำแค่ในเบราว์เซอร์นั้น ๆ (ไม่จำข้ามเครื่อง)
+1. Supabase Dashboard → **SQL Editor** → **New query**
+2. เปิดไฟล์ `supabase/migrations/0008_language.sql` คัดลอกทั้งหมดไปวาง → กด **Run** → ต้องขึ้น "Success. No rows returned" (รันซ้ำได้ ไม่พัง)
+3. ตรวจ: **Table Editor** → `user_settings` มีคอลัมน์ `language` (ค่าเป็น NULL = ยังไม่เคยเลือก)
+4. ทดสอบบนเว็บ: ⚙ → ภาษา → English → เมนูด้านบนเปลี่ยนเป็น Tasks / Exams / Courses → เปิดอีกเครื่อง (บัญชีเดียวกัน) ต้องเป็นอังกฤษเหมือนกัน

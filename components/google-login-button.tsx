@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
-export function GoogleLoginButton({ next = "/" }: { next?: string }) {
+export function GoogleLoginButton({
+  next = "/",
+  labels = { idle: "เข้าสู่ระบบด้วย Google", loading: "กำลังไปหน้า Google…", failed: "เข้าสู่ระบบไม่สำเร็จ ลองใหม่อีกครั้ง" },
+}: {
+  next?: string;
+  labels?: { idle: string; loading: string; failed: string };
+}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,7 +24,7 @@ export function GoogleLoginButton({ next = "/" }: { next?: string }) {
     });
     // ถ้าสำเร็จ เบราว์เซอร์จะถูกพาไปหน้า Google เอง
     if (error) {
-      setError("เข้าสู่ระบบไม่สำเร็จ ลองใหม่อีกครั้ง");
+      setError(labels.failed);
       setLoading(false);
     }
   }
@@ -31,7 +37,7 @@ export function GoogleLoginButton({ next = "/" }: { next?: string }) {
         disabled={loading}
         className="w-full rounded-card bg-accent px-4 py-3 font-medium text-white disabled:opacity-60"
       >
-        {loading ? "กำลังไปหน้า Google…" : "เข้าสู่ระบบด้วย Google"}
+        {loading ? labels.loading : labels.idle}
       </button>
       {error && <p className="text-sm text-danger">{error}</p>}
     </div>
