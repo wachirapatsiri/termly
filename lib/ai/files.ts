@@ -2,6 +2,8 @@
 // ตรวจชนิดจาก "เนื้อไฟล์" (magic bytes) ไม่เชื่อนามสกุลหรือ type ที่เบราว์เซอร์บอก
 // ไม่เก็บไฟล์ลงที่ไหน: แปลงเป็น base64 ส่ง AI แล้วทิ้ง
 import { MAX_IMAGES, MAX_UPLOAD_BYTES } from "./limits.ts";
+import { t } from "../messages.ts";
+import type { Lang } from "../i18n.ts";
 
 export type ImageMediaType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 export type FileMediaType = "application/pdf" | ImageMediaType;
@@ -28,31 +30,32 @@ export type UploadCheck =
   | { ok: true; kind: "none" | "pdf" | "image"; attachments: Attachment[] }
   | { ok: false; error: string };
 
-const mb = (n: number) => `${(n / 1024 / 1024).toLocaleString("th-TH", { maximumFractionDigits: 1 })} MB`;
+const mb = (n: number, lang: Lang) =>
+  `${(n / 1024 / 1024).toLocaleString(lang === "en" ? "en-US" : "th-TH", { maximumFractionDigits: 1 })} MB`;
 
-export function checkUploads(files: UploadInput[]): UploadCheck {
+export function checkUploads(files: UploadInput[], lang: Lang = "th"): UploadCheck {
   if (files.length === 0) return { ok: true, kind: "none", attachments: [] };
 
   const total = files.reduce((s, f) => s + f.bytes.length, 0);
   if (total > MAX_UPLOAD_BYTES) {
     return {
       ok: false,
-      error: `ไฟล์ใหญ่เกินไป (${mb(total)}) รวมกันได้ไม่เกิน ${mb(MAX_UPLOAD_BYTES)} — ลองแคปเฉพาะหน้าที่มีกำหนดส่ง หรือบีบอัด PDF ก่อน`,
+      error: t(lang, "file.tooBig", { size: mb(total, lang), max: mb(MAX_UPLOAD_BYTES, lang) }),
     };
   }
 
   const typed = files.map((f) => ({ ...f, type: detectMediaType(f.bytes) }));
   const bad = typed.find((f) => !f.type || f.bytes.length === 0);
   if (bad) {
-    return { ok: false, error: `ไฟล์ "${bad.name}" ไม่รองรับ ใช้ได้เฉพาะ PDF หรือรูป (JPG, PNG, WEBP)` };
+    return { ok: false, error: t(lang, "file.unsupportedServer", { name: bad.name }) };
   }
 
   const pdfs = typed.filter((f) => f.type === "application/pdf");
   if (pdfs.length > 0 && typed.length > 1) {
-    return { ok: false, error: "ส่ง PDF ได้ครั้งละ 1 ไฟล์ และไม่ปนกับรูป" };
+    return { ok: false, error: t(lang, "file.onePdf") };
   }
   if (pdfs.length === 0 && typed.length > MAX_IMAGES) {
-    return { ok: false, error: `ส่งรูปได้ครั้งละไม่เกิน ${MAX_IMAGES} รูป` };
+    return { ok: false, error: t(lang, "file.maxImages", { n: MAX_IMAGES }) };
   }
 
   return {

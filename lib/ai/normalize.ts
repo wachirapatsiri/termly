@@ -2,6 +2,8 @@
 // อะไรที่ไม่แน่ใจ/ผิดรูปแบบ จะลด confidence และแนบคำเตือนภาษาไทย
 // (ไฟล์นี้ไม่มี server-only จึงทดสอบด้วย node ได้ตรง ๆ: npm run test:ai-unit)
 import { beToCe, toDueAt } from "../dates.ts";
+import { t as msg } from "../messages.ts";
+import type { Lang } from "../i18n.ts";
 import { ITEM_KINDS, examTypeOf, type AiTask, type Confidence, type ExtractedTask, type ItemKind } from "./schema.ts";
 
 export type CourseRef = { id: string; name: string; code: string | null };
@@ -75,6 +77,7 @@ export function normalizeTasks(
   raw: AiTask[],
   courses: CourseRef[],
   todayIso: string,
+  lang: Lang = "th", // ภาษาของข้อความเตือน
 ): ExtractedTask[] {
   const thisYear = Number(todayIso.slice(0, 4));
   const out: ExtractedTask[] = [];
@@ -86,7 +89,8 @@ export function normalizeTasks(
     // AI ส่งประเภทแปลก ๆ มา → ถือเป็นงาน "อื่น ๆ" (ผู้ใช้เปลี่ยนได้ในหน้าตรวจ)
     const kind: ItemKind = (ITEM_KINDS as readonly string[]).includes(t.kind) ? t.kind : "other";
     const exam = examTypeOf(kind) !== null;
-    const dayWord = exam ? "วันสอบ" : "วันส่ง";
+    const day = msg(lang, exam ? "warn.dayExam" : "warn.dayDue");
+    let pastOnly = false; // เตือนอย่างเดียวคือ "ผ่านไปแล้ว"
     const warnings: string[] = [];
     let confidence: Confidence = t.due_date_confidence ?? "low";
     let dueDate: string | null = null;
@@ -98,32 +102,35 @@ export function normalizeTasks(
     if (rawDate) {
       const m = DATE_RE.exec(rawDate);
       if (!m) {
-        warnings.push(`AI ส่งวันที่ผิดรูปแบบ กรุณาใส่${dayWord}เอง`);
+        warnings.push(msg(lang, "warn.badDate", { day }));
         confidence = "low";
       } else {
         let year = Number(m[1]);
         // AI ลืมแปลง พ.ศ. → ค.ศ. (ปี 25xx) — แปลงให้ แต่บอกผู้ใช้
         if (year >= 2400) {
           year = beToCe(year);
-          warnings.push("แปลงปี พ.ศ. เป็น ค.ศ. ให้แล้ว กรุณาตรวจวันที่");
+          warnings.push(msg(lang, "warn.beConverted"));
           if (confidence === "high") confidence = "medium";
         }
         const iso = `${year}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
         if (!toDueAt(iso)) {
-          warnings.push(`วันที่นี้ไม่มีอยู่จริง กรุณาใส่${dayWord}เอง`);
+          warnings.push(msg(lang, "warn.nonexistent", { day }));
           confidence = "low";
         } else {
           dueDate = iso;
           if (Math.abs(year - thisYear) > 1) {
-            warnings.push(`ปี ${year + 543} ดูไม่ตรงกับเทอมนี้ กรุณาตรวจ`);
+            warnings.push(msg(lang, "warn.yearOff", { year: year + 543 }));
             confidence = "low";
           }
           const wd = mentionedWeekday(rawText);
           if (wd !== null && wd !== weekdayOf(iso)) {
-            warnings.push("วันในสัปดาห์ไม่ตรงกับวันที่ (ปีหรือวันอาจผิด) กรุณาตรวจ");
+            warnings.push(msg(lang, "warn.weekdayMismatch"));
             confidence = "low";
           }
-          if (iso < todayIso) warnings.push(`${dayWord}ผ่านไปแล้ว`);
+          if (iso < todayIso) {
+            warnings.push(msg(lang, "warn.past", { day }));
+            pastOnly = true;
+          }
         }
       }
     } else if (confidence !== "low") {
@@ -136,7 +143,7 @@ export function normalizeTasks(
     if (rawTime && dueDate) {
       dueTime = parseTime(rawTime);
       if (!dueTime) {
-        warnings.push(exam ? "เวลาสอบอ่านไม่ออก กรุณาใส่เอง" : "เวลาส่งอ่านไม่ออก ถือว่าส่งได้ถึง 23:59");
+        warnings.push(msg(lang, exam ? "warn.examTimeUnreadable" : "warn.dueTimeUnreadable"));
       }
     }
 
@@ -147,13 +154,13 @@ export function normalizeTasks(
       endTime = parseTime(rawEnd);
       if (!endTime || endTime <= dueTime) {
         endTime = null;
-        warnings.push("เวลาสอบเสร็จไม่ถูกต้อง กรุณาตรวจ");
+        warnings.push(msg(lang, "warn.endBad"));
       }
     }
 
-    if (!dueDate) warnings.unshift(`ยังไม่รู้${dayWord}`);
-    else if (confidence === "low" && !warnings.some((w) => w !== `${dayWord}ผ่านไปแล้ว`)) {
-      warnings.push("AI ไม่แน่ใจวันที่ กรุณาตรวจกับต้นฉบับ");
+    if (!dueDate) warnings.unshift(msg(lang, "warn.unknownDay", { day }));
+    else if (confidence === "low" && (warnings.length === 0 || (pastOnly && warnings.length === 1))) {
+      warnings.push(msg(lang, "warn.unsure"));
     }
 
     const courseCode = clean(t.course_code, 50);

@@ -5,6 +5,8 @@
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { toBangkokParts, untilBangkokMidnight } from "@/lib/dates";
+import { getLang } from "@/lib/preferences";
+import { t } from "@/lib/messages";
 import { mockExtract } from "@/lib/ai/claude";
 import { AiError } from "@/lib/ai/errors";
 import { extractTasks, isMockMode, mockReason } from "@/lib/ai/extract";
@@ -21,13 +23,14 @@ function fail(error: string, status: number, usage?: AiUsage) {
 }
 
 export async function POST(request: Request) {
+  const lang = await getLang();
   const user = await getCurrentUser();
-  if (!user) return fail("กรุณาเข้าสู่ระบบก่อน", 401);
+  if (!user) return fail(t(lang, "api.needLogin"), 401);
 
   // กันไฟล์ใหญ่ตั้งแต่ยังไม่อ่าน body (เผื่อข้อความ + หัว multipart อีกเล็กน้อย)
   const length = Number(request.headers.get("content-length") ?? 0);
   if (length > MAX_UPLOAD_BYTES + MAX_TEXT_LENGTH * 4 + 64 * 1024) {
-    return fail("ไฟล์ใหญ่เกินไป รวมกันได้ไม่เกิน 4 MB", 413);
+    return fail(t(lang, "api.tooBig"), 413);
   }
 
   let text = "";
@@ -46,18 +49,20 @@ export async function POST(request: Request) {
       text = typeof body?.text === "string" ? body.text.trim() : "";
     }
   } catch {
-    return fail("ข้อมูลที่ส่งมาไม่ถูกต้อง", 400);
+    return fail(t(lang, "api.badBody"), 400);
   }
 
-  const upload = checkUploads(uploads);
+  const upload = checkUploads(uploads, lang);
   if (!upload.ok) return fail(upload.error, 400);
   const files: Attachment[] = upload.attachments;
   const inputType = upload.kind === "none" ? "text" : upload.kind;
 
-  if (!text && !files.length) return fail("กรุณาวางข้อความหรือแนบไฟล์ก่อน", 400);
+  if (!text && !files.length) return fail(t(lang, "api.needInput"), 400);
   if (text.length > MAX_TEXT_LENGTH) {
     return fail(
-      `ข้อความยาวเกิน ${MAX_TEXT_LENGTH.toLocaleString("th-TH")} ตัวอักษร ลองตัดเฉพาะส่วนกำหนดส่งงาน`,
+      t(lang, "api.textTooLong", {
+        max: MAX_TEXT_LENGTH.toLocaleString(lang === "en" ? "en-US" : "th-TH"),
+      }),
       400,
     );
   }
@@ -76,16 +81,16 @@ export async function POST(request: Request) {
       .gte("created_at", bangkokDayStartIso(today));
     if (error) {
       console.error("extract: read ai_usage", error);
-      return fail("ตรวจสอบโควตาไม่สำเร็จ ลองใหม่อีกครั้ง", 500);
+      return fail(t(lang, "api.quotaCheckFailed"), 500);
     }
     usage = summarizeUsage(data ?? []);
     const block = usageBlock(usage);
-    const reset = `ใช้ได้ใหม่ตอนเที่ยงคืน (00:00 น. เวลาไทย) อีก ${untilBangkokMidnight()}`;
+    const reset = t(lang, "api.reset", { left: untilBangkokMidnight(new Date(), lang) });
     if (block === "quota") {
-      return fail(`ใช้ AI ครบ ${AI_DAILY_LIMIT} ครั้งของวันนี้แล้ว — ${reset}`, 429, usage);
+      return fail(t(lang, "api.quotaFull", { n: AI_DAILY_LIMIT, reset }), 429, usage);
     }
     if (block === "attempts") {
-      return fail(`วันนี้ลองใช้ AI ไม่สำเร็จหลายครั้งเกินไป — ${reset}`, 429, usage);
+      return fail(t(lang, "api.attemptsFull", { reset }), 429, usage);
     }
   }
 
@@ -110,7 +115,12 @@ export async function POST(request: Request) {
     }
     success = true;
   } catch (err) {
-    const message = err instanceof AiError ? err.message : "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง";
+    const message =
+      err instanceof AiError
+        ? err.key
+          ? t(lang, err.key, err.vars)
+          : err.message
+        : t(lang, "api.generic");
     if (!(err instanceof AiError)) console.error("extract", err);
     // ครั้งที่ล้มเหลวไม่เสียโควตา แต่นับเข้าเพดานรวม
     return fail(message, 502, usage && { ...usage, attempts: usage.attempts + 1 });
@@ -125,7 +135,7 @@ export async function POST(request: Request) {
   }
 
   const { data: courses } = await coursesPromise;
-  const tasks = normalizeTasks(raw, courses ?? [], today);
+  const tasks = normalizeTasks(raw, courses ?? [], today, lang);
   return Response.json({
     ok: true,
     tasks,

@@ -2,7 +2,8 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getCourseLabelMode } from "@/lib/preferences";
+import { getCourseLabelMode, getLang } from "@/lib/preferences";
+import { t } from "@/lib/messages";
 import { toBangkokParts } from "@/lib/dates";
 import { isExamType } from "@/lib/exams";
 import type { Course, TaskCategory } from "@/lib/types";
@@ -10,25 +11,36 @@ import { isMockMode } from "@/lib/ai/extract";
 import { bangkokDayStartIso, summarizeUsage } from "@/lib/ai/usage";
 import { AppNav } from "@/components/app-nav";
 import { WithYearMode } from "@/components/with-year-mode";
+import { WithLang } from "@/components/with-lang";
 import { ImportForm, type ExistingItem } from "@/components/import-form";
 
 export default function ImportPage() {
   return (
     <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-none lg:px-10 min-[1700px]:px-16">
       <AppNav current="/import" />
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">เพิ่มงานและสอบด้วย AI</h1>
-        <p className="text-sm text-muted lg:max-w-2xl">
-          วางข้อความ หรือแนบ PDF / รูปแคปประกาศ แล้วตรวจก่อนบันทึก
-        </p>
-      </div>
+      {/* ภาษามาจาก cookie → อ่านใน Suspense เสมอ */}
+      <Suspense fallback={<div className="h-14" />}>
+        <ImportHeader />
+      </Suspense>
 
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
-        <WithYearMode>
-          <ImportSection />
-        </WithYearMode>
+        <WithLang>
+          <WithYearMode>
+            <ImportSection />
+          </WithYearMode>
+        </WithLang>
       </Suspense>
     </main>
+  );
+}
+
+async function ImportHeader() {
+  const lang = await getLang();
+  return (
+    <div className="space-y-1">
+      <h1 className="text-2xl font-semibold tracking-tight">{t(lang, "imp.title")}</h1>
+      <p className="text-sm text-muted lg:max-w-2xl">{t(lang, "imp.subtitle")}</p>
+    </div>
   );
 }
 
