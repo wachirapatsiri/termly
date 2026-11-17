@@ -116,7 +116,7 @@ export async function createTask(
     if (dup) return { duplicate: dup.title, values: parsed.values };
   }
 
-  const cat = await resolveCategory(supabase, parsed.category);
+  const cat = await resolveCategory(supabase, parsed.category, lang);
   if (!cat.ok) return { error: cat.error, values: parsed.values };
   // user_id ไม่ต้องส่ง — ฐานข้อมูลเติม auth.uid() ให้ และ RLS ตรวจซ้ำอีกชั้น
   const { error } = await supabase
@@ -143,7 +143,7 @@ export async function updateTask(
   if (!parsed.data) return { error: parsed.error, values: parsed.values };
 
   const supabase = await createClient();
-  const cat = await resolveCategory(supabase, parsed.category);
+  const cat = await resolveCategory(supabase, parsed.category, lang);
   if (!cat.ok) return { error: cat.error, values: parsed.values };
   const { data, error } = await supabase
     .from("tasks")

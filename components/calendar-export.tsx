@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { icsQuery, NO_COURSE } from "@/lib/ics";
+import { useT } from "@/components/lang";
 
 // จำนวนรายการที่มีวันแล้ว (ส่งออกได้) ต่อวิชา — คำนวณฝั่งเซิร์ฟเวอร์ในหน้า ⚙
 export type ExportCourse = {
@@ -19,6 +20,7 @@ export function CalendarExport({
   courses: ExportCourse[];
   undated: number; // งาน/สอบที่ยังไม่มีวัน (ไม่ใส่ลงไฟล์)
 }) {
+  const tr = useT();
   const [pending, setPending] = useState(true);
   const [done, setDone] = useState(false);
   const [exams, setExams] = useState(true);
@@ -47,23 +49,23 @@ export function CalendarExport({
   return (
     <section id="calendar" className="scroll-mt-6 space-y-4">
       <div className="space-y-1">
-        <h2 className="font-medium">ส่งออกไปปฏิทิน</h2>
+        <h2 className="font-medium">{tr("cal.title")}</h2>
         <p className="text-sm text-muted">
-          ได้ไฟล์ .ics ไปนำเข้า Google Calendar / ปฏิทิน iPhone · เตือนล่วงหน้า 1 วัน
+          {tr("cal.desc")}
         </p>
       </div>
 
       <fieldset className="space-y-2">
-        <legend className="mb-2 text-sm text-muted">ใส่อะไรบ้าง</legend>
-        <Check checked={pending} onChange={setPending} label="งานที่ยังไม่เสร็จ" count={sum("pending")} />
-        <Check checked={done} onChange={setDone} label="งานที่เสร็จแล้ว" count={sum("done")} />
-        <Check checked={exams} onChange={setExams} label="วันสอบ" count={sum("exams")} />
+        <legend className="mb-2 text-sm text-muted">{tr("cal.include")}</legend>
+        <Check checked={pending} onChange={setPending} label={tr("cal.pending")} count={sum("pending")} />
+        <Check checked={done} onChange={setDone} label={tr("cal.done")} count={sum("done")} />
+        <Check checked={exams} onChange={setExams} label={tr("cal.exams")} count={sum("exams")} />
       </fieldset>
 
       {courses.length > 1 && (
         <fieldset className="space-y-2">
           <div className="mb-2 flex items-baseline justify-between">
-            <legend className="text-sm text-muted">วิชา</legend>
+            <legend className="text-sm text-muted">{tr("cal.courses")}</legend>
             <button
               type="button"
               className="text-sm text-accent"
@@ -71,7 +73,7 @@ export function CalendarExport({
                 setPicked(allPicked ? new Set() : new Set(courses.map((c) => c.id)))
               }
             >
-              {allPicked ? "ไม่เลือกทั้งหมด" : "เลือกทั้งหมด"}
+              {allPicked ? tr("cal.unpickAll") : tr("cal.pickAll")}
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -88,7 +90,7 @@ export function CalendarExport({
                   onChange={() => toggleCourse(c.id)}
                   className="h-4 w-4 accent-accent"
                 />
-                {c.id === NO_COURSE ? <span className="italic">ไม่มีวิชา</span> : c.label}
+                {c.id === NO_COURSE ? <span className="italic">{tr("set.noCourse")}</span> : c.label}
               </label>
             ))}
           </div>
@@ -101,41 +103,30 @@ export function CalendarExport({
           download
           className="block rounded-card bg-accent px-4 py-3 text-center font-medium text-white"
         >
-          ดาวน์โหลดไฟล์ปฏิทิน ({total} รายการ)
+          {tr("cal.download", { n: total })}
         </a>
       ) : (
         <p className="rounded-card border border-line px-4 py-3 text-center text-muted">
-          ยังไม่มีรายการที่ส่งออกได้ ลองเลือกเพิ่ม
+          {tr("cal.empty")}
         </p>
       )}
       {undated > 0 && (
         <p className="text-xs text-muted">
-          ไม่รวม {undated} รายการที่ยังไม่มีวันส่ง/วันสอบ — เติมวันก่อนแล้วส่งออกใหม่
+          {tr("cal.undated", { n: undated })}
         </p>
       )}
 
       <details className="rounded-card border border-line bg-surface p-3 text-sm">
-        <summary className="cursor-pointer font-medium">วิธีนำเข้า Google Calendar</summary>
+        <summary className="cursor-pointer font-medium">{tr("cal.howTitle")}</summary>
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-muted">
-          <li>ดาวน์โหลดไฟล์จากปุ่มด้านบน</li>
-          <li>
-            เปิด <span className="text-foreground">calendar.google.com</span> บน
-            <b className="text-foreground">คอมพิวเตอร์</b> (แอป Google Calendar ในมือถือนำเข้าไฟล์ไม่ได้
-            — ถ้าดาวน์โหลดในมือถือ ส่งไฟล์เข้าคอมก่อน)
-          </li>
-          <li>
-            แนะนำ: สร้างปฏิทินใหม่ชื่อ &quot;Termly&quot; ก่อน (⚙ การตั้งค่า → เพิ่มปฏิทิน →
-            สร้างปฏิทินใหม่) จะได้ซ่อน/ลบทั้งชุดได้ง่าย
-          </li>
-          <li>⚙ การตั้งค่า → นำเข้าและส่งออก → เลือกไฟล์ → เลือกปฏิทิน &quot;Termly&quot; → นำเข้า</li>
-          <li>
-            แก้งานใน Termly แล้ว ปฏิทินไม่อัปเดตเอง → ส่งออกแล้วนำเข้าใหม่ (รายการเดิมจะถูกแก้
-            ไม่ซ้ำ; ถ้ายังซ้ำ ลบปฏิทิน &quot;Termly&quot; แล้วนำเข้าใหม่)
-          </li>
+          <li>{tr("cal.step1")}</li>
+          <li>{tr("cal.step2")}</li>
+          <li>{tr("cal.step3")}</li>
+          <li>{tr("cal.step4")}</li>
+          <li>{tr("cal.step5")}</li>
         </ol>
         <p className="mt-3 text-muted">
-          <b className="text-foreground">iPhone:</b> กดดาวน์โหลดใน Safari → &quot;เพิ่มทั้งหมด&quot;
-          ลงปฏิทิน iPhone ได้เลย
+          <b className="text-foreground">iPhone:</b> {tr("cal.iphone")}
         </p>
       </details>
     </section>

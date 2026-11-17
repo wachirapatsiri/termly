@@ -2,10 +2,13 @@
 
 import { useOptimistic, useTransition } from "react";
 import { setYearMode } from "@/app/settings/actions";
+import { useLang, useT } from "@/components/lang";
 import { formatDue } from "@/lib/dates";
 import { YEAR_MODE_OPTIONS, type YearMode } from "@/lib/year-mode";
 
 export function YearModeSetting({ current, sampleIso }: { current: YearMode; sampleIso: string }) {
+  const lang = useLang();
+  const tr = useT();
   const [mode, setOptimisticMode] = useOptimistic(current);
   const [, startTransition] = useTransition();
 
@@ -19,7 +22,7 @@ export function YearModeSetting({ current, sampleIso }: { current: YearMode; sam
 
   return (
     <fieldset className="space-y-3">
-      <legend className="font-medium">แสดงปีเป็น</legend>
+      <legend className="font-medium">{tr("set.year.legend")}</legend>
       <div className="space-y-2">
         {YEAR_MODE_OPTIONS.map((o) => (
           <label
@@ -36,14 +39,13 @@ export function YearModeSetting({ current, sampleIso }: { current: YearMode; sam
               onChange={() => choose(o.value)}
               className="h-4 w-4 accent-accent"
             />
-            <span className="flex-1">{o.label}</span>
-            <span className="text-sm text-muted">{formatDue(sampleIso, false, o.value)}</span>
+            <span className="flex-1">{tr(`opt.year.${o.value}`)}</span>
+            <span className="text-sm text-muted">{formatDue(sampleIso, false, o.value, lang)}</span>
           </label>
         ))}
       </div>
       <p className="text-xs text-muted">
-        เปลี่ยนเฉพาะวันที่ที่แสดงในแอป · ปฏิทินตอนเลือกวันที่ใช้ภาษาตามที่ตั้งไว้ในมือถือ ·
-        AI อ่านเอกสารได้ทั้ง พ.ศ. และ ค.ศ. เหมือนเดิม
+        {tr("set.year.hint")}
       </p>
     </fieldset>
   );

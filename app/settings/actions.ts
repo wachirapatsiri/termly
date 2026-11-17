@@ -10,7 +10,10 @@ import { COURSE_LABEL_COOKIE, isCourseLabelMode } from "@/lib/course-label";
 import { YEAR_MODE_COOKIE, isYearMode } from "@/lib/year-mode";
 import { getUserSettings, type UserSettings } from "@/lib/preferences";
 import { THEME_COOKIE, isThemeMode } from "@/lib/theme";
-import { DELETE_CONFIRM_WORD } from "@/lib/account";
+import { isDeleteWord } from "@/lib/account";
+import { getLang } from "@/lib/preferences";
+import { t as msg } from "@/lib/messages";
+import type { Lang } from "@/lib/i18n";
 import { LANG_COOKIE, isLang } from "@/lib/i18n";
 
 const PREF_COOKIE = {
@@ -89,23 +92,24 @@ function cleanName(v: unknown): string {
   return typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
 }
 
-function checkName(name: string): string | null {
-  if (!name) return "กรุณาใส่ชื่อประเภท";
-  if (name.length > MAX_CATEGORY_LENGTH) return `ชื่อประเภทยาวเกิน ${MAX_CATEGORY_LENGTH} ตัวอักษร`;
+function checkName(name: string, lang: Lang): string | null {
+  if (!name) return msg(lang, "cat.err.nameRequired");
+  if (name.length > MAX_CATEGORY_LENGTH) return msg(lang, "cat.err.nameTooLong", { n: MAX_CATEGORY_LENGTH });
   return null;
 }
 
 // 23505 = ชื่อซ้ำ (unique index ไม่สนตัวพิมพ์ใน migration 0002)
-function saveError(error: { code?: string }, fallback: string): CategoryResult {
-  if (error.code === "23505") return { ok: false, error: "มีประเภทชื่อนี้อยู่แล้ว" };
+function saveError(error: { code?: string }, fallback: string, lang: Lang): CategoryResult {
+  if (error.code === "23505") return { ok: false, error: msg(lang, "cat.err.duplicate") };
   return { ok: false, error: fallback };
 }
 
 export async function createCategory(rawName: string): Promise<CategoryResult> {
+  const lang = await getLang();
   const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "กรุณาเข้าสู่ระบบก่อน" };
+  if (!user) return { ok: false, error: msg(lang, "api.needLogin") };
   const name = cleanName(rawName);
-  const invalid = checkName(name);
+  const invalid = checkName(name, lang);
   if (invalid) return { ok: false, error: invalid };
 
   const supabase = await createClient();
@@ -113,18 +117,19 @@ export async function createCategory(rawName: string): Promise<CategoryResult> {
   const { error } = await supabase.from("task_categories").insert({ name });
   if (error) {
     console.error("createCategory", error);
-    return saveError(error, "เพิ่มประเภทไม่สำเร็จ ลองใหม่อีกครั้ง");
+    return saveError(error, msg(lang, "cat.err.addFailed"), lang);
   }
   refresh();
   return { ok: true };
 }
 
 export async function renameCategory(id: string, rawName: string): Promise<CategoryResult> {
+  const lang = await getLang();
   const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "กรุณาเข้าสู่ระบบก่อน" };
-  if (typeof id !== "string" || !UUID_RE.test(id)) return { ok: false, error: "ไม่พบประเภทนี้" };
+  if (!user) return { ok: false, error: msg(lang, "api.needLogin") };
+  if (typeof id !== "string" || !UUID_RE.test(id)) return { ok: false, error: msg(lang, "cat.err.notFound") };
   const name = cleanName(rawName);
-  const invalid = checkName(name);
+  const invalid = checkName(name, lang);
   if (invalid) return { ok: false, error: invalid };
 
   const supabase = await createClient();
@@ -137,8 +142,8 @@ export async function renameCategory(id: string, rawName: string): Promise<Categ
   if (error || !data?.length) {
     if (error) console.error("renameCategory", error);
     return error
-      ? saveError(error, "เปลี่ยนชื่อไม่สำเร็จ ลองใหม่อีกครั้ง")
-      : { ok: false, error: "ไม่พบประเภทนี้" };
+      ? saveError(error, msg(lang, "cat.err.renameFailed"), lang)
+      : { ok: false, error: msg(lang, "cat.err.notFound") };
   }
   refresh();
   return { ok: true };
@@ -146,9 +151,10 @@ export async function renameCategory(id: string, rawName: string): Promise<Categ
 
 // ลบประเภท → งานยังอยู่ แค่ category_id เป็น null (ตั้งไว้ใน migration 0002)
 export async function deleteCategory(id: string): Promise<CategoryResult> {
+  const lang = await getLang();
   const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "กรุณาเข้าสู่ระบบก่อน" };
-  if (typeof id !== "string" || !UUID_RE.test(id)) return { ok: false, error: "ไม่พบประเภทนี้" };
+  if (!user) return { ok: false, error: msg(lang, "api.needLogin") };
+  if (typeof id !== "string" || !UUID_RE.test(id)) return { ok: false, error: msg(lang, "cat.err.notFound") };
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -158,7 +164,7 @@ export async function deleteCategory(id: string): Promise<CategoryResult> {
     .eq("user_id", user.id);
   if (error) {
     console.error("deleteCategory", error);
-    return { ok: false, error: "ลบไม่สำเร็จ ลองใหม่อีกครั้ง" };
+    return { ok: false, error: msg(lang, "cat.err.deleteFailed") };
   }
   refresh();
   return { ok: true };
@@ -173,28 +179,29 @@ async function clearPrefCookies() {
   for (const name of [COURSE_LABEL_COOKIE, YEAR_MODE_COOKIE, THEME_COOKIE]) jar.delete(name);
 }
 
-function deleteError(error: { code?: string; message?: string }): DeleteResult {
+function deleteError(error: { code?: string; message?: string }, lang: Lang): DeleteResult {
   // PGRST202 / 42883 = ไม่พบฟังก์ชัน (ยังไม่ได้รัน migration 0006)
   const missing = error.code === "PGRST202" || error.code === "42883";
   return {
     ok: false,
-    error: missing
-      ? "ระบบลบข้อมูลยังไม่พร้อม (ยังไม่ได้รัน migration 0006)"
-      : "ลบไม่สำเร็จ ลองใหม่อีกครั้ง",
+    error: missing ? msg(lang, "del.err.migration") : msg(lang, "del.err.failed"),
   };
 }
 
 // ลบงาน/สอบ/วิชา/ประเภท/การตั้งค่าทั้งหมด แต่ยังล็อกอินบัญชีเดิมได้
 export async function deleteMyData(confirmWord: string): Promise<DeleteResult> {
-  if (confirmWord.trim() !== DELETE_CONFIRM_WORD) return { ok: false, error: `พิมพ์คำว่า "${DELETE_CONFIRM_WORD}" เพื่อยืนยัน` };
+  const lang = await getLang();
+  if (!isDeleteWord(confirmWord)) {
+    return { ok: false, error: msg(lang, "del.err.confirm", { word: msg(lang, "del.word") }) };
+  }
   const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "กรุณาเข้าสู่ระบบก่อน" };
+  if (!user) return { ok: false, error: msg(lang, "api.needLogin") };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("delete_my_data");
   if (error) {
     console.error("deleteMyData", error);
-    return deleteError(error);
+    return deleteError(error, lang);
   }
   await clearPrefCookies();
   refresh();
@@ -203,15 +210,18 @@ export async function deleteMyData(confirmWord: string): Promise<DeleteResult> {
 
 // ลบบัญชีถาวร (ข้อมูลทั้งหมดหายตาม) แล้วออกจากระบบ
 export async function deleteMyAccount(confirmWord: string): Promise<DeleteResult> {
-  if (confirmWord.trim() !== DELETE_CONFIRM_WORD) return { ok: false, error: `พิมพ์คำว่า "${DELETE_CONFIRM_WORD}" เพื่อยืนยัน` };
+  const lang = await getLang();
+  if (!isDeleteWord(confirmWord)) {
+    return { ok: false, error: msg(lang, "del.err.confirm", { word: msg(lang, "del.word") }) };
+  }
   const user = await getCurrentUser();
-  if (!user) return { ok: false, error: "กรุณาเข้าสู่ระบบก่อน" };
+  if (!user) return { ok: false, error: msg(lang, "api.needLogin") };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("delete_my_account");
   if (error) {
     console.error("deleteMyAccount", error);
-    return deleteError(error);
+    return deleteError(error, lang);
   }
   // บัญชีหายแล้ว → ล้าง session ในเครื่องนี้ (ไม่ต้องเรียกเซิร์ฟเวอร์ Supabase)
   await supabase.auth.signOut({ scope: "local" });

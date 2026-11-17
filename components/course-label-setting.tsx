@@ -2,6 +2,7 @@
 
 import { useOptimistic, useTransition } from "react";
 import { setCourseLabelMode } from "@/app/settings/actions";
+import { useT } from "@/components/lang";
 import {
   COURSE_LABEL_OPTIONS,
   courseLabel,
@@ -16,6 +17,7 @@ export function CourseLabelSetting({
   current: CourseLabelMode;
   sample: { name: string; code: string | null };
 }) {
+  const tr = useT();
   const [mode, setOptimisticMode] = useOptimistic(current);
   const [, startTransition] = useTransition();
 
@@ -29,7 +31,7 @@ export function CourseLabelSetting({
 
   return (
     <fieldset className="space-y-3">
-      <legend className="font-medium">แสดงวิชาในรายการงานเป็น</legend>
+      <legend className="font-medium">{tr("set.courseLabel.legend")}</legend>
       <div className="space-y-2">
         {COURSE_LABEL_OPTIONS.map((o) => (
           <label
@@ -46,14 +48,13 @@ export function CourseLabelSetting({
               onChange={() => choose(o.value)}
               className="h-4 w-4 accent-accent"
             />
-            <span className="flex-1">{o.label}</span>
+            <span className="flex-1">{tr(`opt.courseLabel.${o.value}`)}</span>
             <span className="text-sm text-muted">{courseLabel(sample, o.value)}</span>
           </label>
         ))}
       </div>
       <p className="text-xs text-muted">
-        วิชาที่ไม่ได้ใส่รหัสจะแสดงเป็นชื่อวิชาเสมอ · การตั้งค่าจำไว้กับบัญชี
-        ใช้ได้ทั้งมือถือและคอม
+        {tr("set.courseLabel.hint")}
       </p>
     </fieldset>
   );

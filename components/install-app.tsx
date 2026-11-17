@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/components/lang";
 
 // event ของ Chrome/Android ก่อนขึ้นหน้าต่าง "ติดตั้งแอป" (ยังไม่มีใน type มาตรฐาน)
 type InstallPromptEvent = Event & {
@@ -13,6 +14,7 @@ type State = "loading" | "installed" | "prompt" | "ios" | "manual";
 // หน้า ⚙: ติดตั้ง Termly ลงหน้าจอโฮม
 // Android/Chrome = ปุ่มติดตั้ง, iPhone/iPad = บอกวิธีกดแชร์ → เพิ่มไปยังหน้าจอโฮม (iOS ไม่มีปุ่มให้กด)
 export function InstallApp() {
+  const tr = useT();
   const [state, setState] = useState<State>("loading");
   const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null);
 
@@ -51,35 +53,33 @@ export function InstallApp() {
 
   return (
     <section className="space-y-2">
-      <h2 className="font-medium">ติดตั้งลงหน้าจอโฮม</h2>
+      <h2 className="font-medium">{tr("inst.title")}</h2>
       {state === "loading" && <p className="h-5" />}
       {state === "installed" && (
-        <p className="text-sm text-muted">✓ ติดตั้งแล้ว — เปิด Termly จากไอคอนบนหน้าจอโฮมได้เลย</p>
+        <p className="text-sm text-muted">{tr("inst.installed")}</p>
       )}
       {state === "prompt" && (
         <>
-          <p className="text-sm text-muted">เปิดเร็วเหมือนแอป ไม่ต้องพิมพ์ชื่อเว็บ</p>
+          <p className="text-sm text-muted">{tr("inst.prompt")}</p>
           <button
             type="button"
             onClick={install}
             className="rounded-card bg-accent px-4 py-2 text-sm font-medium text-white"
           >
-            ติดตั้งแอป Termly
+            {tr("inst.button")}
           </button>
         </>
       )}
       {state === "ios" && (
         <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
-          <li>เปิดหน้านี้ใน Safari</li>
-          <li>
-            กดปุ่มแชร์ <span aria-hidden>⎋</span> (สี่เหลี่ยมมีลูกศรชี้ขึ้น)
-          </li>
-          <li>เลือก &ldquo;เพิ่มไปยังหน้าจอโฮม&rdquo; แล้วกด &ldquo;เพิ่ม&rdquo;</li>
+          <li>{tr("inst.ios1")}</li>
+          <li>{tr("inst.ios2")}</li>
+          <li>{tr("inst.ios3")}</li>
         </ol>
       )}
       {state === "manual" && (
         <p className="text-sm text-muted">
-          เปิดเมนูของเบราว์เซอร์ (⋮) แล้วเลือก &ldquo;ติดตั้งแอป&rdquo; หรือ &ldquo;เพิ่มลงในหน้าจอหลัก&rdquo;
+          {tr("inst.manual")}
         </p>
       )}
     </section>

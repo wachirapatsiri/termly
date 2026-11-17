@@ -9,6 +9,8 @@
 // - UID คงที่ต่อรายการ → นำเข้าซ้ำ ปฏิทินส่วนใหญ่จะแก้ของเดิมแทนการเพิ่มซ้ำ
 // - เตือน 1 วันก่อน (Google Calendar ตอนนำเข้าไฟล์มักไม่สนส่วนนี้ ใช้การเตือนของปฏิทินเอง)
 import { toBangkokParts } from "./dates.ts";
+import { t } from "./messages.ts";
+import type { Lang } from "./i18n.ts";
 
 export type IcsItem = {
   uid: string;
@@ -97,17 +99,23 @@ export type IcsExam = {
 
 export function taskToIcs(
   task: IcsTask,
-  opts: { courseLabel?: string | null; courseName?: string | null; category?: string | null },
+  opts: {
+    courseLabel?: string | null;
+    courseName?: string | null;
+    category?: string | null;
+    lang?: Lang;
+  },
 ): IcsItem | null {
   if (!task.due_at) return null;
+  const lang = opts.lang ?? "th";
   const prefix = opts.courseLabel ? `[${opts.courseLabel}] ` : "";
   const desc = [
-    task.done ? "✅ ทำเสร็จแล้ว" : null,
-    opts.courseName ? `วิชา: ${opts.courseName}` : null,
-    opts.category ? `ประเภท: ${opts.category}` : null,
-    task.due_has_time ? null : "ส่งภายในวันนี้ (ไม่ระบุเวลา)",
+    task.done ? `✅ ${t(lang, "ics.done")}` : null,
+    opts.courseName ? t(lang, "ics.course", { name: opts.courseName }) : null,
+    opts.category ? t(lang, "ics.category", { name: opts.category }) : null,
+    task.due_has_time ? null : t(lang, "ics.dueToday"),
     task.notes,
-    "จาก Termly",
+    t(lang, "ics.from"),
   ].filter(Boolean);
   return {
     uid: `task-${task.id}@termly`,
@@ -121,15 +129,16 @@ export function taskToIcs(
 
 export function examToIcs(
   exam: IcsExam,
-  opts: { label: string; courseName?: string | null },
+  opts: { label: string; courseName?: string | null; lang?: Lang },
 ): IcsItem | null {
   if (!exam.starts_at) return null;
   const timed = exam.has_time;
+  const lang = opts.lang ?? "th";
   const desc = [
-    opts.courseName ? `วิชา: ${opts.courseName}` : null,
-    timed && !exam.ends_at ? "ไม่ระบุเวลาจบ" : null,
+    opts.courseName ? t(lang, "ics.course", { name: opts.courseName }) : null,
+    timed && !exam.ends_at ? t(lang, "ics.noEnd") : null,
     exam.notes,
-    "จาก Termly",
+    t(lang, "ics.from"),
   ].filter(Boolean);
   return {
     uid: `exam-${exam.id}@termly`,

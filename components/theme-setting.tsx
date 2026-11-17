@@ -2,9 +2,11 @@
 
 import { useOptimistic, useTransition } from "react";
 import { setTheme } from "@/app/settings/actions";
+import { useT } from "@/components/lang";
 import { THEME_OPTIONS, applyTheme, type ThemeMode } from "@/lib/theme";
 
 export function ThemeSetting({ current }: { current: ThemeMode }) {
+  const tr = useT();
   const [mode, setOptimisticMode] = useOptimistic(current);
   const [, startTransition] = useTransition();
 
@@ -20,7 +22,7 @@ export function ThemeSetting({ current }: { current: ThemeMode }) {
 
   return (
     <fieldset className="space-y-3">
-      <legend className="font-medium">ธีมสี</legend>
+      <legend className="font-medium">{tr("set.theme.legend")}</legend>
       <div className="grid grid-cols-3 gap-2">
         {THEME_OPTIONS.map((o) => (
           <label
@@ -37,12 +39,12 @@ export function ThemeSetting({ current }: { current: ThemeMode }) {
               onChange={() => choose(o.value)}
               className="sr-only"
             />
-            {o.label}
+            {tr(`opt.theme.${o.value}`)}
           </label>
         ))}
       </div>
       <p className="text-xs text-muted">
-        &quot;ตามเครื่อง&quot; = มืด/สว่างตามที่ตั้งไว้ในมือถือหรือคอม · จำไว้กับบัญชี
+        {tr("set.theme.hint")}
       </p>
     </fieldset>
   );

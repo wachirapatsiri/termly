@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getUserSettings } from "@/lib/preferences";
+import { LangProvider } from "@/components/lang";
 import { AppNav } from "@/components/app-nav";
 import { CategoryManager } from "@/components/category-manager";
 import { CourseLabelSetting } from "@/components/course-label-setting";
@@ -22,8 +23,7 @@ export default function SettingsPage() {
   return (
     <main className="mx-auto w-full max-w-md md:max-w-2xl flex-1 space-y-8 px-6 py-6 lg:max-w-none lg:px-10 min-[1700px]:px-16">
       <AppNav current="/settings" />
-      <h1 className="text-2xl font-semibold tracking-tight">ตั้งค่า</h1>
-
+      {/* ภาษามาจาก cookie → อ่านใน Suspense เสมอ */}
       <Suspense fallback={<div className="h-64 rounded-card border border-line" />}>
         <SettingsSection />
       </Suspense>
@@ -49,7 +49,7 @@ async function SettingsSection() {
     supabase.from("tasks").select("category_id").not("category_id", "is", null),
     loadExportCounts(supabase),
   ]);
-  const sample = sampleRes.data?.[0] ?? { name: "สถิติเบื้องต้น", code: "DS101" };
+  const sample = sampleRes.data?.[0] ?? { name: t(language, "set.sampleName"), code: "DS101" };
   if (categoriesRes.error) console.error("load categories", categoriesRes.error);
   const counts = new Map<string, number>();
   for (const t of taskCatsRes.data ?? []) {
@@ -62,6 +62,8 @@ async function SettingsSection() {
 
   return (
     // มือถือ: เรียงลงมา คั่นด้วยเส้น · จอคอม: การ์ด 2 คอลัมน์ (เรียงลงทีละคอลัมน์ ลำดับเหมือนมือถือ)
+    <LangProvider lang={language}>
+    <h1 className="mb-8 text-2xl font-semibold tracking-tight">{t(language, "set.title")}</h1>
     <div className="space-y-6 lg:columns-2 lg:gap-6 lg:space-y-0">
       <Block first>
         <Link
@@ -69,7 +71,7 @@ async function SettingsSection() {
           className="flex items-center gap-3 rounded-card border border-info-line bg-info-soft px-4 py-3 text-sm transition active:scale-95"
         >
           <span className="min-w-0 flex-1">
-            <span className="font-medium">ส่งความเห็น / แจ้งปัญหา</span>
+            <span className="font-medium">{t(language, "set.feedbackLink")}</span>
           </span>
           <span aria-hidden className="text-info">
             →
@@ -105,7 +107,7 @@ async function SettingsSection() {
         <CalendarExport
           courses={exportRes.courses.map((c) => ({
             ...c,
-            label: c.id === NO_COURSE ? "ไม่มีวิชา" : courseLabel(c.course!, mode),
+            label: c.id === NO_COURSE ? t(language, "set.noCourse") : courseLabel(c.course!, mode),
           }))}
           undated={exportRes.undated}
         />
@@ -117,8 +119,8 @@ async function SettingsSection() {
 
       <Block>
         <section className="space-y-3">
-          <p className="text-sm text-muted">เข้าสู่ระบบเป็น {user.email}</p>
-          <SignOutButton />
+          <p className="text-sm text-muted">{t(language, "set.signedInAs", { email: user.email ?? "" })}</p>
+          <SignOutButton label={t(language, "home.signOut")} />
         </section>
       </Block>
 
@@ -126,6 +128,7 @@ async function SettingsSection() {
         <DeleteAccount />
       </Block>
     </div>
+    </LangProvider>
   );
 }
 

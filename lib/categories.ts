@@ -1,5 +1,7 @@
 // ประเภทงาน (ตาราง task_categories) — ใช้ทั้งฟอร์มงาน หน้าตั้งค่า และหน้านำเข้า
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { t } from "./messages.ts";
+import type { Lang } from "./i18n.ts";
 
 // ค่าในช่องเลือกประเภท ที่หมายถึง "+ พิมพ์ประเภทใหม่…"
 export const NEW_CATEGORY = "__new";
@@ -13,6 +15,7 @@ export const categoryKey = (s: string) => s.trim().toLowerCase();
 export async function resolveCategory(
   supabase: SupabaseClient,
   choice: { id: string } | { name: string } | null,
+  lang: Lang = "th",
 ): Promise<{ ok: true; id: string | null } | { ok: false; error: string }> {
   if (!choice) return { ok: true, id: null };
   if ("id" in choice) return { ok: true, id: choice.id };
@@ -25,7 +28,7 @@ export async function resolveCategory(
     .select("id, name");
   if (loadError) {
     console.error("resolveCategory: load", loadError);
-    return { ok: false, error: "บันทึกประเภทงานไม่สำเร็จ ลองใหม่อีกครั้ง" };
+    return { ok: false, error: t(lang, "cat.err.saveFailed") };
   }
   const found = existing?.find((c) => categoryKey(c.name) === categoryKey(name));
   if (found) return { ok: true, id: found.id };
@@ -38,7 +41,7 @@ export async function resolveCategory(
     .single();
   if (error || !data) {
     console.error("resolveCategory: insert", error);
-    return { ok: false, error: "สร้างประเภทงานไม่สำเร็จ ลองใหม่อีกครั้ง" };
+    return { ok: false, error: t(lang, "cat.err.createFailed") };
   }
   return { ok: true, id: data.id };
 }
