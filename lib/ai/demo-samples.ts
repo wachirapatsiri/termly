@@ -14,6 +14,7 @@ type DemoSet = {
 const IP = { course_code: "204383", course_name: "Image Processing" };
 const AI = { course_code: "204471", course_name: "Artificial Intelligence" };
 const DE = { course_code: "204426", course_name: "Data Engineering" };
+const DS101 = { course_code: "DS101", course_name: "สถิติเบื้องต้น" };
 const PDS = { course_code: "229223", course_name: "Programming for Data Science" };
 
 export const DEMO_SETS: DemoSet[] = [
@@ -237,6 +238,73 @@ export const DEMO_SETS: DemoSet[] = [
         location: null,
         due_date_confidence: "high",
         raw_date_text: "สอบปลายภาค 20 ตุลาคม 2567 15:30-18:30",
+        note: null,
+      },
+    ],
+  },
+  {
+    // ข้อมูลสมมติล้วนสำหรับทำคลิปแนะนำแอป (ไม่ใช่เอกสารจริงของใคร) — มีทั้งงานและสอบกลางภาคในข้อความเดียว + 1 รายการวันไม่ชัด
+    label: "ซิลลาบัสตัวอย่าง DS101 สถิติเบื้องต้น (ข้อมูลสมมติ)",
+    keywords: [["ds101", "สถิติเบื้องต้น"]],
+    tasks: [
+      {
+        title: "การบ้านที่ 1 สถิติเชิงพรรณนา",
+        kind: "homework",
+        ...DS101,
+        due_date: "2026-12-04",
+        due_time: "23:59",
+        end_time: null,
+        location: null,
+        due_date_confidence: "high",
+        raw_date_text: "การบ้านที่ 1 ส่งวันศุกร์ที่ 4 ธ.ค. 2569 เวลา 23:59",
+        note: null,
+      },
+      {
+        title: "Quiz 1 ความน่าจะเป็น",
+        kind: "quiz",
+        ...DS101,
+        due_date: "2026-12-11",
+        due_time: "13:00",
+        end_time: null,
+        location: null,
+        due_date_confidence: "high",
+        raw_date_text: "Quiz 1 วันศุกร์ที่ 11 ธ.ค. 2569 เวลา 13:00",
+        note: "ทำในคาบเรียน",
+      },
+      {
+        title: "รายงานแล็บ 2 การทดสอบสมมติฐาน",
+        kind: "lab",
+        ...DS101,
+        due_date: "2026-12-18",
+        due_time: null,
+        end_time: null,
+        location: null,
+        due_date_confidence: "high",
+        raw_date_text: "รายงานแล็บ 2 ส่งวันศุกร์ที่ 18 ธ.ค. 2569",
+        note: null,
+      },
+      {
+        title: "โปรเจกต์วิเคราะห์ข้อมูล",
+        kind: "project",
+        ...DS101,
+        due_date: null,
+        due_time: null,
+        end_time: null,
+        location: null,
+        due_date_confidence: "low",
+        raw_date_text: "โปรเจกต์ ส่งสัปดาห์ที่ 15",
+        note: "เอกสารบอกแค่สัปดาห์ที่ 15 ไม่ระบุวัน",
+      },
+      {
+        title: "สอบกลางภาค",
+        kind: "midterm",
+        ...DS101,
+        due_date: "2026-12-21",
+        due_time: "09:00",
+        end_time: "12:00",
+        location: "ห้อง 301 อาคารเรียนรวม",
+        due_date_confidence: "high",
+        raw_date_text: "สอบกลางภาค วันจันทร์ที่ 21 ธ.ค. 2569 เวลา 9:00-12:00 ห้อง 301 อาคารเรียนรวม",
         note: null,
       },
     ],

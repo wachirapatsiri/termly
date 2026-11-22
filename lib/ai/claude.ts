@@ -100,23 +100,23 @@ export function mockExtract(todayIso: string): AiTask[] {
 
   return [
     {
-      title: "[ตัวอย่าง] 02 [Group] Vector to Raster Image",
+      title: "[ตัวอย่าง] การบ้านที่ 2 แผนภูมิและการแจกแจง",
       kind: "homework",
-      course_code: "204383",
-      course_name: "Image Processing",
+      course_code: "DS101",
+      course_name: "สถิติเบื้องต้น",
       due_date: addDays(5),
       due_time: "12:30",
       end_time: null,
       location: null,
       due_date_confidence: "high",
       raw_date_text: "Due: ... 12:30",
-      note: "งานกลุ่ม 1–3 คน ส่ง PNG + PDF โค้ด",
+      note: "งานกลุ่ม 1–3 คน ส่งไฟล์ PDF",
     },
     {
-      title: "[ตัวอย่าง] HW07 Bayes Net",
+      title: "[ตัวอย่าง] การบ้านที่ 3 ความน่าจะเป็น",
       kind: "homework",
-      course_code: "204471",
-      course_name: "Artificial Intelligence",
+      course_code: "DS202",
+      course_name: "การเรียนรู้ของเครื่องเบื้องต้น",
       due_date: addDays(9),
       due_time: "23:59",
       end_time: null,
@@ -128,8 +128,8 @@ export function mockExtract(todayIso: string): AiTask[] {
     {
       title: "[ตัวอย่าง] สอบกลางภาค",
       kind: "midterm",
-      course_code: "204383",
-      course_name: "Image Processing",
+      course_code: "DS101",
+      course_name: "สถิติเบื้องต้น",
       due_date: beDate(addDays(20)), // จำลองกรณี AI ลืมแปลง พ.ศ.
       due_time: "08:00",
       end_time: "11:00",
@@ -141,8 +141,8 @@ export function mockExtract(todayIso: string): AiTask[] {
     {
       title: "[ตัวอย่าง] นำเสนอโปรเจกต์",
       kind: "presentation",
-      course_code: "204471",
-      course_name: "Artificial Intelligence",
+      course_code: "DS202",
+      course_name: "การเรียนรู้ของเครื่องเบื้องต้น",
       due_date: null,
       due_time: null,
       end_time: null,

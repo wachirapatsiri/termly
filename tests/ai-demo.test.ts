@@ -91,3 +91,15 @@ test("สอบทุกรายการที่มีเวลาเริ�
     }
   }
 });
+
+test("ชุด DS101 (ข้อมูลสมมติ): ได้ทั้งงานและสอบ + 1 รายการวันไม่ชัด + ไม่มีคำเตือน 'ผ่านไปแล้ว'", () => {
+  const text = "รายวิชา DS101 สถิติเบื้องต้น\nการบ้านที่ 1 ส่งวันศุกร์ที่ 4 ธ.ค. 2569 เวลา 23:59";
+  const sets = findDemoSets(text);
+  assert.equal(sets.length, 1);
+  const rows = normalizeTasks(sets[0].tasks, [], "2026-11-22");
+  assert.equal(rows.filter((r) => examTypeOf(r.kind)).length, 1); // สอบกลางภาค
+  assert.equal(rows.filter((r) => !examTypeOf(r.kind)).length, 4); // งาน
+  assert.equal(rows.filter((r) => r.confidence === "low").length, 1); // โปรเจกต์ วันไม่ชัด
+  for (const r of rows) assert.ok(!r.warnings.some((w) => w.includes("ผ่านไปแล้ว")), r.title);
+  assert.ok(!JSON.stringify(rows).match(/@|อาจารย์/)); // ไม่มีอีเมล/ชื่ออาจารย์
+});
